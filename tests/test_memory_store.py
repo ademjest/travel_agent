@@ -97,6 +97,28 @@ class MemoryStoreTests(unittest.TestCase):
         self.assertIn("青甘行程.docx", context)
         self.assertIn("敦煌沙洲夜市附近酒店", context)
 
+    def test_document_context_uses_at_most_two_relevant_chunks(self):
+        self.store.add_document(
+            group_openid="group",
+            uploader_openid="member",
+            filename="plan.docx",
+            sha256="context-limit",
+            full_text="青海湖行程",
+            chunks=[
+                "青海湖 第一片段 " + "甲" * 1000,
+                "青海湖 第二片段 " + "乙" * 1000,
+                "青海湖 第三片段 " + "丙" * 1000,
+            ],
+            summary="青海湖行程摘要",
+        )
+
+        context = self.store.build_document_context("group", "青海湖")
+
+        self.assertLessEqual(len(context), 3200)
+        self.assertIn("第一片段", context)
+        self.assertIn("第二片段", context)
+        self.assertNotIn("第三片段", context)
+
     def test_duplicate_document_is_not_inserted_twice(self):
         first = self.store.add_document(
             "group", "member", "plan.docx", "same-hash", "行程内容", ["行程内容"]

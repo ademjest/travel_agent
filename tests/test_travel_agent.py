@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from settings import Settings
 from travel_agent import TravelAgent
@@ -93,6 +94,17 @@ class TravelAgentTests(unittest.TestCase):
         self.assertEqual(result.reply, "请告诉我驾车起点和终点。")
         self.assertEqual(result.traces, ())
 
+    def test_client_uses_longer_timeout_and_one_retry(self):
+        with patch("travel_agent.OpenAI") as openai:
+            TravelAgent(
+                self.settings,
+                lambda name, arguments: "not used",
+            )
+
+        kwargs = openai.call_args.kwargs
+        self.assertEqual(kwargs["timeout"], 90.0)
+        self.assertEqual(kwargs["max_retries"], 1)
+
     def test_invalid_tool_arguments_are_returned_to_model(self):
         client = FakeClient([
             completion(assistant_message(tool_calls=[
@@ -170,6 +182,46 @@ class TravelAgentTests(unittest.TestCase):
         messages = client.completions.requests[0]["messages"]
         self.assertTrue(any("茶卡镇" in item["content"] for item in messages))
         self.assertTrue(any(item["content"] == "第一站去哪里？" for item in messages))
+
+    def test_history_messages_respect_three_thousand_character_budget(self):
+        history = [
+            ConversationTurn(
+                user_content="旧问题" + "甲" * 698,
+                assistant_content="旧回答" + "乙" * 698,
+                created_at="2026-07-15T00:00:00+00:00",
+            ),
+            ConversationTurn(
+                user_content="新问题" + "丙" * 998,
+                assistant_content="新回答" + "丁" * 998,
+                created_at="2026-07-15T00:01:00+00:00",
+            ),
+        ]
+
+        messages = TravelAgent._history_messages(history)
+
+        self.assertEqual(len(messages), 2)
+        self.assertTrue(messages[0]["content"].startswith("新问题"))
+        self.assertLessEqual(
+            sum(len(message["content"]) for message in messages),
+            3000,
+        )
+
+    def test_agent_logs_context_size_and_llm_elapsed_time(self):
+        client = FakeClient([
+            completion(assistant_message(content="已读取行程。"))
+        ])
+        agent = TravelAgent(
+            self.settings,
+            lambda name, arguments: "not used",
+            client=client,
+        )
+
+        with patch("travel_agent.logger") as logger:
+            agent.run("文档里写了什么？", knowledge_context="行程摘要")
+
+        log_calls = " ".join(str(call) for call in logger.info.call_args_list)
+        self.assertIn("Agent context", log_calls)
+        self.assertIn("LLM step completed", log_calls)
 
     def test_document_summary_uses_plain_chat_completion(self):
         client = FakeClient([

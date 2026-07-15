@@ -1,8 +1,10 @@
 import json
+import time
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Callable, Sequence
 
+from botpy import logging
 from openai import OpenAI
 
 from settings import Settings
@@ -10,9 +12,12 @@ from settings import Settings
 
 MAX_AGENT_STEPS = 4
 MAX_TOOL_CALLS = 6
-LLM_TIMEOUT_SECONDS = 45.0
-MAX_HISTORY_CHARS = 6000
+LLM_TIMEOUT_SECONDS = 90.0
+MAX_HISTORY_CHARS = 3000
 MAX_DOCUMENT_SUMMARY_INPUT_CHARS = 20000
+
+
+logger = logging.get_logger()
 
 
 TOOLS = [
@@ -144,7 +149,7 @@ class TravelAgent:
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
             timeout=LLM_TIMEOUT_SECONDS,
-            max_retries=0,
+            max_retries=1,
         )
 
     def run(
@@ -166,17 +171,50 @@ class TravelAgent:
                 ),
             })
 
-        messages.extend(self._history_messages(history))
+        history_messages = self._history_messages(history)
+        history_chars = sum(
+            len(message["content"])
+            for message in history_messages
+        )
+        logger.info(
+            "Agent context: history_turns=%s history_chars=%s "
+            "document_context_chars=%s",
+            len(history_messages) // 2,
+            history_chars,
+            len(knowledge_context),
+        )
+
+        messages.extend(history_messages)
         messages.append({"role": "user", "content": user_message})
         traces: list[ToolTrace] = []
         tool_cache: dict[tuple[str, str], str] = {}
 
-        for _ in range(MAX_AGENT_STEPS):
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=TOOLS,
-                tool_choice="auto",
+        for step_index in range(1, MAX_AGENT_STEPS + 1):
+            started_at = time.monotonic()
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=TOOLS,
+                    tool_choice="auto",
+                )
+            except Exception:
+                logger.warning(
+                    "LLM step failed: llm_step=%s elapsed_seconds=%.2f "
+                    "message_count=%s model=%s",
+                    step_index,
+                    time.monotonic() - started_at,
+                    len(messages),
+                    self.model,
+                )
+                raise
+            logger.info(
+                "LLM step completed: llm_step=%s elapsed_seconds=%.2f "
+                "message_count=%s model=%s",
+                step_index,
+                time.monotonic() - started_at,
+                len(messages),
+                self.model,
             )
             assistant = response.choices[0].message
             tool_calls = list(assistant.tool_calls or [])
