@@ -1,0 +1,116 @@
+name: Scheduled QQ Bot
+
+on:
+  schedule:
+    # UTC 每 6 小时启动，对应北京时间 02:17、08:17、14:17、20:17
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      run_minutes:
+        description: "Bot 在线分钟数，范围 1-340"
+        required: true
+        default: "340"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-qq-bot
+  cancel-in-progress: false
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Restore encrypted state cache
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: travel-agent-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            travel-agent-state-
+
+      - name: Decrypt SQLite state
+        env:
+          DB_PASSWORD: ${{ secrets.DB_ENCRYPTION_PASSWORD }}
+        run: |
+          mkdir -p data state
+          if [ -f state/travel-data.tar.gz.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 \
+              -in state/travel-data.tar.gz.enc \
+              -out /tmp/travel-data.tar.gz \
+              -pass env:DB_PASSWORD
+            tar -xzf /tmp/travel-data.tar.gz
+            rm -f /tmp/travel-data.tar.gz
+          fi
+
+      - name: Run QQ Bot
+        id: run_bot
+        env:
+          QQ_BOT_APPID: ${{ secrets.QQ_BOT_APPID }}
+          QQ_BOT_SECRET: ${{ secrets.QQ_BOT_SECRET }}
+          QQ_BOT_ALLOWED_GROUPS: ${{ secrets.QQ_BOT_ALLOWED_GROUPS }}
+          AMAP_API_KEY: ${{ secrets.AMAP_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL_ID: ${{ secrets.LLM_MODEL_ID }}
+          RUN_MINUTES: ${{ inputs.run_minutes || '340' }}
+        run: |
+          if ! [[ "$RUN_MINUTES" =~ ^[0-9]+$ ]] ||
+             [ "$RUN_MINUTES" -lt 1 ] ||
+             [ "$RUN_MINUTES" -gt 340 ]; then
+            echo "run_minutes must be between 1 and 340"
+            exit 1
+          fi
+
+          status=0
+          timeout --signal=INT --kill-after=30s \
+            "${RUN_MINUTES}m" python -u bot.py || status=$?
+
+          if [ "$status" -ne 0 ] &&
+             [ "$status" -ne 124 ] &&
+             [ "$status" -ne 130 ]; then
+            exit "$status"
+          fi
+
+      - name: Checkpoint and encrypt SQLite state
+        id: encrypt
+        if: always() && steps.run_bot.outcome != 'skipped'
+        env:
+          DB_PASSWORD: ${{ secrets.DB_ENCRYPTION_PASSWORD }}
+        run: |
+          mkdir -p data state
+
+          if [ -f data/travel_bot.db ]; then
+            python -c "import sqlite3; c=sqlite3.connect('data/travel_bot.db'); c.execute('PRAGMA wal_checkpoint(TRUNCATE)'); c.close()"
+          fi
+
+          tar -czf /tmp/travel-data.tar.gz data
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -in /tmp/travel-data.tar.gz \
+            -out state/travel-data.tar.gz.enc \
+            -pass env:DB_PASSWORD
+          rm -f /tmp/travel-data.tar.gz
+
+      - name: Save encrypted state cache
+        if: always() && steps.encrypt.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: travel-agent-state-${{ github.run_id }}-${{ github.run_attempt }}
