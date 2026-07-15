@@ -1,0 +1,5 @@
+qq-botpy
+python-dotenv
+requests
+openai
+python-docx
