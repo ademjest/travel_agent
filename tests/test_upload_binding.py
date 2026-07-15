@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 from document_service import DocumentIngestResult
 from memory_store import MemoryStore
@@ -79,7 +80,7 @@ class UploadBindingServiceTests(unittest.TestCase):
             "QG-ABC234",
             [],
         )
-        attachment = object()
+        attachment = SimpleNamespace(filename="plan.docx")
 
         first = self.service.handle_private_message(
             "private-user",
@@ -100,7 +101,7 @@ class UploadBindingServiceTests(unittest.TestCase):
             [("group-a", "c2c:private-user", [attachment])],
         )
 
-    def test_unsupported_attachment_keeps_binding_for_retry(self):
+    def test_unsupported_attachment_consumes_binding(self):
         self.documents.result = DocumentIngestResult(handled=False)
         self.service.issue_binding("group-a", "member-a")
         self.service.handle_private_message(
@@ -112,16 +113,46 @@ class UploadBindingServiceTests(unittest.TestCase):
         result = self.service.handle_private_message(
             "private-user",
             "",
-            [object()],
+            [SimpleNamespace(filename="photo.jpg")],
         )
 
         self.assertIn("不支持", result.reply)
-        self.assertIsNotNone(
+        self.assertIn("本次绑定已失效", result.reply)
+        self.assertIsNone(
             self.store.get_pending_upload_binding(
                 "private-user",
                 now=self.now,
             )
         )
+
+    def test_supported_attachment_claims_binding_before_ingestion(self):
+        class InspectingDocumentService(FakeDocumentService):
+            def ingest_attachments(inner_self, *args):
+                inner_self.pending_during_ingest = (
+                    self.store.get_pending_upload_binding(
+                        "private-user",
+                        now=self.now,
+                    )
+                )
+                return super().ingest_attachments(*args)
+
+        documents = InspectingDocumentService()
+        service = UploadBindingService(
+            self.store,
+            documents,
+            code_factory=lambda: "QG-XYZ234",
+            now_provider=lambda: self.now,
+        )
+        service.issue_binding("group-a", "member-a")
+        service.handle_private_message("private-user", "QG-XYZ234", [])
+
+        service.handle_private_message(
+            "private-user",
+            "",
+            [SimpleNamespace(filename="plan.docx")],
+        )
+
+        self.assertIsNone(documents.pending_during_ingest)
 
 
 if __name__ == "__main__":

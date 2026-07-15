@@ -113,6 +113,23 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             api.private_messages[0]["content"],
         )
 
+    async def test_duplicate_c2c_event_is_ignored(self):
+        api = FakeApi()
+        attachment = object()
+        message = SimpleNamespace(
+            id="private-message-duplicate",
+            content=None,
+            attachments=[attachment],
+            author=SimpleNamespace(user_openid="private-user"),
+            _api=api,
+        )
+
+        await self.bot.on_c2c_message_create(message)
+        await self.bot.on_c2c_message_create(message)
+
+        self.assertEqual(len(self.bot.upload_binding_service.private_calls), 1)
+        self.assertEqual(len(api.private_messages), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

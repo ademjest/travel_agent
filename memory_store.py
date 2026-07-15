@@ -25,6 +25,21 @@ class StoredDocument:
     is_new: bool
 
 
+@dataclass(frozen=True)
+class UploadBinding:
+    binding_id: int
+    group_openid: str
+    issuer_openid: str
+    c2c_user_openid: str
+    expires_at: str
+
+
+@dataclass(frozen=True)
+class UploadBindingRedemption:
+    status: str
+    binding: UploadBinding | None = None
+
+
 class MemoryStore:
     def __init__(self, database_path: str | Path | None = None):
         default_path = Path(__file__).resolve().parent / "data" / "travel_bot.db"
@@ -89,6 +104,26 @@ class MemoryStore:
                         ON DELETE CASCADE,
                     UNIQUE(document_id, chunk_index)
                 );
+
+                CREATE TABLE IF NOT EXISTS upload_bindings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code_hash TEXT NOT NULL UNIQUE,
+                    group_openid TEXT NOT NULL,
+                    issuer_openid TEXT NOT NULL,
+                    c2c_user_openid TEXT,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    redeemed_at TEXT,
+                    consumed_at TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_upload_bindings_private_user
+                ON upload_bindings(c2c_user_openid, id DESC);
+
+                CREATE TABLE IF NOT EXISTS processed_events (
+                    event_id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL
+                );
                 """
             )
             columns = {
@@ -102,6 +137,187 @@ class MemoryStore:
                     "ALTER TABLE documents "
                     "ADD COLUMN summary TEXT NOT NULL DEFAULT ''"
                 )
+
+    def claim_event(
+            self,
+            event_id: str,
+            now: datetime | None = None) -> bool:
+        created_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT OR IGNORE INTO processed_events (event_id, created_at)
+                VALUES (?, ?)
+                """,
+                (event_id, created_at.isoformat()),
+            )
+        return cursor.rowcount == 1
+
+    def create_upload_binding(
+            self,
+            code_hash: str,
+            group_openid: str,
+            issuer_openid: str,
+            expires_at: datetime,
+            now: datetime | None = None) -> int:
+        created_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO upload_bindings (
+                    code_hash,
+                    group_openid,
+                    issuer_openid,
+                    created_at,
+                    expires_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    code_hash,
+                    group_openid,
+                    issuer_openid,
+                    created_at.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+        return int(cursor.lastrowid)
+
+    def redeem_upload_binding(
+            self,
+            code_hash: str,
+            c2c_user_openid: str,
+            now: datetime | None = None) -> UploadBindingRedemption:
+        redeemed_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE upload_bindings
+                SET c2c_user_openid = ?, redeemed_at = ?
+                WHERE code_hash = ?
+                  AND redeemed_at IS NULL
+                  AND consumed_at IS NULL
+                  AND expires_at > ?
+                """,
+                (
+                    c2c_user_openid,
+                    redeemed_at.isoformat(),
+                    code_hash,
+                    redeemed_at.isoformat(),
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM upload_bindings WHERE code_hash = ?",
+                (code_hash,),
+            ).fetchone()
+            if cursor.rowcount != 1:
+                if row is None:
+                    return UploadBindingRedemption(status="invalid")
+                if datetime.fromisoformat(row["expires_at"]) <= redeemed_at:
+                    return UploadBindingRedemption(status="expired")
+                if row["consumed_at"]:
+                    return UploadBindingRedemption(status="used")
+                if row["c2c_user_openid"] != c2c_user_openid:
+                    return UploadBindingRedemption(status="used")
+                return UploadBindingRedemption(
+                    status="already_redeemed",
+                    binding=self._upload_binding_from_row(row),
+                )
+
+            connection.execute(
+                """
+                UPDATE upload_bindings
+                SET consumed_at = ?
+                WHERE c2c_user_openid = ?
+                  AND redeemed_at IS NOT NULL
+                  AND consumed_at IS NULL
+                  AND id != ?
+                """,
+                (redeemed_at.isoformat(), c2c_user_openid, row["id"]),
+            )
+
+        return UploadBindingRedemption(
+            status="redeemed",
+            binding=self._upload_binding_from_row(row),
+        )
+
+    def get_pending_upload_binding(
+            self,
+            c2c_user_openid: str,
+            now: datetime | None = None) -> UploadBinding | None:
+        current_time = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM upload_bindings
+                WHERE c2c_user_openid = ?
+                  AND redeemed_at IS NOT NULL
+                  AND consumed_at IS NULL
+                  AND expires_at > ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (c2c_user_openid, current_time.isoformat()),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._upload_binding_from_row(row)
+
+    def claim_pending_upload_binding(
+            self,
+            c2c_user_openid: str,
+            now: datetime | None = None) -> UploadBinding | None:
+        claimed_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM upload_bindings
+                WHERE c2c_user_openid = ?
+                  AND redeemed_at IS NOT NULL
+                  AND consumed_at IS NULL
+                  AND expires_at > ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (c2c_user_openid, claimed_at.isoformat()),
+            ).fetchone()
+            if row is None:
+                return None
+            cursor = connection.execute(
+                """
+                UPDATE upload_bindings
+                SET consumed_at = ?
+                WHERE id = ? AND consumed_at IS NULL
+                """,
+                (claimed_at.isoformat(), row["id"]),
+            )
+            if cursor.rowcount != 1:
+                return None
+        return self._upload_binding_from_row(row)
+
+    def consume_upload_binding(
+            self,
+            binding_id: int,
+            now: datetime | None = None) -> None:
+        consumed_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE upload_bindings
+                SET consumed_at = ?
+                WHERE id = ? AND consumed_at IS NULL
+                """,
+                (consumed_at.isoformat(), binding_id),
+            )
+
+    @staticmethod
+    def _upload_binding_from_row(row: sqlite3.Row) -> UploadBinding:
+        return UploadBinding(
+            binding_id=int(row["id"]),
+            group_openid=row["group_openid"],
+            issuer_openid=row["issuer_openid"],
+            c2c_user_openid=row["c2c_user_openid"] or "",
+            expires_at=row["expires_at"],
+        )
 
     def has_message(self, user_msg_id: str) -> bool:
         with self._connect() as connection:

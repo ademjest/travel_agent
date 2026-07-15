@@ -2,7 +2,7 @@ import asyncio
 
 import botpy
 from botpy import logging
-from botpy.message import GroupMessage
+from botpy.message import C2CMessage, GroupMessage
 from dotenv import load_dotenv
 from openai import OpenAIError
 
@@ -12,6 +12,7 @@ from memory_store import MemoryStore
 from settings import Settings, SettingsError
 from travel_agent import TravelAgent
 from travel_service import TravelService
+from upload_binding import UploadBindingService
 
 
 logger = logging.get_logger()
@@ -36,6 +37,11 @@ class TravelRiskBot(botpy.Client):
                 else None
             ),
         )
+        self.upload_binding_service = UploadBindingService(
+            self.memory_store,
+            self.document_service,
+            group_allowed=settings.allows_group,
+        )
 
     async def on_ready(self):
         logger.info("Bot is online: %s", self.robot.name)
@@ -57,13 +63,14 @@ class TravelRiskBot(botpy.Client):
         member_openid = str(
             getattr(message.author, "member_openid", "") or "unknown"
         )
-        if await asyncio.to_thread(
-                self.memory_store.has_message,
+        if message.id and not await asyncio.to_thread(
+                self.memory_store.claim_event,
                 message.id):
             logger.info("Ignored duplicate message: msg_id=%s", message.id)
             return
 
-        memory_content = message.content.strip()
+        content = (message.content or "").strip()
+        memory_content = content
         try:
             document_result = await asyncio.to_thread(
                 self.document_service.ingest_attachments,
@@ -79,11 +86,17 @@ class TravelRiskBot(botpy.Client):
                     or "上传旅行文档"
                 )
             else:
-                command = parse_command(message.content)
-                if command.name != "unknown" or not self.travel_agent:
+                command = parse_command(content)
+                if command.name == "upload_document":
+                    reply = await asyncio.to_thread(
+                        self.upload_binding_service.issue_binding,
+                        group_openid,
+                        member_openid,
+                    )
+                elif command.name != "unknown" or not self.travel_agent:
                     reply = await asyncio.to_thread(
                         self.travel_service.handle,
-                        message.content,
+                        content,
                     )
                 else:
                     history = await asyncio.to_thread(
@@ -94,11 +107,11 @@ class TravelRiskBot(botpy.Client):
                     knowledge_context = await asyncio.to_thread(
                         self.memory_store.build_document_context,
                         group_openid,
-                        message.content,
+                        content,
                     )
                     agent_result = await asyncio.to_thread(
                         self.travel_agent.run,
-                        message.content,
+                        content,
                         history,
                         knowledge_context,
                     )
@@ -133,6 +146,46 @@ class TravelRiskBot(botpy.Client):
             message.id,
             memory_content or "空消息",
             reply,
+        )
+
+    async def on_c2c_message_create(self, message: C2CMessage):
+        user_openid = str(
+            getattr(message.author, "user_openid", "") or ""
+        )
+        attachments = list(message.attachments or [])
+        logger.info(
+            "Received private message: user_openid=%s msg_id=%s attachments=%s",
+            user_openid,
+            message.id,
+            len(attachments),
+        )
+        if not user_openid:
+            logger.warning("Ignored private message without user_openid")
+            return
+        if message.id and not await asyncio.to_thread(
+                self.memory_store.claim_event,
+                message.id):
+            logger.info("Ignored duplicate private message: msg_id=%s", message.id)
+            return
+
+        try:
+            result = await asyncio.to_thread(
+                self.upload_binding_service.handle_private_message,
+                user_openid,
+                (message.content or "").strip(),
+                attachments,
+            )
+            reply = result.reply
+        except Exception:
+            logger.exception("Unexpected error while handling private message")
+            reply = "处理私聊文件时出现内部错误，请稍后重试。"
+
+        await message._api.post_c2c_message(
+            openid=user_openid,
+            msg_type=0,
+            msg_id=message.id,
+            msg_seq=1,
+            content=reply,
         )
 
 
