@@ -85,15 +85,14 @@ jobs:
           timeout --signal=INT --kill-after=30s \
             "${RUN_MINUTES}m" python -u bot.py || status=$?
 
-          # if [ "$status" -ne 0 ] &&
-          #    [ "$status" -ne 124 ] &&
-          #    [ "$status" -ne 130 ]; then
-          #   exit "$status"
-          # fi
-
           if [ "$status" -eq 124 ] || [ "$status" -eq 130 ]; then
             echo "Bot reached scheduled stop time"
             exit 0
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            echo "Bot exited unexpectedly with status $status"
+            exit "$status"
           fi
 
       - name: Checkpoint and encrypt SQLite state

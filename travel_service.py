@@ -3,10 +3,16 @@ from amap_client import (
     AmapError,
     CurrentWeather,
     RouteSummary,
+    TrafficSegment,
     WeatherForecast,
 )
 from commands import HELP_TEXT, parse_command
 from settings import Settings
+
+
+RELIABLE_TRAFFIC_COVERAGE_RATIO = 0.7
+MAX_CONGESTED_SEGMENTS_TO_SHOW = 6
+UNKNOWN_TRAFFIC_STATUSES = {"", "未知", "未知路况", "无数据"}
 
 
 def _format_distance(meters: int) -> str:
@@ -65,13 +71,83 @@ def _format_route(route: RouteSummary) -> str:
     ])
 
 
+def _format_mileage(meters: int) -> str:
+    if meters >= 1000:
+        return f"{meters / 1000:.1f} 公里"
+    return f"{meters} 米"
+
+
+def _format_traffic_segment(
+        segment: TrafficSegment,
+        index: int) -> str:
+    road_description = segment.road_name.strip() or "未命名道路"
+    instruction = segment.instruction.strip()
+    if instruction and instruction not in road_description:
+        road_description += f"（{instruction}）"
+
+    details = (
+        f"约沿路线 {_format_mileage(segment.route_start_meters)}"
+        f"—{_format_mileage(segment.route_end_meters)}，"
+        f"长度 {_format_distance(segment.distance_meters)}"
+    )
+    if segment.start_coordinates and segment.end_coordinates:
+        details += (
+            f"；坐标 {segment.start_coordinates}"
+            f" → {segment.end_coordinates}"
+        )
+    return f"{index}. {segment.status}：{road_description}（{details}）"
+
+
+def _merge_adjacent_congested_segments(
+        segments: list[TrafficSegment]) -> list[TrafficSegment]:
+    merged: list[TrafficSegment] = []
+    for segment in segments:
+        if (
+            merged
+            and merged[-1].status == segment.status
+            and merged[-1].road_name == segment.road_name
+            and merged[-1].route_end_meters == segment.route_start_meters
+        ):
+            previous = merged[-1]
+            merged[-1] = TrafficSegment(
+                status=previous.status,
+                road_name=previous.road_name,
+                instruction=previous.instruction or segment.instruction,
+                distance_meters=(
+                    previous.distance_meters + segment.distance_meters
+                ),
+                route_start_meters=previous.route_start_meters,
+                route_end_meters=segment.route_end_meters,
+                start_coordinates=(
+                    previous.start_coordinates or segment.start_coordinates
+                ),
+                end_coordinates=(
+                    segment.end_coordinates or previous.end_coordinates
+                ),
+            )
+        else:
+            merged.append(segment)
+    return merged
+
+
 def _format_traffic(route: RouteSummary) -> str:
     known_distances = {
         status: distance
         for status, distance in route.traffic_distances.items()
-        if status != "未知" and distance > 0
+        if status not in UNKNOWN_TRAFFIC_STATUSES and distance > 0
     }
     total = sum(known_distances.values())
+    if route.distance_meters > 0:
+        coverage_ratio = min(total / route.distance_meters, 1.0)
+        coverage_text = (
+            f"路况数据覆盖率：{coverage_ratio:.0%}（"
+            f"{_format_distance(min(total, route.distance_meters))} / "
+            f"{_format_distance(route.distance_meters)}）"
+        )
+    else:
+        coverage_ratio = None
+        coverage_text = "路况数据覆盖率：无法计算（路线总距离未知）"
+
     congested = sum(
         distance
         for status, distance in known_distances.items()
@@ -93,7 +169,24 @@ def _format_traffic(route: RouteSummary) -> str:
         else:
             level = "低"
 
-        traffic_summary = [f"车辆拥堵风险：{level}"]
+        coverage_is_reliable = (
+            coverage_ratio is not None
+            and coverage_ratio >= RELIABLE_TRAFFIC_COVERAGE_RATIO
+        )
+        if level == "低" and not coverage_is_reliable:
+            risk_text = (
+                "车辆拥堵风险：数据覆盖不足，暂不评级"
+                "（路况覆盖不足，已覆盖路段未发现明显拥堵）"
+            )
+        elif not coverage_is_reliable:
+            risk_text = (
+                f"车辆拥堵风险：{level}"
+                "（路况覆盖不足，实际风险可能更高）"
+            )
+        else:
+            risk_text = f"车辆拥堵风险：{level}"
+
+        traffic_summary = [risk_text]
         for status in ("畅通", "缓行", "拥堵", "严重拥堵"):
             distance = known_distances.get(status, 0)
             if distance:
@@ -101,14 +194,43 @@ def _format_traffic(route: RouteSummary) -> str:
                     f"{status}：{_format_distance(distance)}"
                 )
 
+    congested_segments = _merge_adjacent_congested_segments([
+        segment
+        for segment in route.traffic_segments
+        if segment.status in {"拥堵", "严重拥堵"}
+        and segment.distance_meters > 0
+    ])
+    if congested_segments:
+        traffic_summary.append("具体拥堵路段：")
+        traffic_summary.extend(
+            _format_traffic_segment(segment, index)
+            for index, segment in enumerate(
+                congested_segments[:MAX_CONGESTED_SEGMENTS_TO_SHOW],
+                start=1,
+            )
+        )
+        omitted_count = (
+            len(congested_segments) - MAX_CONGESTED_SEGMENTS_TO_SHOW
+        )
+        if omitted_count > 0:
+            traffic_summary.append(
+                f"另有 {omitted_count} 个拥堵路段未展开，请以高德导航为准。"
+            )
+
     return "\n".join([
         "【高德实时路线与路况】",
         f"起点：{route.origin.address}",
         f"终点：{route.destination.address}",
         f"总距离：{_format_distance(route.distance_meters)}",
         f"当前预计耗时：{_format_duration(route.duration_seconds)}",
+        coverage_text,
         *traffic_summary,
         "说明：路况会变化，请以出发前再次查询结果为准。",
+        (
+            "安全提示：高德 TMC 反映交通速度和拥堵，不代表封路、施工、"
+            "落石、积雪等道路危险；分段里程是按返回距离累计的近似位置。"
+            "青甘自驾还需核对交警、交通运输和景区公告。"
+        ),
     ])
 
 

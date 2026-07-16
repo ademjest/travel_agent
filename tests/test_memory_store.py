@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -41,6 +42,18 @@ class RacingMemoryStore(MemoryStore):
                 yield BarrierConnection(connection, self.race_barrier)
 
 
+class TracingMemoryStore(MemoryStore):
+    def __init__(self, database_path):
+        self.statements = []
+        super().__init__(database_path)
+
+    @contextmanager
+    def _connect(self):
+        with super()._connect() as connection:
+            connection.set_trace_callback(self.statements.append)
+            yield connection
+
+
 class MemoryStoreTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -69,6 +82,144 @@ class MemoryStoreTests(unittest.TestCase):
     def test_event_can_only_be_claimed_once(self):
         self.assertTrue(self.store.claim_event("event-1"))
         self.assertFalse(self.store.claim_event("event-1"))
+
+    def test_completed_event_cannot_be_reclaimed(self):
+        claim = self.store.begin_event("completed-event")
+
+        self.assertTrue(
+            self.store.complete_event(
+                claim.event_id,
+                claim.claim_token,
+            )
+        )
+        self.assertEqual(
+            self.store.get_event_status("completed-event"),
+            "completed",
+        )
+        self.assertIsNone(self.store.begin_event("completed-event"))
+
+    def test_failed_event_can_be_reclaimed_immediately(self):
+        first_claim = self.store.begin_event("failed-event")
+
+        self.assertTrue(
+            self.store.fail_event(
+                first_claim.event_id,
+                first_claim.claim_token,
+                "send failed",
+            )
+        )
+        self.assertEqual(
+            self.store.get_event_status("failed-event"),
+            "failed",
+        )
+
+        second_claim = self.store.begin_event("failed-event")
+
+        self.assertIsNotNone(second_claim)
+        self.assertNotEqual(
+            first_claim.claim_token,
+            second_claim.claim_token,
+        )
+
+    def test_prepared_reply_survives_failure_for_retry(self):
+        first_claim = self.store.begin_event("prepared-event")
+        self.assertTrue(
+            self.store.prepare_event_reply(
+                first_claim.event_id,
+                first_claim.claim_token,
+                "prepared reply",
+                "original message",
+            )
+        )
+        self.assertTrue(
+            self.store.fail_event(
+                first_claim.event_id,
+                first_claim.claim_token,
+                "network failed",
+            )
+        )
+
+        retry_claim = self.store.begin_event("prepared-event")
+
+        self.assertEqual(retry_claim.prepared_reply, "prepared reply")
+        self.assertEqual(
+            retry_claim.prepared_memory_content,
+            "original message",
+        )
+
+    def test_processing_event_can_be_reclaimed_after_lease_expires(self):
+        now = datetime(2026, 7, 16, 8, 0, tzinfo=timezone.utc)
+        first_claim = self.store.begin_event(
+            "expired-lease-event",
+            now=now,
+            lease_duration=timedelta(minutes=1),
+        )
+
+        self.assertIsNone(
+            self.store.begin_event(
+                "expired-lease-event",
+                now=now + timedelta(seconds=59),
+            )
+        )
+        second_claim = self.store.begin_event(
+            "expired-lease-event",
+            now=now + timedelta(minutes=1),
+        )
+
+        self.assertIsNotNone(second_claim)
+        self.assertFalse(
+            self.store.complete_event(
+                first_claim.event_id,
+                first_claim.claim_token,
+                now=now + timedelta(minutes=2),
+            )
+        )
+        self.assertTrue(
+            self.store.complete_event(
+                second_claim.event_id,
+                second_claim.claim_token,
+                now=now + timedelta(minutes=2),
+            )
+        )
+
+    def test_competing_event_claims_have_only_one_winner(self):
+        def claim(_):
+            return self.store.begin_event("racing-event")
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            claims = list(executor.map(claim, range(4)))
+
+        self.assertEqual(
+            sum(event_claim is not None for event_claim in claims),
+            1,
+        )
+
+    def test_legacy_processed_events_are_migrated_as_completed(self):
+        database_path = Path(self.temp_dir.name) / "legacy.db"
+        with sqlite3.connect(database_path) as connection:
+            connection.execute(
+                """
+                CREATE TABLE processed_events (
+                    event_id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                "INSERT INTO processed_events (event_id, created_at) "
+                "VALUES (?, ?)",
+                ("legacy-event", "2026-07-15T08:00:00+00:00"),
+            )
+
+        migrated_store = MemoryStore(database_path)
+
+        self.assertEqual(
+            migrated_store.get_event_status("legacy-event"),
+            "completed",
+        )
+        self.assertIsNone(migrated_store.begin_event("legacy-event"))
+        new_claim = migrated_store.begin_event("new-event")
+        self.assertIsNotNone(new_claim)
 
     def test_sessions_are_isolated_by_member(self):
         self.store.save_turn("group", "member-a", "a", "A问题", "A回答")
@@ -118,6 +269,154 @@ class MemoryStoreTests(unittest.TestCase):
         self.assertIn("第一片段", context)
         self.assertIn("第二片段", context)
         self.assertNotIn("第三片段", context)
+
+    def test_relevant_chunk_is_not_pushed_out_by_many_summaries(self):
+        self.store.add_document(
+            group_openid="group",
+            uploader_openid="member",
+            filename="早期祁连行程.docx",
+            sha256="older-relevant-document",
+            full_text="祁连山住宿安排在卓尔山附近。",
+            chunks=["祁连山住宿安排在卓尔山附近，第二天早上八点集合。"],
+            summary="祁连山旧行程摘要",
+        )
+        for index in range(10):
+            self.store.add_document(
+                group_openid="group",
+                uploader_openid="member",
+                filename=f"最近资料-{index}.docx",
+                sha256=f"recent-summary-{index}",
+                full_text="与当前问题无关的资料",
+                chunks=["与当前问题无关的资料片段"],
+                summary="无关摘要" * 300,
+            )
+
+        context = self.store.build_document_context(
+            "group",
+            "祁连山住宿怎么安排？",
+        )
+
+        self.assertLessEqual(len(context), 3200)
+        self.assertIn("祁连山住宿安排在卓尔山附近", context)
+        self.assertLess(
+            context.index("祁连山住宿安排在卓尔山附近"),
+            context.index("群内已保存的旅行文档"),
+        )
+
+    def test_document_excerpt_keeps_match_near_chunk_tail(self):
+        self.store.add_document(
+            group_openid="group",
+            uploader_openid="member",
+            filename="海西行程.md",
+            sha256="tail-match",
+            full_text="甲" * 1700 + "翡翠湖集合点在景区东门。",
+            chunks=["甲" * 1700 + "翡翠湖集合点在景区东门。"],
+        )
+
+        context = self.store.build_document_context(
+            "group",
+            "翡翠湖集合点在哪里？",
+        )
+
+        self.assertIn("翡翠湖集合点在景区东门", context)
+
+    def test_two_character_document_search_is_group_scoped(self):
+        self.store.add_document(
+            "group-a",
+            "member",
+            "西宁安排.md",
+            "two-char-a",
+            "西宁住宿安排在城西区。",
+            ["西宁住宿安排在城西区。"],
+        )
+        self.store.add_document(
+            "group-b",
+            "member",
+            "其他群秘密.md",
+            "two-char-b",
+            "西宁住宿安排在秘密地点。",
+            ["西宁住宿安排在秘密地点。"],
+        )
+
+        context = self.store.build_document_context("group-a", "西宁")
+
+        self.assertIn("西宁住宿安排在城西区", context)
+        self.assertNotIn("秘密地点", context)
+
+    def test_fts_hit_does_not_also_run_substring_full_scan(self):
+        database_path = Path(self.temp_dir.name) / "tracing.db"
+        store = TracingMemoryStore(database_path)
+        store.add_document(
+            "group",
+            "member",
+            "青海湖.md",
+            "fts-no-fallback",
+            "青海湖二郎剑景区集合。",
+            ["青海湖二郎剑景区早上九点集合。"],
+        )
+        if not store._document_fts_available:
+            self.skipTest("SQLite build does not provide FTS5 trigram")
+
+        store.statements.clear()
+        context = store.build_document_context("group", "青海湖集合")
+        statements = "\n".join(store.statements).lower()
+
+        self.assertIn("青海湖二郎剑景区早上九点集合", context)
+        self.assertIn("document_chunks_fts match", statements)
+        self.assertNotIn("instr(lower(c.content)", statements)
+
+    def test_existing_document_chunks_are_backfilled_into_search_index(self):
+        database_path = Path(self.temp_dir.name) / "legacy-documents.db"
+        with sqlite3.connect(database_path) as connection:
+            connection.executescript(
+                """
+                CREATE TABLE documents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_openid TEXT NOT NULL,
+                    uploader_openid TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    sha256 TEXT NOT NULL,
+                    preview TEXT NOT NULL,
+                    summary TEXT NOT NULL DEFAULT '',
+                    text_length INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(group_openid, sha256)
+                );
+                CREATE TABLE document_chunks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    document_id INTEGER NOT NULL,
+                    chunk_index INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    FOREIGN KEY(document_id) REFERENCES documents(id)
+                        ON DELETE CASCADE,
+                    UNIQUE(document_id, chunk_index)
+                );
+                INSERT INTO documents (
+                    group_openid, uploader_openid, filename, sha256,
+                    preview, summary, text_length, created_at
+                ) VALUES (
+                    'group', 'member', '旧行程.md', 'legacy-document',
+                    '青海湖二郎剑集合', '', 8, '2026-07-15T08:00:00+00:00'
+                );
+                INSERT INTO document_chunks (document_id, chunk_index, content)
+                VALUES (1, 0, '青海湖二郎剑景区早上九点集合。');
+                """
+            )
+
+        migrated_store = MemoryStore(database_path)
+        context = migrated_store.build_document_context(
+            "group",
+            "青海湖二郎剑几点集合？",
+        )
+
+        self.assertIn("青海湖二郎剑景区早上九点集合", context)
+        with sqlite3.connect(database_path) as connection:
+            migration = connection.execute(
+                "SELECT 1 FROM schema_migrations WHERE name = ?",
+                ("document_chunks_fts_v1",),
+            ).fetchone()
+        if migrated_store._document_fts_available:
+            self.assertIsNotNone(migration)
 
     def test_duplicate_document_is_not_inserted_twice(self):
         first = self.store.add_document(
