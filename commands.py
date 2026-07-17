@@ -2,19 +2,19 @@ import re
 from dataclasses import dataclass
 
 
-HELP_TEXT = """青甘自驾风险 Bot
+HELP_TEXT = """🚙 青甘自驾助手
 
 当前可用指令：
-- ping：检查机器人是否在线
-- 帮助：查看指令列表
-- 状态：查看数据源配置状态
+- 帮助 / 菜单：查看快捷操作
+- 状态：查看机器人和数据源状态
+- 查询天气 西宁：查询当前天气
+- 天气预报 青海湖：查询未来天气
+- 查询路线 西宁 -> 青海湖：规划驾车路线
+- 查询路况 青海湖 -> 茶卡盐湖：查看实时拥堵路段
 - 上传文档：获取私聊上传绑定码
-- 查询天气 西宁
-- 天气预报 青海湖
-- 查询路线 西宁 -> 青海湖
-- 查询路况 青海湖 -> 茶卡盐湖
+- ping：检查机器人是否在线
 
-发送指令时请在群里 @机器人。
+可以从群输入框的“/”指令面板选择，也可以在群里 @机器人 后输入。
 路线指令推荐使用“->”分隔起点和终点。"""
 
 
@@ -26,7 +26,10 @@ class Command:
 
 
 def normalize_command(content: str) -> str:
-    return " ".join(content.strip().split())
+    command = " ".join(content.strip().split())
+    if command.startswith("/"):
+        command = command[1:].lstrip()
+    return command
 
 
 def _parse_location_command(command: str, prefix: str, name: str) -> Command:
@@ -55,11 +58,11 @@ def parse_command(content: str) -> Command:
     command = normalize_command(content)
     lowered = command.lower()
 
-    if lowered in {"ping", "/ping"}:
+    if lowered == "ping":
         return Command(name="ping")
-    if lowered in {"help", "/help"} or command in {"帮助", "/帮助"}:
+    if lowered == "help" or command in {"帮助", "菜单", "旅行面板"}:
         return Command(name="help")
-    if lowered in {"status", "/status"} or command in {"状态", "/状态"}:
+    if lowered == "status" or command == "状态":
         return Command(name="status")
     if command in {"上传文档", "文档上传", "导入文档"}:
         return Command(name="upload_document")

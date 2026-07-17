@@ -9,6 +9,7 @@ from openai import OpenAIError
 from commands import parse_command
 from document_service import DocumentService
 from memory_store import MemoryStore
+from qq_ui import build_group_message_payload
 from settings import Settings, SettingsError
 from travel_agent import TravelAgent
 from travel_service import TravelService
@@ -174,12 +175,15 @@ class TravelRiskBot(botpy.Client):
                 memory_content or "空消息",
                 reply,
             )
+            message_payload = build_group_message_payload(
+                memory_content,
+                reply,
+            )
             await message._api.post_group_message(
                 group_openid=group_openid,
-                msg_type=0,
                 msg_id=message.id,
                 msg_seq=1,
-                content=reply,
+                **message_payload,
             )
             if event_claim and not await asyncio.to_thread(
                     self.memory_store.complete_event,
