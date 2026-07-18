@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import re
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -58,6 +61,18 @@ class WeatherForecast:
 
 
 @dataclass(frozen=True)
+class TrafficSegment:
+    status: str
+    road_name: str
+    instruction: str
+    distance_meters: int
+    route_start_meters: int
+    route_end_meters: int
+    start_coordinates: str | None
+    end_coordinates: str | None
+
+
+@dataclass(frozen=True)
 class RouteSummary:
     origin: Location
     destination: Location
@@ -66,6 +81,7 @@ class RouteSummary:
     tolls_yuan: str
     traffic_lights: int
     traffic_distances: dict[str, int]
+    traffic_segments: tuple[TrafficSegment, ...] = ()
 
 
 def _as_list(value: Any) -> list:
@@ -81,6 +97,29 @@ def _to_int(value: Any) -> int:
         return int(float(value))
     except (TypeError, ValueError):
         return 0
+
+
+_COORDINATE_PATTERN = re.compile(
+    r"(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)"
+)
+
+
+def _parse_coordinate_pair(raw_location: Any) -> tuple[float, float]:
+    longitude_text, latitude_text = str(raw_location or "").split(",", 1)
+    return float(longitude_text), float(latitude_text)
+
+
+def _polyline_endpoints(
+        raw_polyline: Any) -> tuple[str | None, str | None]:
+    matches = _COORDINATE_PATTERN.findall(str(raw_polyline or ""))
+    if not matches:
+        return None, None
+
+    def format_point(point: tuple[str, str]) -> str:
+        longitude, latitude = point
+        return f"{float(longitude):.6f},{float(latitude):.6f}"
+
+    return format_point(matches[0]), format_point(matches[-1])
 
 
 class AmapClient:
@@ -121,22 +160,58 @@ class AmapClient:
         if not geocodes:
             raise AmapError(f"没有找到地点：{place}")
 
-        result = geocodes[0]
-        raw_location = str(result.get("location") or "")
-        try:
-            longitude_text, latitude_text = raw_location.split(",", 1)
-            longitude = float(longitude_text)
-            latitude = float(latitude_text)
-        except (TypeError, ValueError) as exc:
-            raise AmapError(f"地点缺少有效坐标：{place}") from exc
+        candidates: list[Location] = []
+        seen_candidates: set[str] = set()
+        for result in geocodes:
+            try:
+                longitude, latitude = _parse_coordinate_pair(
+                    result.get("location")
+                )
+            except (TypeError, ValueError):
+                continue
 
-        return Location(
-            query=place,
-            address=str(result.get("formatted_address") or place),
-            longitude=longitude,
-            latitude=latitude,
-            adcode=str(result.get("adcode") or ""),
-        )
+            adcode = str(result.get("adcode") or "")
+            address = str(result.get("formatted_address") or place)
+            normalized_address = re.sub(
+                r"[\s,，。;；]+",
+                "",
+                address,
+            ).lower()
+            if normalized_address or adcode:
+                signature = f"{normalized_address}|{adcode}"
+            else:
+                signature = f"{longitude:.6f},{latitude:.6f}"
+            if signature in seen_candidates:
+                continue
+            seen_candidates.add(signature)
+            candidates.append(Location(
+                query=place,
+                address=address,
+                longitude=longitude,
+                latitude=latitude,
+                adcode=adcode,
+            ))
+
+        if not candidates:
+            raise AmapError(f"地点缺少有效坐标：{place}")
+
+        if len(candidates) > 1:
+            candidate_labels = []
+            for candidate in candidates[:5]:
+                suffix = (
+                    f"（行政区划代码 {candidate.adcode}）"
+                    if candidate.adcode
+                    else f"（{candidate.coordinates}）"
+                )
+                candidate_labels.append(f"{candidate.address}{suffix}")
+            if len(candidates) > 5:
+                candidate_labels.append(f"另有 {len(candidates) - 5} 个结果")
+            raise AmapError(
+                f"地点“{place}”存在多个匹配结果，请补充省、市或区县后重试："
+                + "；".join(candidate_labels)
+            )
+
+        return candidates[0]
 
     def current_weather(self, place: str) -> CurrentWeather:
         location = self.geocode(place)
@@ -221,13 +296,40 @@ class AmapClient:
         path = paths[0]
         cost = path.get("cost") or {}
         traffic_distances: dict[str, int] = {}
+        traffic_segments: list[TrafficSegment] = []
+        route_cursor = 0
         for step in _as_list(path.get("steps")):
+            step_road_name = str(step.get("road_name") or "")
+            step_instruction = str(step.get("instruction") or "")
+            step_distance = _to_int(
+                step.get("step_distance") or step.get("distance")
+            )
+            tmc_cursor = route_cursor
+            tmc_distance_total = 0
             for tmc in _as_list(step.get("tmcs")):
-                status = str(tmc.get("tmc_status") or "未知")
+                status = str(tmc.get("tmc_status") or "未知").strip() or "未知"
                 distance = _to_int(tmc.get("tmc_distance"))
                 traffic_distances[status] = (
                     traffic_distances.get(status, 0) + distance
                 )
+                start_coordinates, end_coordinates = _polyline_endpoints(
+                    tmc.get("tmc_polyline")
+                )
+                traffic_segments.append(TrafficSegment(
+                    status=status,
+                    road_name=str(tmc.get("road_name") or step_road_name),
+                    instruction=str(
+                        tmc.get("instruction") or step_instruction
+                    ),
+                    distance_meters=distance,
+                    route_start_meters=tmc_cursor,
+                    route_end_meters=tmc_cursor + distance,
+                    start_coordinates=start_coordinates,
+                    end_coordinates=end_coordinates,
+                ))
+                tmc_cursor += distance
+                tmc_distance_total += distance
+            route_cursor += max(step_distance, tmc_distance_total)
 
         return RouteSummary(
             origin=origin_location,
@@ -237,4 +339,5 @@ class AmapClient:
             tolls_yuan=str(cost.get("tolls") or "0"),
             traffic_lights=_to_int(cost.get("traffic_lights")),
             traffic_distances=traffic_distances,
+            traffic_segments=tuple(traffic_segments),
         )

@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from bot import TravelRiskBot
 from document_service import DocumentIngestResult
@@ -15,14 +16,22 @@ class FakeSettings:
 
 
 class FakeApi:
-    def __init__(self):
+    def __init__(self, group_failures=0, private_failures=0):
         self.group_messages = []
         self.private_messages = []
+        self.group_failures = group_failures
+        self.private_failures = private_failures
 
     async def post_group_message(self, **kwargs):
+        if self.group_failures:
+            self.group_failures -= 1
+            raise RuntimeError("group send failed")
         self.group_messages.append(kwargs)
 
     async def post_c2c_message(self, **kwargs):
+        if self.private_failures:
+            self.private_failures -= 1
+            raise RuntimeError("private send failed")
         self.private_messages.append(kwargs)
 
 
@@ -32,7 +41,11 @@ class FakeDocumentService:
 
 
 class FakeTravelService:
+    def __init__(self):
+        self.handle_calls = []
+
     def handle(self, content):
+        self.handle_calls.append(content)
         return "unexpected travel reply"
 
 
@@ -86,6 +99,76 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             [("group-a", "member-a")],
         )
         self.assertIn("QG-ABC234", api.group_messages[0]["content"])
+        self.assertEqual(api.group_messages[0]["msg_type"], 0)
+
+    async def test_group_help_uses_markdown_command_panel(self):
+        api = FakeApi()
+        message = SimpleNamespace(
+            group_openid="group-a",
+            id="group-message-help",
+            content="/菜单",
+            attachments=[],
+            author=SimpleNamespace(member_openid="member-a"),
+            _api=api,
+        )
+
+        await self.bot.on_group_at_message_create(message)
+
+        sent = api.group_messages[0]
+        self.assertEqual(sent["msg_type"], 2)
+        self.assertIn("青甘自驾助手", sent["markdown"]["content"])
+        self.assertIn("keyboard", sent)
+        self.assertNotIn("content", sent)
+
+    async def test_ordinary_group_reply_remains_plain_text(self):
+        api = FakeApi()
+        message = SimpleNamespace(
+            group_openid="group-a",
+            id="group-message-plain",
+            content="随便聊聊",
+            attachments=[],
+            author=SimpleNamespace(member_openid="member-a"),
+            _api=api,
+        )
+
+        await self.bot.on_group_at_message_create(message)
+
+        sent = api.group_messages[0]
+        self.assertEqual(sent["msg_type"], 0)
+        self.assertEqual(sent["content"], "unexpected travel reply")
+        self.assertNotIn("markdown", sent)
+        self.assertNotIn("keyboard", sent)
+
+    async def test_failed_group_send_retries_prepared_rich_reply(self):
+        api = FakeApi(group_failures=1)
+        message = SimpleNamespace(
+            group_openid="group-a",
+            id="group-message-rich-retry",
+            content="/菜单",
+            attachments=[],
+            author=SimpleNamespace(member_openid="member-a"),
+            _api=api,
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "group send failed"):
+            await self.bot.on_group_at_message_create(message)
+
+        self.assertEqual(
+            self.bot.memory_store.get_event_status(message.id),
+            "failed",
+        )
+        await self.bot.on_group_at_message_create(message)
+
+        self.assertEqual(self.bot.travel_service.handle_calls, ["/菜单"])
+        self.assertEqual(len(api.group_messages), 1)
+        sent = api.group_messages[0]
+        self.assertEqual(sent["msg_type"], 2)
+        self.assertIn("markdown", sent)
+        self.assertIn("keyboard", sent)
+        self.assertEqual(
+            self.bot.memory_store.get_event_status(message.id),
+            "completed",
+        )
 
     async def test_c2c_file_event_is_sent_to_private_upload_workflow(self):
         api = FakeApi()
@@ -129,6 +212,74 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(len(self.bot.upload_binding_service.private_calls), 1)
         self.assertEqual(len(api.private_messages), 1)
+
+    async def test_failed_private_send_retries_prepared_reply(self):
+        api = FakeApi(private_failures=1)
+        attachment = object()
+        message = SimpleNamespace(
+            id="private-message-retry",
+            content=None,
+            attachments=[attachment],
+            author=SimpleNamespace(user_openid="private-user"),
+            _api=api,
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "private send failed"):
+            await self.bot.on_c2c_message_create(message)
+
+        self.assertEqual(
+            self.bot.memory_store.get_event_status(message.id),
+            "failed",
+        )
+
+        await self.bot.on_c2c_message_create(message)
+
+        self.assertEqual(len(self.bot.upload_binding_service.private_calls), 1)
+        self.assertEqual(len(api.private_messages), 1)
+        self.assertEqual(
+            self.bot.memory_store.get_event_status(message.id),
+            "completed",
+        )
+
+    async def test_group_storage_failure_marks_event_failed_and_retries(self):
+        api = FakeApi()
+        message = SimpleNamespace(
+            group_openid="group-a",
+            id="group-message-storage-retry",
+            content="上传文档",
+            attachments=[],
+            author=SimpleNamespace(member_openid="member-a"),
+            _api=api,
+        )
+        original_save_turn = self.bot.memory_store.save_turn
+        save_attempts = 0
+
+        def flaky_save_turn(*args):
+            nonlocal save_attempts
+            save_attempts += 1
+            if save_attempts == 1:
+                raise RuntimeError("turn storage failed")
+            return original_save_turn(*args)
+
+        with patch.object(
+                self.bot.memory_store,
+                "save_turn",
+                side_effect=flaky_save_turn):
+            with self.assertRaisesRegex(RuntimeError, "turn storage failed"):
+                await self.bot.on_group_at_message_create(message)
+
+            self.assertEqual(
+                self.bot.memory_store.get_event_status(message.id),
+                "failed",
+            )
+            await self.bot.on_group_at_message_create(message)
+
+        self.assertEqual(len(self.bot.upload_binding_service.issue_calls), 1)
+        self.assertEqual(len(api.group_messages), 1)
+        self.assertEqual(
+            self.bot.memory_store.get_event_status(message.id),
+            "completed",
+        )
 
 
 if __name__ == "__main__":

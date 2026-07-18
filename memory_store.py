@@ -1,14 +1,23 @@
+from __future__ import annotations
+
 import re
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
 RECENT_TURN_LIMIT = 6
 MAX_DOCUMENT_CONTEXT_CHARS = 3200
 MAX_DOCUMENT_CHUNKS = 2
+MAX_DOCUMENT_CANDIDATES = 10
+MAX_FTS_QUERY_TERMS = 24
+MAX_FALLBACK_QUERY_TERMS = 12
+DOCUMENT_FTS_MIGRATION = "document_chunks_fts_v1"
+EVENT_PROCESSING_LEASE = timedelta(minutes=10)
+MAX_EVENT_ERROR_CHARS = 1000
 
 
 @dataclass(frozen=True)
@@ -40,11 +49,20 @@ class UploadBindingRedemption:
     binding: UploadBinding | None = None
 
 
+@dataclass(frozen=True)
+class EventClaim:
+    event_id: str
+    claim_token: str
+    prepared_reply: str | None = None
+    prepared_memory_content: str | None = None
+
+
 class MemoryStore:
     def __init__(self, database_path: str | Path | None = None):
         default_path = Path(__file__).resolve().parent / "data" / "travel_bot.db"
         self.database_path = Path(database_path or default_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        self._document_fts_available = False
         self._initialize()
 
     @contextmanager
@@ -122,7 +140,20 @@ class MemoryStore:
 
                 CREATE TABLE IF NOT EXISTS processed_events (
                     event_id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    lease_expires_at TEXT,
+                    claim_token TEXT,
+                    attempt_count INTEGER NOT NULL DEFAULT 1,
+                    last_error TEXT,
+                    prepared_reply TEXT,
+                    prepared_memory_content TEXT
+                );
+
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    name TEXT PRIMARY KEY,
+                    applied_at TEXT NOT NULL
                 );
                 """
             )
@@ -138,20 +169,302 @@ class MemoryStore:
                     "ADD COLUMN summary TEXT NOT NULL DEFAULT ''"
                 )
 
-    def claim_event(
+            event_columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(processed_events)"
+                ).fetchall()
+            }
+            if "status" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events "
+                    "ADD COLUMN status TEXT NOT NULL DEFAULT 'completed'"
+                )
+            if "updated_at" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events "
+                    "ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"
+                )
+                connection.execute(
+                    "UPDATE processed_events SET updated_at = created_at "
+                    "WHERE updated_at = ''"
+                )
+            if "lease_expires_at" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events "
+                    "ADD COLUMN lease_expires_at TEXT"
+                )
+            if "claim_token" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events ADD COLUMN claim_token TEXT"
+                )
+            if "attempt_count" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events "
+                    "ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 1"
+                )
+            if "last_error" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events ADD COLUMN last_error TEXT"
+                )
+            if "prepared_reply" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events ADD COLUMN prepared_reply TEXT"
+                )
+            if "prepared_memory_content" not in event_columns:
+                connection.execute(
+                    "ALTER TABLE processed_events "
+                    "ADD COLUMN prepared_memory_content TEXT"
+                )
+
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_processed_events_status_lease
+                ON processed_events(status, lease_expires_at)
+                """
+            )
+            self._initialize_document_search(connection)
+
+    def _initialize_document_search(
+            self,
+            connection: sqlite3.Connection) -> None:
+        fts_existed = connection.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'document_chunks_fts'"
+        ).fetchone() is not None
+        migration_applied = connection.execute(
+            "SELECT 1 FROM schema_migrations WHERE name = ?",
+            (DOCUMENT_FTS_MIGRATION,),
+        ).fetchone() is not None
+
+        try:
+            connection.execute(
+                """
+                CREATE VIRTUAL TABLE IF NOT EXISTS document_chunks_fts
+                USING fts5(
+                    content,
+                    content='document_chunks',
+                    content_rowid='id',
+                    tokenize='trigram'
+                )
+                """
+            )
+            connection.executescript(
+                """
+                CREATE TRIGGER IF NOT EXISTS document_chunks_fts_insert
+                AFTER INSERT ON document_chunks BEGIN
+                    INSERT INTO document_chunks_fts(rowid, content)
+                    VALUES (new.id, new.content);
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS document_chunks_fts_delete
+                AFTER DELETE ON document_chunks BEGIN
+                    INSERT INTO document_chunks_fts(
+                        document_chunks_fts, rowid, content
+                    ) VALUES ('delete', old.id, old.content);
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS document_chunks_fts_update
+                AFTER UPDATE OF content ON document_chunks BEGIN
+                    INSERT INTO document_chunks_fts(
+                        document_chunks_fts, rowid, content
+                    ) VALUES ('delete', old.id, old.content);
+                    INSERT INTO document_chunks_fts(rowid, content)
+                    VALUES (new.id, new.content);
+                END;
+                """
+            )
+            if not fts_existed or not migration_applied:
+                connection.execute(
+                    "INSERT INTO document_chunks_fts(document_chunks_fts) "
+                    "VALUES ('rebuild')"
+                )
+                connection.execute(
+                    "INSERT OR REPLACE INTO schema_migrations (name, applied_at) "
+                    "VALUES (?, ?)",
+                    (
+                        DOCUMENT_FTS_MIGRATION,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+            self._document_fts_available = True
+        except sqlite3.OperationalError:
+            # Some custom SQLite builds omit FTS5 or the trigram tokenizer.
+            # The query path below falls back to bounded SQL substring search.
+            self._document_fts_available = False
+
+    def begin_event(
             self,
             event_id: str,
-            now: datetime | None = None) -> bool:
-        created_at = now or datetime.now(timezone.utc)
+            now: datetime | None = None,
+            lease_duration: timedelta = EVENT_PROCESSING_LEASE,
+            ) -> EventClaim | None:
+        started_at = now or datetime.now(timezone.utc)
+        lease_expires_at = started_at + lease_duration
+        claim_token = uuid.uuid4().hex
         with self._connect() as connection:
             cursor = connection.execute(
                 """
-                INSERT OR IGNORE INTO processed_events (event_id, created_at)
-                VALUES (?, ?)
+                INSERT INTO processed_events (
+                    event_id,
+                    status,
+                    created_at,
+                    updated_at,
+                    lease_expires_at,
+                    claim_token,
+                    attempt_count,
+                    last_error
+                ) VALUES (?, 'processing', ?, ?, ?, ?, 1, NULL)
+                ON CONFLICT(event_id) DO UPDATE SET
+                    status = 'processing',
+                    updated_at = excluded.updated_at,
+                    lease_expires_at = excluded.lease_expires_at,
+                    claim_token = excluded.claim_token,
+                    attempt_count = processed_events.attempt_count + 1,
+                    last_error = NULL
+                WHERE processed_events.status = 'failed'
+                   OR (
+                        processed_events.status = 'processing'
+                        AND (
+                            processed_events.lease_expires_at IS NULL
+                            OR julianday(processed_events.lease_expires_at)
+                                <= julianday(excluded.updated_at)
+                        )
+                   )
                 """,
-                (event_id, created_at.isoformat()),
+                (
+                    event_id,
+                    started_at.isoformat(),
+                    started_at.isoformat(),
+                    lease_expires_at.isoformat(),
+                    claim_token,
+                ),
+            )
+            row = connection.execute(
+                """
+                SELECT prepared_reply, prepared_memory_content
+                FROM processed_events
+                WHERE event_id = ? AND claim_token = ?
+                """,
+                (event_id, claim_token),
+            ).fetchone()
+        if cursor.rowcount != 1:
+            return None
+        return EventClaim(
+            event_id=event_id,
+            claim_token=claim_token,
+            prepared_reply=row["prepared_reply"],
+            prepared_memory_content=row["prepared_memory_content"],
+        )
+
+    def claim_event(
+            self,
+            event_id: str,
+            now: datetime | None = None,
+            lease_duration: timedelta = EVENT_PROCESSING_LEASE) -> bool:
+        """Keep the legacy one-step, permanently deduplicated claim behavior."""
+        claim = self.begin_event(event_id, now, lease_duration)
+        if claim is None:
+            return False
+        return self.complete_event(
+            claim.event_id,
+            claim.claim_token,
+            now=now,
+        )
+
+    def prepare_event_reply(
+            self,
+            event_id: str,
+            claim_token: str,
+            reply: str,
+            memory_content: str | None = None,
+            now: datetime | None = None) -> bool:
+        prepared_at = now or datetime.now(timezone.utc)
+        lease_expires_at = prepared_at + EVENT_PROCESSING_LEASE
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE processed_events
+                SET prepared_reply = ?,
+                    prepared_memory_content = ?,
+                    updated_at = ?,
+                    lease_expires_at = ?
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (
+                    reply,
+                    memory_content,
+                    prepared_at.isoformat(),
+                    lease_expires_at.isoformat(),
+                    event_id,
+                    claim_token,
+                ),
             )
         return cursor.rowcount == 1
+
+    def complete_event(
+            self,
+            event_id: str,
+            claim_token: str,
+            now: datetime | None = None) -> bool:
+        completed_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE processed_events
+                SET status = 'completed',
+                    updated_at = ?,
+                    lease_expires_at = NULL,
+                    claim_token = NULL,
+                    last_error = NULL,
+                    prepared_reply = NULL,
+                    prepared_memory_content = NULL
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (completed_at.isoformat(), event_id, claim_token),
+            )
+        return cursor.rowcount == 1
+
+    def fail_event(
+            self,
+            event_id: str,
+            claim_token: str,
+            error: str = "",
+            now: datetime | None = None) -> bool:
+        failed_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE processed_events
+                SET status = 'failed',
+                    updated_at = ?,
+                    lease_expires_at = NULL,
+                    claim_token = NULL,
+                    last_error = ?
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (
+                    failed_at.isoformat(),
+                    str(error)[:MAX_EVENT_ERROR_CHARS],
+                    event_id,
+                    claim_token,
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def get_event_status(self, event_id: str) -> str | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT status FROM processed_events WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+        return row["status"] if row else None
 
     def create_upload_binding(
             self,
@@ -458,6 +771,9 @@ class MemoryStore:
             group_openid: str,
             query: str,
             max_chars: int = MAX_DOCUMENT_CONTEXT_CHARS) -> str:
+        if max_chars <= 0:
+            return ""
+
         with self._connect() as connection:
             documents = connection.execute(
                 """
@@ -469,65 +785,304 @@ class MemoryStore:
                 """,
                 (group_openid,),
             ).fetchall()
-            chunks = connection.execute(
-                """
-                SELECT
-                    c.document_id,
-                    c.chunk_index,
-                    c.content,
-                    d.filename,
-                    d.id AS document_order
-                FROM document_chunks c
-                JOIN documents d ON d.id = c.document_id
-                WHERE d.group_openid = ?
-                ORDER BY d.id DESC, c.chunk_index ASC
-                """,
-                (group_openid,),
-            ).fetchall()
+            selected = self._select_document_chunks(
+                connection,
+                group_openid,
+                query,
+            )
 
         if not documents:
             return ""
 
-        terms = self._search_terms(query)
-        ranked = []
-        for row in chunks:
-            content = row["content"]
-            score = sum(
-                content.lower().count(term) * max(1, len(term))
-                for term in terms
-            )
-            ranked.append((score, row["document_order"], -row["chunk_index"], row))
-
-        ranked.sort(reverse=True, key=lambda item: item[:3])
-        selected = [
-            item[3]
-            for item in ranked
-            if item[0] > 0
-        ][:MAX_DOCUMENT_CHUNKS]
-
-        if not selected and chunks:
-            newest_document_id = documents[0]["id"]
-            selected = [
-                row for row in chunks
-                if row["document_id"] == newest_document_id
-            ][:1]
-
-        lines = ["群内已保存的旅行文档："]
-        for document in documents:
-            overview = document["summary"] or document["preview"]
-            overview = re.sub(r"\s+", " ", overview).strip()[:800]
-            lines.append(f"- {document['filename']}：{overview}")
-
+        parts: list[str] = []
+        query_terms = self._search_terms(query)
         if selected:
-            lines.append("与当前问题相关的文档片段：")
-            for row in selected:
-                lines.append(
-                    f"[{row['filename']} / 片段 {row['chunk_index'] + 1}]\n"
-                    f"{row['content']}"
+            relevant_limit = (
+                max_chars
+                if max_chars < 600
+                else max(1, int(max_chars * 0.76))
+            )
+            self._append_context_part(
+                parts,
+                "与当前问题相关的文档片段：",
+                relevant_limit,
+                allow_truncate=True,
+            )
+            for index, row in enumerate(selected):
+                remaining_entries = len(selected) - index
+                available = (
+                    relevant_limit - self._context_length(parts)
+                    - (1 if parts else 0)
+                )
+                if available <= 0:
+                    break
+                header = (
+                    f"[{row['filename']} / 片段 {row['chunk_index'] + 1}]"
+                )
+                per_entry = max(1, available // remaining_entries)
+                excerpt_limit = max(1, per_entry - len(header) - 1)
+                excerpt = self._match_centered_excerpt(
+                    row["content"],
+                    query_terms,
+                    excerpt_limit,
+                )
+                self._append_context_part(
+                    parts,
+                    f"{header}\n{excerpt}",
+                    relevant_limit,
+                    allow_truncate=True,
                 )
 
-        context = "\n".join(lines)
-        return context[:max_chars]
+        overview_rows = []
+        seen_document_ids = set()
+        for row in [*selected, *documents]:
+            document_id = int(row["document_id"] if "document_id" in row.keys() else row["id"])
+            if document_id in seen_document_ids:
+                continue
+            seen_document_ids.add(document_id)
+            overview_rows.append(row)
+
+        if self._remaining_context_chars(parts, max_chars) >= 30:
+            self._append_context_part(
+                parts,
+                "群内已保存的旅行文档：",
+                max_chars,
+            )
+            for document in overview_rows:
+                remaining = self._remaining_context_chars(parts, max_chars)
+                if remaining < 20:
+                    break
+                overview = document["summary"] or document["preview"]
+                overview = re.sub(r"\s+", " ", overview).strip()
+                filename = document["filename"]
+                overview_limit = max(1, min(260, remaining - len(filename) - 4))
+                overview = self._match_centered_excerpt(
+                    overview,
+                    query_terms,
+                    overview_limit,
+                )
+                if not self._append_context_part(
+                        parts,
+                        f"- {filename}：{overview}",
+                        max_chars,
+                        allow_truncate=True):
+                    break
+
+        return "\n".join(parts)
+
+    def _select_document_chunks(
+            self,
+            connection: sqlite3.Connection,
+            group_openid: str,
+            query: str) -> list[sqlite3.Row]:
+        candidates: list[sqlite3.Row] = []
+        seen_chunk_ids = set()
+
+        fts_terms = self._fts_terms(query)
+        if self._document_fts_available and fts_terms:
+            fts_query = " OR ".join(f'"{term}"' for term in fts_terms)
+            try:
+                rows = connection.execute(
+                    """
+                    SELECT
+                        c.id AS chunk_id,
+                        c.document_id,
+                        c.chunk_index,
+                        c.content,
+                        d.filename,
+                        d.preview,
+                        d.summary,
+                        d.id AS document_order
+                    FROM document_chunks_fts
+                    JOIN document_chunks c
+                      ON c.id = document_chunks_fts.rowid
+                    JOIN documents d ON d.id = c.document_id
+                    WHERE document_chunks_fts MATCH ?
+                      AND d.group_openid = ?
+                    ORDER BY bm25(document_chunks_fts) ASC,
+                             d.id DESC,
+                             c.chunk_index ASC
+                    LIMIT ?
+                    """,
+                    (fts_query, group_openid, MAX_DOCUMENT_CANDIDATES),
+                ).fetchall()
+                for row in rows:
+                    candidates.append(row)
+                    seen_chunk_ids.add(row["chunk_id"])
+            except sqlite3.OperationalError:
+                self._document_fts_available = False
+
+        fallback_terms = sorted(
+            self._search_terms(query),
+            key=lambda term: (-len(term), term),
+        )[:MAX_FALLBACK_QUERY_TERMS]
+        should_use_fallback = (
+            not self._document_fts_available
+            or not fts_terms
+            or not candidates
+        )
+        if fallback_terms and should_use_fallback:
+            score_clauses = []
+            score_parameters: list[object] = []
+            match_clauses = []
+            match_parameters: list[object] = []
+            for term in fallback_terms:
+                score_clauses.append(
+                    "CASE WHEN instr(lower(c.content), ?) > 0 "
+                    "THEN ? ELSE 0 END"
+                )
+                score_parameters.extend((term, max(1, len(term))))
+                match_clauses.append("instr(lower(c.content), ?) > 0")
+                match_parameters.append(term)
+
+            rows = connection.execute(
+                f"""
+                SELECT
+                    c.id AS chunk_id,
+                    c.document_id,
+                    c.chunk_index,
+                    c.content,
+                    d.filename,
+                    d.preview,
+                    d.summary,
+                    d.id AS document_order,
+                    ({' + '.join(score_clauses)}) AS match_score
+                FROM document_chunks c
+                JOIN documents d ON d.id = c.document_id
+                WHERE d.group_openid = ?
+                  AND ({' OR '.join(match_clauses)})
+                ORDER BY match_score DESC,
+                         d.id DESC,
+                         c.chunk_index ASC
+                LIMIT ?
+                """,
+                (
+                    *score_parameters,
+                    group_openid,
+                    *match_parameters,
+                    MAX_DOCUMENT_CANDIDATES,
+                ),
+            ).fetchall()
+            for row in rows:
+                if row["chunk_id"] in seen_chunk_ids:
+                    continue
+                candidates.append(row)
+                seen_chunk_ids.add(row["chunk_id"])
+
+        terms = self._search_terms(query)
+        ranked = []
+        for row in candidates:
+            content = row["content"].lower()
+            score = sum(
+                content.count(term) * max(1, len(term))
+                for term in terms
+            )
+            ranked.append(
+                (score, row["document_order"], -row["chunk_index"], row)
+            )
+        ranked.sort(reverse=True, key=lambda item: item[:3])
+        selected = [
+            item[3] for item in ranked if item[0] > 0
+        ][:MAX_DOCUMENT_CHUNKS]
+        if selected:
+            return selected
+
+        newest = connection.execute(
+            """
+            SELECT
+                c.id AS chunk_id,
+                c.document_id,
+                c.chunk_index,
+                c.content,
+                d.filename,
+                d.preview,
+                d.summary,
+                d.id AS document_order
+            FROM document_chunks c
+            JOIN documents d ON d.id = c.document_id
+            WHERE d.group_openid = ?
+            ORDER BY d.id DESC, c.chunk_index ASC
+            LIMIT 1
+            """,
+            (group_openid,),
+        ).fetchone()
+        return [newest] if newest else []
+
+    @staticmethod
+    def _fts_terms(text: str) -> tuple[str, ...]:
+        normalized = text.lower()
+        terms = set(re.findall(r"[a-z0-9]{3,}", normalized))
+        for sequence in re.findall(r"[\u4e00-\u9fff]+", normalized):
+            if len(sequence) >= 3:
+                terms.update(
+                    sequence[index:index + 3]
+                    for index in range(len(sequence) - 2)
+                )
+        return tuple(sorted(terms))[:MAX_FTS_QUERY_TERMS]
+
+    @staticmethod
+    def _match_centered_excerpt(
+            text: str,
+            terms: set[str],
+            max_chars: int) -> str:
+        if max_chars <= 0:
+            return ""
+        if len(text) <= max_chars:
+            return text
+
+        normalized = text.lower()
+        match_position = None
+        for term in sorted(terms, key=lambda value: (-len(value), value)):
+            position = normalized.find(term)
+            if position >= 0:
+                match_position = position
+                break
+
+        body_limit = max(1, max_chars - 2)
+        if match_position is None:
+            start = 0
+        else:
+            start = max(0, match_position - body_limit // 3)
+        end = min(len(text), start + body_limit)
+        if end - start < body_limit:
+            start = max(0, end - body_limit)
+
+        prefix = "…" if start > 0 else ""
+        suffix = "…" if end < len(text) else ""
+        available = max(0, max_chars - len(prefix) - len(suffix))
+        return f"{prefix}{text[start:start + available]}{suffix}"
+
+    @staticmethod
+    def _context_length(parts: list[str]) -> int:
+        return sum(len(part) for part in parts) + max(0, len(parts) - 1)
+
+    @classmethod
+    def _remaining_context_chars(
+            cls,
+            parts: list[str],
+            max_chars: int) -> int:
+        return max(0, max_chars - cls._context_length(parts))
+
+    @classmethod
+    def _append_context_part(
+            cls,
+            parts: list[str],
+            text: str,
+            max_chars: int,
+            allow_truncate: bool = False) -> bool:
+        separator_chars = 1 if parts else 0
+        remaining = max_chars - cls._context_length(parts) - separator_chars
+        if remaining <= 0:
+            return False
+        if len(text) > remaining:
+            if not allow_truncate:
+                return False
+            if remaining == 1:
+                text = "…"
+            else:
+                text = text[:remaining - 1].rstrip() + "…"
+        parts.append(text)
+        return True
 
     @staticmethod
     def _search_terms(text: str) -> set[str]:
