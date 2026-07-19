@@ -98,6 +98,125 @@ class MemoryStoreTests(unittest.TestCase):
         )
         self.assertIsNone(self.store.begin_event("completed-event"))
 
+    def test_prepared_event_creates_one_pending_outbox_row(self):
+        claim = self.store.begin_event("qq_official:group:g1:m1")
+
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=claim.event_id,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m1",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+        )
+
+        pending = self.store.list_due_outbox("qq_official")
+        self.assertEqual([item.outbox_id for item in pending], [outbox_id])
+        self.assertEqual(pending[0].payload["content"], "reply")
+
+    def test_repreparing_same_event_does_not_duplicate_outbox(self):
+        event_id = "qq_official:group:g1:m2"
+        first = self.store.begin_event(event_id)
+        first_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=first.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m2",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+        )
+        self.store.fail_event(event_id, first.claim_token, "send failed")
+        second = self.store.begin_event(event_id)
+
+        second_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=second.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m2",
+            payload={"msg_type": 0, "content": "changed"},
+            memory_content="changed question",
+        )
+
+        self.assertEqual(second_id, first_id)
+        rows = self.store.list_outbox_for_event(event_id)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].payload["content"], "reply")
+
+    def test_sending_row_is_recovered_after_lease_expiry(self):
+        now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
+        claim = self.store.begin_event(
+            "qq_official:group:g1:m3",
+            now=now,
+        )
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=claim.event_id,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m3",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+            now=now,
+        )
+
+        token = self.store.claim_outbox(
+            outbox_id,
+            now=now,
+            lease_duration=timedelta(minutes=1),
+        )
+
+        self.assertIsNotNone(token)
+        self.assertEqual(
+            self.store.list_due_outbox(
+                "qq_official",
+                now + timedelta(seconds=59),
+            ),
+            (),
+        )
+        due = self.store.list_due_outbox(
+            "qq_official",
+            now + timedelta(minutes=1),
+        )
+        self.assertEqual([item.outbox_id for item in due], [outbox_id])
+
+    def test_mark_outbox_sent_completes_group_event_and_saves_turn(self):
+        now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
+        event_id = "qq_official:group:g1:m4"
+        claim = self.store.begin_event(event_id, now=now)
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m4",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+            now=now,
+        )
+        token = self.store.claim_outbox(outbox_id, now=now)
+
+        self.assertTrue(
+            self.store.mark_outbox_sent(outbox_id, token, now=now)
+        )
+        self.assertEqual(self.store.get_event_status(event_id), "completed")
+        turns = self.store.get_recent_turns("g1", "u1")
+        self.assertEqual(len(turns), 1)
+        self.assertEqual(turns[0].user_content, "question")
+        self.assertEqual(turns[0].assistant_content, "reply")
+
     def test_failed_event_can_be_reclaimed_immediately(self):
         first_claim = self.store.begin_event("failed-event")
 

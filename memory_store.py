@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import uuid
@@ -55,6 +56,19 @@ class EventClaim:
     claim_token: str
     prepared_reply: str | None = None
     prepared_memory_content: str | None = None
+
+
+@dataclass(frozen=True)
+class OutboxMessage:
+    outbox_id: int
+    event_id: str
+    platform: str
+    channel: str
+    target_id: str
+    sender_id: str
+    reply_to_id: str
+    payload: dict[str, object]
+    attempt_count: int
 
 
 class MemoryStore:
@@ -150,6 +164,29 @@ class MemoryStore:
                     prepared_reply TEXT,
                     prepared_memory_content TEXT
                 );
+
+                CREATE TABLE IF NOT EXISTS outbox_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL UNIQUE,
+                    platform TEXT NOT NULL,
+                    channel TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    sender_id TEXT NOT NULL,
+                    reply_to_id TEXT,
+                    payload_json TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    next_attempt_at TEXT NOT NULL,
+                    lease_expires_at TEXT,
+                    claim_token TEXT,
+                    last_error TEXT,
+                    created_at TEXT NOT NULL,
+                    sent_at TEXT,
+                    FOREIGN KEY(event_id) REFERENCES processed_events(event_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_outbox_due
+                ON outbox_messages(status, next_attempt_at, lease_expires_at);
 
                 CREATE TABLE IF NOT EXISTS schema_migrations (
                     name TEXT PRIMARY KEY,
@@ -403,6 +440,324 @@ class MemoryStore:
                 ),
             )
         return cursor.rowcount == 1
+
+    def prepare_event_outbox(
+            self,
+            event_id: str,
+            claim_token: str,
+            platform: str,
+            channel: str,
+            target_id: str,
+            sender_id: str,
+            reply_to_id: str,
+            payload: dict[str, object],
+            memory_content: str | None,
+            now: datetime | None = None) -> int:
+        prepared_at = now or datetime.now(timezone.utc)
+        lease_expires_at = prepared_at + EVENT_PROCESSING_LEASE
+        payload_json = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        prepared_reply = self._payload_reply_text(payload)
+        with self._connect() as connection:
+            event = connection.execute(
+                """
+                SELECT status, claim_token
+                FROM processed_events
+                WHERE event_id = ?
+                """,
+                (event_id,),
+            ).fetchone()
+            if (
+                    event is None
+                    or event["status"] != "processing"
+                    or event["claim_token"] != claim_token):
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+
+            existing = connection.execute(
+                "SELECT id FROM outbox_messages WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if existing is not None:
+                return int(existing["id"])
+
+            cursor = connection.execute(
+                """
+                UPDATE processed_events
+                SET prepared_reply = ?,
+                    prepared_memory_content = ?,
+                    updated_at = ?,
+                    lease_expires_at = ?
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (
+                    prepared_reply,
+                    memory_content,
+                    prepared_at.isoformat(),
+                    lease_expires_at.isoformat(),
+                    event_id,
+                    claim_token,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+            cursor = connection.execute(
+                """
+                INSERT INTO outbox_messages (
+                    event_id,
+                    platform,
+                    channel,
+                    target_id,
+                    sender_id,
+                    reply_to_id,
+                    payload_json,
+                    status,
+                    attempt_count,
+                    next_attempt_at,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)
+                """,
+                (
+                    event_id,
+                    platform,
+                    channel,
+                    target_id,
+                    sender_id,
+                    reply_to_id,
+                    payload_json,
+                    prepared_at.isoformat(),
+                    prepared_at.isoformat(),
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    @staticmethod
+    def _payload_reply_text(payload: dict[str, object]) -> str:
+        content = payload.get("content")
+        if isinstance(content, str):
+            return content
+        markdown = payload.get("markdown")
+        if isinstance(markdown, dict):
+            markdown_content = markdown.get("content")
+            if isinstance(markdown_content, str):
+                return markdown_content
+        return ""
+
+    def list_due_outbox(
+            self,
+            platform: str,
+            now: datetime | None = None,
+            limit: int = 20) -> tuple[OutboxMessage, ...]:
+        current = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM outbox_messages
+                WHERE platform = ?
+                  AND (
+                    (
+                        status IN ('pending', 'failed')
+                        AND julianday(next_attempt_at) <= julianday(?)
+                    )
+                    OR (
+                        status = 'sending'
+                        AND (
+                            lease_expires_at IS NULL
+                            OR julianday(lease_expires_at) <= julianday(?)
+                        )
+                    )
+                  )
+                ORDER BY id
+                LIMIT ?
+                """,
+                (
+                    platform,
+                    current.isoformat(),
+                    current.isoformat(),
+                    limit,
+                ),
+            ).fetchall()
+        return tuple(self._outbox_message(row) for row in rows)
+
+    def list_outbox_for_event(
+            self,
+            event_id: str) -> tuple[OutboxMessage, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM outbox_messages WHERE event_id = ? ORDER BY id",
+                (event_id,),
+            ).fetchall()
+        return tuple(self._outbox_message(row) for row in rows)
+
+    @staticmethod
+    def _outbox_message(row: sqlite3.Row) -> OutboxMessage:
+        return OutboxMessage(
+            outbox_id=int(row["id"]),
+            event_id=str(row["event_id"]),
+            platform=str(row["platform"]),
+            channel=str(row["channel"]),
+            target_id=str(row["target_id"]),
+            sender_id=str(row["sender_id"]),
+            reply_to_id=str(row["reply_to_id"] or ""),
+            payload=json.loads(row["payload_json"]),
+            attempt_count=int(row["attempt_count"]),
+        )
+
+    def claim_outbox(
+            self,
+            outbox_id: int,
+            now: datetime | None = None,
+            lease_duration: timedelta = timedelta(minutes=2),
+            ) -> str | None:
+        claimed_at = now or datetime.now(timezone.utc)
+        claim_token = uuid.uuid4().hex
+        lease_expires_at = claimed_at + lease_duration
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE outbox_messages
+                SET status = 'sending',
+                    attempt_count = attempt_count + 1,
+                    lease_expires_at = ?,
+                    claim_token = ?,
+                    last_error = NULL
+                WHERE id = ?
+                  AND (
+                    (
+                        status IN ('pending', 'failed')
+                        AND julianday(next_attempt_at) <= julianday(?)
+                    )
+                    OR (
+                        status = 'sending'
+                        AND (
+                            lease_expires_at IS NULL
+                            OR julianday(lease_expires_at) <= julianday(?)
+                        )
+                    )
+                  )
+                """,
+                (
+                    lease_expires_at.isoformat(),
+                    claim_token,
+                    outbox_id,
+                    claimed_at.isoformat(),
+                    claimed_at.isoformat(),
+                ),
+            )
+        return claim_token if cursor.rowcount == 1 else None
+
+    def mark_outbox_failed(
+            self,
+            outbox_id: int,
+            claim_token: str,
+            error: str,
+            next_attempt_at: datetime) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE outbox_messages
+                SET status = 'failed',
+                    next_attempt_at = ?,
+                    lease_expires_at = NULL,
+                    claim_token = NULL,
+                    last_error = ?
+                WHERE id = ?
+                  AND status = 'sending'
+                  AND claim_token = ?
+                """,
+                (
+                    next_attempt_at.isoformat(),
+                    str(error)[:MAX_EVENT_ERROR_CHARS],
+                    outbox_id,
+                    claim_token,
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def mark_outbox_sent(
+            self,
+            outbox_id: int,
+            claim_token: str,
+            now: datetime | None = None) -> bool:
+        sent_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    outbox_messages.*,
+                    processed_events.prepared_reply,
+                    processed_events.prepared_memory_content
+                FROM outbox_messages
+                JOIN processed_events
+                  ON processed_events.event_id = outbox_messages.event_id
+                WHERE outbox_messages.id = ?
+                  AND outbox_messages.status = 'sending'
+                  AND outbox_messages.claim_token = ?
+                """,
+                (outbox_id, claim_token),
+            ).fetchone()
+            if row is None:
+                return False
+
+            cursor = connection.execute(
+                """
+                UPDATE outbox_messages
+                SET status = 'sent',
+                    sent_at = ?,
+                    lease_expires_at = NULL,
+                    claim_token = NULL,
+                    last_error = NULL
+                WHERE id = ?
+                  AND status = 'sending'
+                  AND claim_token = ?
+                """,
+                (sent_at.isoformat(), outbox_id, claim_token),
+            )
+            if cursor.rowcount != 1:
+                return False
+
+            if row["channel"] == "group":
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO conversation_turns (
+                        group_openid,
+                        member_openid,
+                        user_msg_id,
+                        user_content,
+                        assistant_content,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        row["target_id"],
+                        row["sender_id"],
+                        row["reply_to_id"],
+                        row["prepared_memory_content"] or "",
+                        row["prepared_reply"] or "",
+                        sent_at.isoformat(),
+                    ),
+                )
+
+            connection.execute(
+                """
+                UPDATE processed_events
+                SET status = 'completed',
+                    updated_at = ?,
+                    lease_expires_at = NULL,
+                    claim_token = NULL,
+                    last_error = NULL,
+                    prepared_reply = NULL,
+                    prepared_memory_content = NULL
+                WHERE event_id = ?
+                """,
+                (sent_at.isoformat(), row["event_id"]),
+            )
+        return True
 
     def complete_event(
             self,
