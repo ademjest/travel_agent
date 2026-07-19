@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from chat_transport import storage_scope_id
 
 if TYPE_CHECKING:
     from document_service import PreparedDocument
@@ -767,9 +768,12 @@ class MemoryStore:
                     ) VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        row["target_id"],
+                        storage_scope_id(
+                            str(row["platform"]),
+                            str(row["target_id"]),
+                        ),
                         row["sender_id"],
-                        row["reply_to_id"],
+                        row["event_id"],
                         row["prepared_memory_content"] or "",
                         row["prepared_reply"] or "",
                         sent_at.isoformat(),
@@ -1166,8 +1170,10 @@ class MemoryStore:
             reply: str,
             target_user_openid: str,
             reply_to_id: str,
+            document_group_openid: str | None = None,
             now: datetime | None = None) -> int:
         committed_at = now or datetime.now(timezone.utc)
+        storage_group_openid = document_group_openid or group_openid
         lease_expires_at = committed_at + EVENT_PROCESSING_LEASE
         payload_json = json.dumps(
             {"content": reply, "msg_type": 0},
@@ -1203,7 +1209,7 @@ class MemoryStore:
                 FROM documents
                 WHERE group_openid = ? AND sha256 = ?
                 """,
-                (group_openid, document.sha256),
+                (storage_group_openid, document.sha256),
             ).fetchone()
             if existing_document is None:
                 cursor = connection.execute(
@@ -1220,7 +1226,7 @@ class MemoryStore:
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        group_openid,
+                        storage_group_openid,
                         uploader_openid,
                         document.filename,
                         document.sha256,
@@ -1278,6 +1284,110 @@ class MemoryStore:
                 (
                     reply,
                     f"上传旅行文档：{document.filename}",
+                    committed_at.isoformat(),
+                    lease_expires_at.isoformat(),
+                    event_id,
+                    claim_token,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+
+            cursor = connection.execute(
+                """
+                INSERT INTO outbox_messages (
+                    event_id,
+                    platform,
+                    channel,
+                    target_id,
+                    sender_id,
+                    reply_to_id,
+                    payload_json,
+                    status,
+                    attempt_count,
+                    next_attempt_at,
+                    created_at
+                ) VALUES (?, ?, 'private', ?, ?, ?, ?, 'pending', 0, ?, ?)
+                """,
+                (
+                    event_id,
+                    platform,
+                    target_user_openid,
+                    target_user_openid,
+                    reply_to_id,
+                    payload_json,
+                    committed_at.isoformat(),
+                    committed_at.isoformat(),
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def commit_private_reply_event(
+            self,
+            event_id: str,
+            claim_token: str,
+            platform: str,
+            binding_id: int,
+            reply: str,
+            target_user_openid: str,
+            reply_to_id: str,
+            now: datetime | None = None) -> int:
+        committed_at = now or datetime.now(timezone.utc)
+        lease_expires_at = committed_at + EVENT_PROCESSING_LEASE
+        payload_json = json.dumps(
+            {"content": reply, "msg_type": 0},
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            event = connection.execute(
+                """
+                SELECT status, claim_token
+                FROM processed_events
+                WHERE event_id = ?
+                """,
+                (event_id,),
+            ).fetchone()
+            if (
+                    event is None
+                    or event["status"] != "processing"
+                    or event["claim_token"] != claim_token):
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+
+            existing_outbox = connection.execute(
+                "SELECT id FROM outbox_messages WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if existing_outbox is not None:
+                return int(existing_outbox["id"])
+
+            consumed = connection.execute(
+                """
+                UPDATE upload_bindings
+                SET consumed_at = ?
+                WHERE id = ?
+                  AND redeemed_at IS NOT NULL
+                  AND consumed_at IS NULL
+                """,
+                (committed_at.isoformat(), binding_id),
+            )
+            if consumed.rowcount != 1:
+                raise RuntimeError("Upload binding is no longer available")
+
+            updated = connection.execute(
+                """
+                UPDATE processed_events
+                SET prepared_reply = ?,
+                    prepared_memory_content = NULL,
+                    updated_at = ?,
+                    lease_expires_at = ?
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (
+                    reply,
                     committed_at.isoformat(),
                     lease_expires_at.isoformat(),
                     event_id,

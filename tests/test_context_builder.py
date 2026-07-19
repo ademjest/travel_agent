@@ -4,7 +4,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from chat_transport import ChatEvent
-from context_builder import MAX_CONTEXT_CHARS, ContextBuilder
+from context_builder import (
+    MAX_CONTEXT_CHARS,
+    ContextBuilder,
+    render_untrusted_context,
+)
 from memory_store import MemoryStore
 
 
@@ -113,6 +117,10 @@ class ContextBuilderTests(unittest.TestCase):
         context = self.builder.build(self.event("茶卡住宿怎么安排"))
 
         self.assertLessEqual(context.total_chars, MAX_CONTEXT_CHARS)
+        self.assertLessEqual(
+            len(render_untrusted_context(context)),
+            MAX_CONTEXT_CHARS,
+        )
 
     def test_document_context_is_not_displaced_by_unrelated_chat(self):
         for index in range(20):
@@ -139,3 +147,34 @@ class ContextBuilderTests(unittest.TestCase):
 
         self.assertIn("部分群消息", context.source_note)
         self.assertIn("QQ 官方", context.source_note)
+
+    def test_document_context_is_isolated_between_platforms(self):
+        self.store.add_document(
+            "10001",
+            "member",
+            "official.txt",
+            "official-platform-doc",
+            "官方平台住宿西宁。",
+            ["官方平台住宿西宁。"],
+        )
+        self.store.add_document(
+            "onebot:10001",
+            "member",
+            "onebot.txt",
+            "onebot-platform-doc",
+            "OneBot 平台住宿茶卡镇。",
+            ["OneBot 平台住宿茶卡镇。"],
+        )
+        event = ChatEvent(
+            platform="onebot",
+            channel="group",
+            event_id="onebot-current",
+            scope_id="10001",
+            sender_id="member",
+            content="住宿在哪里",
+        )
+
+        context = self.builder.build(event)
+
+        self.assertIn("茶卡镇", context.document_context)
+        self.assertNotIn("官方平台住宿西宁", context.document_context)

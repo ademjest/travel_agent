@@ -114,7 +114,7 @@ class TravelBotApplication:
         try:
             document_result = await asyncio.to_thread(
                 self.document_service.ingest_attachments,
-                event.scope_id,
+                event.storage_scope_id,
                 event.sender_id,
                 list(event.attachments),
             )

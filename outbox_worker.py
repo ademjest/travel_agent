@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 
 from chat_transport import MessageTransport, OutgoingMessage
 from memory_store import MemoryStore
@@ -20,24 +21,27 @@ class OutboxWorker:
             self,
             platform: str,
             store: MemoryStore,
-            transport: MessageTransport):
+            transport: MessageTransport,
+            clock: Callable[[], datetime] | None = None):
         self.platform = platform
         self.store = store
         self.transport = transport
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
 
     async def dispatch_due_once(self, now: datetime | None = None) -> int:
-        current = now or datetime.now(timezone.utc)
+        listing_time = now or self.clock()
         delivered = 0
         rows = await asyncio.to_thread(
             self.store.list_due_outbox,
             self.platform,
-            current,
+            listing_time,
         )
         for row in rows:
+            claim_time = now or self.clock()
             token = await asyncio.to_thread(
                 self.store.claim_outbox,
                 row.outbox_id,
-                current,
+                claim_time,
             )
             if token is None:
                 continue
@@ -49,7 +53,8 @@ class OutboxWorker:
                     payload=row.payload,
                 ))
             except Exception as exc:
-                retry_at = current + retry_delay(row.attempt_count + 1)
+                failed_at = now or self.clock()
+                retry_at = failed_at + retry_delay(row.attempt_count + 1)
                 await asyncio.to_thread(
                     self.store.mark_outbox_failed,
                     row.outbox_id,
@@ -58,11 +63,12 @@ class OutboxWorker:
                     retry_at,
                 )
             else:
+                sent_at = now or self.clock()
                 sent = await asyncio.to_thread(
                     self.store.mark_outbox_sent,
                     row.outbox_id,
                     token,
-                    current,
+                    sent_at,
                 )
                 if sent:
                     delivered += 1

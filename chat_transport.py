@@ -4,6 +4,12 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 
+def storage_scope_id(platform: str, scope_id: str) -> str:
+    if platform == "qq_official":
+        return scope_id
+    return f"{platform}:{scope_id}"
+
+
 @dataclass(frozen=True)
 class OutgoingMessage:
     channel: Literal["group", "private"]
@@ -33,6 +39,10 @@ class ChatEvent:
     @property
     def event_key(self) -> str:
         return f"{self.platform}:{self.channel}:{self.scope_id}:{self.event_id}"
+
+    @property
+    def storage_scope_id(self) -> str:
+        return storage_scope_id(self.platform, self.scope_id)
 
 
 class MessageTransport(Protocol):

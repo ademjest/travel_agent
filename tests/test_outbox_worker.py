@@ -140,3 +140,53 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
             len(first_transport.messages) + len(second_transport.messages),
             1,
         )
+
+    async def test_each_row_gets_a_fresh_lease_time_in_a_slow_batch(self):
+        second_event = "qq_official:group:group-a:message-2"
+        self.enqueue()
+        claim = self.store.begin_event(second_event, now=self.now)
+        self.store.prepare_event_outbox(
+            event_id=second_event,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="group-a",
+            sender_id="member-a",
+            reply_to_id="message-2",
+            payload={"msg_type": 0, "content": "second"},
+            memory_content="question-2",
+            now=self.now,
+        )
+        clock = SimpleClock(self.now)
+
+        class SlowBatchTransport(FakeTransport):
+            async def send(inner_self, message):
+                inner_self.messages.append(message)
+                if len(inner_self.messages) == 1:
+                    clock.current += timedelta(minutes=3)
+                    return
+                due = self.store.list_due_outbox(
+                    "qq_official",
+                    now=clock.current,
+                )
+                self.assertEqual(due, ())
+
+        transport = SlowBatchTransport()
+        worker = OutboxWorker(
+            "qq_official",
+            self.store,
+            transport,
+            clock=clock,
+        )
+
+        delivered = await worker.dispatch_due_once()
+
+        self.assertEqual(delivered, 2)
+
+
+class SimpleClock:
+    def __init__(self, current):
+        self.current = current
+
+    def __call__(self):
+        return self.current

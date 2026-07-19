@@ -122,6 +122,7 @@ class UploadBindingServiceTests(unittest.TestCase):
 
         self.assertIn("不支持", result.reply)
         self.assertIn("本次绑定已失效", result.reply)
+        self.assertIsNotNone(result.outbox_id)
         self.assertIsNone(
             self.store.get_pending_upload_binding(
                 "private-user",
@@ -162,6 +163,82 @@ class UploadBindingServiceTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(documents.pending_during_ingest)
+        self.assertIsNone(
+            self.store.get_pending_upload_binding(
+                "private-user",
+                now=self.now,
+            )
+        )
+
+    def test_replayed_unsupported_attachment_reuses_original_reply(self):
+        self.documents.prepared = ()
+        self.service.issue_binding("group-a", "member-a")
+        self.service.handle_private_message(
+            "private-user",
+            "QG-ABC234",
+            [],
+        )
+        attachment = SimpleNamespace(filename="photo.jpg")
+        first_claim = self.store.begin_event(
+            "private-unsupported-replay",
+            now=self.now,
+        )
+        first = self.service.handle_private_message(
+            "private-user",
+            "",
+            [attachment],
+            event_id=first_claim.event_id,
+            claim_token=first_claim.claim_token,
+            platform="qq_official",
+            reply_to_id=first_claim.event_id,
+        )
+        self.store.fail_event(
+            first_claim.event_id,
+            first_claim.claim_token,
+            "simulated interruption",
+            now=self.now,
+        )
+        second_claim = self.store.begin_event(
+            first_claim.event_id,
+            now=self.now,
+        )
+
+        replay = self.service.handle_private_message(
+            "private-user",
+            "",
+            [attachment],
+            event_id=second_claim.event_id,
+            claim_token=second_claim.claim_token,
+            platform="qq_official",
+            reply_to_id=second_claim.event_id,
+        )
+
+        self.assertEqual(replay.reply, first.reply)
+        self.assertEqual(replay.outbox_id, first.outbox_id)
+
+    def test_disallowed_redeemed_binding_is_consumed_with_outbox(self):
+        service = UploadBindingService(
+            self.store,
+            self.documents,
+            group_allowed=lambda group_id: False,
+            code_factory=lambda: "QG-NPQ234",
+            now_provider=lambda: self.now,
+        )
+        service.issue_binding("group-a", "member-a")
+        claim = self.store.begin_event("private-disallowed", now=self.now)
+
+        result = service.handle_private_message(
+            "private-user",
+            "QG-NPQ234",
+            [],
+            event_id=claim.event_id,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            reply_to_id=claim.event_id,
+        )
+
+        self.assertIn("不在机器人允许列表", result.reply)
+        self.assertIsNotNone(result.outbox_id)
         self.assertIsNone(
             self.store.get_pending_upload_binding(
                 "private-user",
@@ -213,6 +290,34 @@ class UploadBindingServiceTests(unittest.TestCase):
         self.assertEqual(replay.outbox_id, first.outbox_id)
         self.assertNotIn("没有有效的群绑定", replay.reply)
         self.assertEqual(self.documents.calls, [[attachment]])
+
+    def test_onebot_document_is_stored_in_platform_scope(self):
+        self.service.issue_binding("group-a", "member-a")
+        self.service.handle_private_message(
+            "private-user",
+            "QG-ABC234",
+            [],
+        )
+        claim = self.store.begin_event("onebot-private-document", now=self.now)
+
+        self.service.handle_private_message(
+            "private-user",
+            "",
+            [SimpleNamespace(filename="plan.docx")],
+            event_id=claim.event_id,
+            claim_token=claim.claim_token,
+            platform="onebot",
+            reply_to_id=claim.event_id,
+        )
+
+        self.assertIn(
+            "茶卡镇",
+            self.store.build_document_context("onebot:group-a", "住宿"),
+        )
+        self.assertEqual(
+            self.store.build_document_context("group-a", "住宿"),
+            "",
+        )
 
 
 if __name__ == "__main__":

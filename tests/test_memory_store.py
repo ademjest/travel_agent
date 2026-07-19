@@ -225,6 +225,32 @@ class MemoryStoreTests(unittest.TestCase):
         self.assertEqual(turns[0].user_content, "question")
         self.assertEqual(turns[0].assistant_content, "reply")
 
+    def test_onebot_group_turn_uses_platform_scoped_session(self):
+        event_id = "onebot:group:10001:message-1"
+        claim = self.store.begin_event(event_id)
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=claim.claim_token,
+            platform="onebot",
+            channel="group",
+            target_id="10001",
+            sender_id="20001",
+            reply_to_id="message-1",
+            payload={"message": "reply"},
+            memory_content="question",
+        )
+        token = self.store.claim_outbox(outbox_id)
+
+        self.assertTrue(self.store.mark_outbox_sent(outbox_id, token))
+        self.assertEqual(
+            len(self.store.get_recent_turns("onebot:10001", "20001")),
+            1,
+        )
+        self.assertEqual(
+            self.store.get_recent_turns("10001", "20001"),
+            (),
+        )
+
     def test_failed_event_can_be_reclaimed_immediately(self):
         first_claim = self.store.begin_event("failed-event")
 

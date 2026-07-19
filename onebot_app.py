@@ -58,6 +58,29 @@ class OneBotTransport:
         if self._owns_client:
             await self.client.aclose()
 
+    async def reply_is_from_bot(
+            self,
+            message_id: str,
+            self_id: str) -> bool:
+        response = await self.client.post(
+            "/get_msg",
+            json={"message_id": message_id},
+        )
+        response.raise_for_status()
+        result = response.json()
+        if (
+                result.get("status") == "failed"
+                or int(result.get("retcode", 0) or 0) != 0):
+            return False
+        data = result.get("data") or {}
+        sender = data.get("sender") or {}
+        sender_id = str(
+            sender.get("user_id")
+            or data.get("user_id")
+            or ""
+        )
+        return bool(sender_id) and sender_id == self_id
+
 
 class OneBotReplyRenderer:
     def render(self, channel, command_content, reply_text):
@@ -92,6 +115,20 @@ class OneBotAdapter:
         if not self.settings.allows_group(group_id):
             raise HTTPException(status_code=403, detail="group not allowed")
         event, triggered = self._group_event(payload)
+        if not triggered and event.reply_to_id:
+            resolver = getattr(
+                self.application.outbox_worker.transport,
+                "reply_is_from_bot",
+                None,
+            )
+            if resolver is not None:
+                try:
+                    triggered = await resolver(
+                        event.reply_to_id,
+                        str(payload.get("self_id") or ""),
+                    )
+                except Exception:
+                    triggered = False
         if triggered:
             await self.application.handle(event)
             return {"status": "handled"}

@@ -33,6 +33,9 @@ class RecordingTransport:
     async def send(self, message):
         self.messages.append(message)
 
+    async def reply_is_from_bot(self, message_id, self_id):
+        return message_id == "previous" and self_id == "30001"
+
 
 class FakeTravelService:
     def handle(self, content):
@@ -170,7 +173,7 @@ class OneBotAppTests(unittest.TestCase):
             json=self.payload(4, [
                 {
                     "type": "reply",
-                    "data": {"id": "previous", "user_id": "30001"},
+                    "data": {"id": "previous"},
                 },
                 {"type": "text", "data": {"text": "继续分析"}},
             ]),
