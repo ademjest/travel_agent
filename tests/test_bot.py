@@ -65,7 +65,12 @@ class FakeUploadBindingService:
         self.issue_calls.append((group_openid, member_openid))
         return "一次性绑定码：QG-ABC234"
 
-    def handle_private_message(self, user_openid, content, attachments):
+    def handle_private_message(
+            self,
+            user_openid,
+            content,
+            attachments,
+            **kwargs):
         self.private_calls.append((user_openid, content, attachments))
         return PrivateUploadResult(
             reply="已保存旅行文档：plan.docx\n本次绑定已失效。",

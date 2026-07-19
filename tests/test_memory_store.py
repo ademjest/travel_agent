@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from document_service import PreparedDocument
 from memory_store import MemoryStore
 
 
@@ -691,6 +692,65 @@ class MemoryStoreTests(unittest.TestCase):
 
         self.assertEqual(first.group_openid, "group-a")
         self.assertIsNone(second)
+
+    def test_competing_document_events_consume_binding_once(self):
+        now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
+        self.store.create_upload_binding(
+            "document-race-hash",
+            "group-a",
+            "member-a",
+            now + timedelta(minutes=10),
+            now=now,
+        )
+        redemption = self.store.redeem_upload_binding(
+            "document-race-hash",
+            "private-user",
+            now=now,
+        )
+        first_claim = self.store.begin_event("private-event-1", now=now)
+        second_claim = self.store.begin_event("private-event-2", now=now)
+        document = PreparedDocument(
+            filename="plan.txt",
+            sha256="same-document",
+            full_text="8月16日从西宁前往青海湖，晚上住宿茶卡镇。",
+            chunks=("8月16日从西宁前往青海湖，晚上住宿茶卡镇。",),
+            summary="青甘自驾行程",
+        )
+
+        def commit(event_id, claim_token):
+            try:
+                self.store.commit_private_document_event(
+                    event_id=event_id,
+                    claim_token=claim_token,
+                    platform="qq_official",
+                    binding_id=redemption.binding.binding_id,
+                    group_openid="group-a",
+                    uploader_openid="c2c:private-user",
+                    document=document,
+                    reply="已保存旅行文档：plan.txt",
+                    target_user_openid="private-user",
+                    reply_to_id=event_id,
+                    now=now,
+                )
+                return "committed"
+            except RuntimeError:
+                return "rejected"
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = sorted(executor.map(
+                lambda args: commit(*args),
+                (
+                    (first_claim.event_id, first_claim.claim_token),
+                    (second_claim.event_id, second_claim.claim_token),
+                ),
+            ))
+
+        self.assertEqual(results, ["committed", "rejected"])
+        outbox_count = sum(
+            len(self.store.list_outbox_for_event(event_id))
+            for event_id in ("private-event-1", "private-event-2")
+        )
+        self.assertEqual(outbox_count, 1)
 
 
 if __name__ == "__main__":

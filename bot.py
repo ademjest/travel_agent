@@ -259,8 +259,15 @@ class TravelRiskBot(botpy.Client):
                     user_openid,
                     (message.content or "").strip(),
                     attachments,
+                    event_id=event_claim.event_id,
+                    claim_token=event_claim.claim_token,
+                    platform="qq_official",
+                    reply_to_id=message.id,
                 )
                 reply = result.reply
+                if result.outbox_id is not None:
+                    await self.outbox_worker.dispatch_due_once()
+                    return
             except Exception:
                 logger.exception("Unexpected error while handling private message")
                 reply = "处理私聊文件时出现内部错误，请稍后重试。"

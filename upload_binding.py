@@ -20,6 +20,7 @@ UPLOAD_CODE_PATTERN = re.compile(r"QG-[A-HJ-NP-Z2-9]{6}", re.IGNORECASE)
 class PrivateUploadResult:
     reply: str
     group_openid: str = ""
+    outbox_id: int | None = None
 
 
 class UploadBindingService:
@@ -56,7 +57,12 @@ class UploadBindingService:
             self,
             c2c_user_openid: str,
             content: str,
-            attachments: list) -> PrivateUploadResult:
+            attachments: list,
+            *,
+            event_id: str = "",
+            claim_token: str = "",
+            platform: str = "qq_official",
+            reply_to_id: str = "") -> PrivateUploadResult:
         text = (content or "").strip()
         code_match = UPLOAD_CODE_PATTERN.search(text.upper())
         redemption = None
@@ -95,7 +101,16 @@ class UploadBindingService:
                 )
             )
 
-        pending = self.memory_store.claim_pending_upload_binding(
+        if event_id:
+            existing = self.memory_store.list_outbox_for_event(event_id)
+            if existing:
+                reply = existing[0].payload.get("content", "")
+                return PrivateUploadResult(
+                    reply=str(reply),
+                    outbox_id=existing[0].outbox_id,
+                )
+
+        pending = self.memory_store.get_pending_upload_binding(
             c2c_user_openid,
             now=self.now_provider(),
         )
@@ -111,12 +126,14 @@ class UploadBindingService:
                 reply="目标群当前不在机器人允许列表中，请回到群里重新申请。"
             )
 
-        document_result = self.document_service.ingest_attachments(
-            pending.group_openid,
-            f"c2c:{c2c_user_openid}",
-            list(attachments),
+        prepared = self.document_service.prepare_attachments(
+            list(attachments)
         )
-        if not document_result.handled:
+        if not prepared:
+            self.memory_store.consume_upload_binding(
+                pending.binding_id,
+                now=self.now_provider(),
+            )
             return PrivateUploadResult(
                 reply=(
                     "该附件格式暂不支持。请发送 .docx、.txt 或 .md 文件，"
@@ -125,9 +142,40 @@ class UploadBindingService:
                 group_openid=pending.group_openid,
             )
 
-        return PrivateUploadResult(
-            reply=f"{document_result.reply}\n本次绑定已失效。",
+        if not event_id or not claim_token or not reply_to_id:
+            raise ValueError("Document upload requires an event claim")
+
+        document = prepared[0]
+        reply_lines = [
+            (
+                f"已保存旅行文档：{document.filename}"
+                f"（{len(document.full_text)} 字，{len(document.chunks)} 个片段）。"
+            )
+        ]
+        if document.summary:
+            reply_lines.append("已生成长期行程摘要。")
+        reply_lines.extend((
+            "文档属于群共享长期资料，不受最近 6 轮对话限制。后续提问时会按内容检索相关片段。",
+            "本次绑定已失效。",
+        ))
+        reply = "\n".join(reply_lines)
+        outbox_id = self.memory_store.commit_private_document_event(
+            event_id=event_id,
+            claim_token=claim_token,
+            platform=platform,
+            binding_id=pending.binding_id,
             group_openid=pending.group_openid,
+            uploader_openid=f"c2c:{c2c_user_openid}",
+            document=document,
+            reply=reply,
+            target_user_openid=c2c_user_openid,
+            reply_to_id=reply_to_id,
+            now=self.now_provider(),
+        )
+        return PrivateUploadResult(
+            reply=reply,
+            group_openid=pending.group_openid,
+            outbox_id=outbox_id,
         )
 
     @staticmethod

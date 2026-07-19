@@ -28,6 +28,15 @@ class DocumentIngestResult:
     memory_content: str = ""
 
 
+@dataclass(frozen=True)
+class PreparedDocument:
+    filename: str
+    sha256: str
+    full_text: str
+    chunks: tuple[str, ...]
+    summary: str
+
+
 class DocumentService:
     def __init__(
             self,
@@ -35,6 +44,31 @@ class DocumentService:
             summarizer: Callable[[str, str], str] | None = None):
         self.memory_store = memory_store
         self.summarizer = summarizer
+
+    def prepare_attachments(
+            self,
+            attachments: list) -> tuple[PreparedDocument, ...]:
+        prepared = []
+        for attachment in attachments:
+            filename = str(getattr(attachment, "filename", "") or "")
+            if Path(filename).suffix.lower() not in SUPPORTED_EXTENSIONS:
+                continue
+            data = self._download_attachment(attachment)
+            text = self._extract_text(filename, data)
+            summary = ""
+            if self.summarizer:
+                try:
+                    summary = self.summarizer(filename, text)
+                except Exception:
+                    summary = ""
+            prepared.append(PreparedDocument(
+                filename=filename,
+                sha256=hashlib.sha256(data).hexdigest(),
+                full_text=text,
+                chunks=tuple(self._chunk_text(text)),
+                summary=summary,
+            ))
+        return tuple(prepared)
 
     def ingest_attachments(
             self,

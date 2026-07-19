@@ -8,6 +8,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from document_service import PreparedDocument
 
 
 RECENT_TURN_LIMIT = 6
@@ -1120,6 +1125,167 @@ class MemoryStore:
             filename=filename,
             is_new=True,
         )
+
+    def commit_private_document_event(
+            self,
+            event_id: str,
+            claim_token: str,
+            platform: str,
+            binding_id: int,
+            group_openid: str,
+            uploader_openid: str,
+            document: PreparedDocument,
+            reply: str,
+            target_user_openid: str,
+            reply_to_id: str,
+            now: datetime | None = None) -> int:
+        committed_at = now or datetime.now(timezone.utc)
+        lease_expires_at = committed_at + EVENT_PROCESSING_LEASE
+        payload_json = json.dumps(
+            {"content": reply, "msg_type": 0},
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            event = connection.execute(
+                """
+                SELECT status, claim_token
+                FROM processed_events
+                WHERE event_id = ?
+                """,
+                (event_id,),
+            ).fetchone()
+            if (
+                    event is None
+                    or event["status"] != "processing"
+                    or event["claim_token"] != claim_token):
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+
+            existing_outbox = connection.execute(
+                "SELECT id FROM outbox_messages WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if existing_outbox is not None:
+                return int(existing_outbox["id"])
+
+            existing_document = connection.execute(
+                """
+                SELECT id
+                FROM documents
+                WHERE group_openid = ? AND sha256 = ?
+                """,
+                (group_openid, document.sha256),
+            ).fetchone()
+            if existing_document is None:
+                cursor = connection.execute(
+                    """
+                    INSERT INTO documents (
+                        group_openid,
+                        uploader_openid,
+                        filename,
+                        sha256,
+                        preview,
+                        summary,
+                        text_length,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        group_openid,
+                        uploader_openid,
+                        document.filename,
+                        document.sha256,
+                        document.full_text[:500],
+                        document.summary,
+                        len(document.full_text),
+                        committed_at.isoformat(),
+                    ),
+                )
+                document_id = int(cursor.lastrowid)
+                connection.executemany(
+                    """
+                    INSERT INTO document_chunks (
+                        document_id, chunk_index, content
+                    ) VALUES (?, ?, ?)
+                    """,
+                    [
+                        (document_id, index, chunk)
+                        for index, chunk in enumerate(document.chunks)
+                    ],
+                )
+
+            consumed = connection.execute(
+                """
+                UPDATE upload_bindings
+                SET consumed_at = ?
+                WHERE id = ?
+                  AND group_openid = ?
+                  AND redeemed_at IS NOT NULL
+                  AND consumed_at IS NULL
+                  AND expires_at > ?
+                """,
+                (
+                    committed_at.isoformat(),
+                    binding_id,
+                    group_openid,
+                    committed_at.isoformat(),
+                ),
+            )
+            if consumed.rowcount != 1:
+                raise RuntimeError("Upload binding is no longer available")
+
+            updated = connection.execute(
+                """
+                UPDATE processed_events
+                SET prepared_reply = ?,
+                    prepared_memory_content = ?,
+                    updated_at = ?,
+                    lease_expires_at = ?
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (
+                    reply,
+                    f"上传旅行文档：{document.filename}",
+                    committed_at.isoformat(),
+                    lease_expires_at.isoformat(),
+                    event_id,
+                    claim_token,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+
+            cursor = connection.execute(
+                """
+                INSERT INTO outbox_messages (
+                    event_id,
+                    platform,
+                    channel,
+                    target_id,
+                    sender_id,
+                    reply_to_id,
+                    payload_json,
+                    status,
+                    attempt_count,
+                    next_attempt_at,
+                    created_at
+                ) VALUES (?, ?, 'private', ?, ?, ?, ?, 'pending', 0, ?, ?)
+                """,
+                (
+                    event_id,
+                    platform,
+                    target_user_openid,
+                    target_user_openid,
+                    reply_to_id,
+                    payload_json,
+                    committed_at.isoformat(),
+                    committed_at.isoformat(),
+                ),
+            )
+            return int(cursor.lastrowid)
 
     def build_document_context(
             self,
