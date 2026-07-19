@@ -1400,6 +1400,14 @@ class MemoryStore:
             ).fetchone()
         return self._chat_message(row) if row is not None else None
 
+    def delete_chat_messages_before(self, cutoff: datetime) -> int:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM chat_messages WHERE created_at < ?",
+                (cutoff.isoformat(),),
+            )
+        return cursor.rowcount
+
     @staticmethod
     def _chat_message(row: sqlite3.Row) -> ChatMessage:
         return ChatMessage(

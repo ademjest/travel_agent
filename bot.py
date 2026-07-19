@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 
 import botpy
 from botpy import logging
@@ -92,8 +93,13 @@ class TravelRiskBot(botpy.Client):
         self._outbox_task = None
 
     async def on_ready(self):
+        deleted_messages = await asyncio.to_thread(
+            self.memory_store.delete_chat_messages_before,
+            datetime.now(timezone.utc) - timedelta(days=30),
+        )
         logger.info("Bot is online: %s", self.robot.name)
         logger.info("Memory database: %s", self.memory_store.database_path)
+        logger.info("Expired chat messages deleted: %s", deleted_messages)
         logger.info(
             "Build: ref=%s sha=%s",
             os.getenv("APP_GIT_REF", "local"),

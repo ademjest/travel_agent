@@ -369,7 +369,80 @@ QQ 官方文档提供 `GROUP_MESSAGE_CREATE`：群主允许机器人接收群内
 4. 普通群消息只做本地相关性过滤和存储，不触发 LLM、不自动回复。
 5. 在群内明确告知成员消息保存范围和清理方式。
 
-## 11. 当前边界和下一阶段
+## 11. 可靠性、上下文和隐私
+
+机器人回复会先写入 SQLite outbox，再调用 QQ 或 OneBot 发送接口。发送失败只重试已经生成的 payload，不会重新调用 LLM、高德或文档解析。进程重启后会继续发送未完成的消息；成功发送后才完成事件并保存会话轮次。
+
+群聊上下文采用固定预算：引用消息最多 800 字、最近观察到的群消息最多 2200 字、相关文档最多 3200 字，完整上下文快照不超过约 7000 字。上传文档和群聊消息会放入非可信资料边界，不能修改系统身份、规则或工具权限。日志只记录决策类型、工具名、耗时和上下文大小，不记录隐藏思维链。
+
+QQ 官方 Bot 只能看到平台实际推送给机器人的消息，因此上下文会明确标记为“部分群消息”。原始观察消息默认保留 30 天，启动时自动清理；文档、文档摘要和结构化行程资料不受该清理影响。
+
+手动执行相同的 30 天清理：
+
+```bash
+python -c "from datetime import datetime,timedelta,timezone; from memory_store import MemoryStore; print(MemoryStore().delete_chat_messages_before(datetime.now(timezone.utc)-timedelta(days=30)))"
+```
+
+## 12. 可选 NapCat/OneBot 部署
+
+NapCat 是非 QQ 官方协议，只适合实验性部署。它需要长期保存 QQ 登录会话、设备身份和配置文件，因此不能部署在 GitHub-hosted Actions。请使用持久 Linux VPS、NAS 或家庭服务器，并使用专用、低价值 QQ 账号；非官方协议可能触发 QQ 风控、限制登录或封禁账号。
+
+官方 Bot 和 NapCat 不要同时在同一个群中作为回复者运行。切换到 NapCat 前，应先从官方 Bot 的允许群列表中移除该群，避免重复回复和事件状态分裂。
+
+### 部署步骤
+
+1. 在 Linux 主机安装 Docker Engine 和 Compose 插件，克隆仓库。
+2. 创建部署配置：
+
+```bash
+cd deploy/napcat
+cp .env.example .env
+openssl rand -hex 32
+openssl rand -hex 32
+```
+
+将两个不同的随机值分别写入 `ONEBOT_ACCESS_TOKEN` 和 `ONEBOT_INBOUND_TOKEN`，再填写群号、高德和 LLM 配置。不要提交 `.env`。
+
+3. 构建并启动：
+
+```bash
+docker compose --env-file .env up -d --build
+docker compose ps
+```
+
+NapCat 镜像和 Python 基础镜像均固定了版本与 digest。`qq_config`、`napcat_config` 和 `travel_data` 是持久卷。
+
+4. NapCat WebUI 只绑定服务器的 `127.0.0.1:6099`。从本机建立 SSH 隧道：
+
+```bash
+ssh -L 6099:127.0.0.1:6099 your-user@your-server
+```
+
+然后在本机访问 `http://127.0.0.1:6099` 完成专用 QQ 登录。
+
+5. 在 NapCat 中配置 OneBot：
+
+- HTTP 服务监听容器端口 `3000`，Access Token 使用 `ONEBOT_ACCESS_TOKEN`。
+- HTTP 事件上报地址为 `http://onebot:8000/onebot`。
+- 上报请求使用 `Authorization: Bearer <ONEBOT_INBOUND_TOKEN>`；也支持 `X-OneBot-Token`。
+- 只启用确实需要的群，并确保群号存在于 `ONEBOT_ALLOWED_GROUPS`。
+
+普通群消息只保存为上下文，不调用 LLM、不自动回复。`@机器人`，或事件中能够确认是回复机器人本身的消息，才会进入 Agent。所有允许群消息都只保存归一化文本和必要标识，不保存完整 OneBot 原始 JSON。
+
+### 备份与回退
+
+先生成一致的 SQLite 备份：
+
+```bash
+docker compose exec onebot python -c "import sqlite3; s=sqlite3.connect('/app/data/travel_bot.db'); d=sqlite3.connect('/app/data/travel_bot.backup.db'); s.backup(d); d.close(); s.close()"
+docker compose cp onebot:/app/data/travel_bot.backup.db ./travel_bot.backup.db
+openssl enc -aes-256-cbc -pbkdf2 -salt -in travel_bot.backup.db -out travel_bot.backup.db.enc
+rm travel_bot.backup.db
+```
+
+备份密码、QQ 凭据、OneBot token 和 API Key 只能保存在部署环境或密钥管理器中。需要回退到官方 Bot 时，先停止 NapCat 的事件上报和回复服务，再恢复官方 Bot 的群白名单。
+
+## 13. 当前边界和下一阶段
 
 目前还没有实现：
 
@@ -377,11 +450,9 @@ QQ 官方文档提供 `GROUP_MESSAGE_CREATE`：群主允许机器人接收群内
 - 沿路线每隔若干公里采样天气
 - 气象预警、降水强度和能见度
 - 道路封闭、施工和交警公告
-- 行程保存与当前旅行阶段
-- 多轮会话和“这条路线”等上下文记忆
-- 多日行程的 Plan-and-Execute 规划
-- 群聊全量消息的 botpy 兼容层
-- 历史对话滚动摘要和全文检索
-- PDF 和旧版 `.doc` 文档解析
+- 行程阶段状态和主动检查任务
+- 历史群聊的滚动摘要和长期全文检索
+- PDF、图片 OCR 和旧版 `.doc` 文档解析
+- 对 NapCat 登录风控和 QQ 协议变化的自动恢复
 
-下一阶段应增加 SQLite 行程存储和定时任务，再接更细粒度天气源。安全告警必须由明确数据和规则触发，大模型只负责选择工具、解释数据和比较路线方案。
+下一阶段应增加 SQLite 行程计划、定时风险检查和更细粒度天气源。安全告警必须由明确数据和规则触发，大模型只负责选择工具、解释数据和比较路线方案。

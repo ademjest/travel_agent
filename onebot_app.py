@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -203,6 +204,10 @@ def create_onebot_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        await asyncio.to_thread(
+            store.delete_chat_messages_before,
+            datetime.now(timezone.utc) - timedelta(days=30),
+        )
         await application.outbox_worker.dispatch_due_once()
         task = asyncio.create_task(
             application.outbox_worker.run(),
