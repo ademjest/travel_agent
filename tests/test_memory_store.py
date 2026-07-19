@@ -3,12 +3,19 @@ import tempfile
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from document_service import PreparedDocument
 from memory_store import MemoryStore
+
+
+@contextmanager
+def sqlite_connection(database_path):
+    with closing(sqlite3.connect(database_path)) as connection:
+        with connection:
+            yield connection
 
 
 class BarrierConnection:
@@ -316,7 +323,7 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_legacy_processed_events_are_migrated_as_completed(self):
         database_path = Path(self.temp_dir.name) / "legacy.db"
-        with sqlite3.connect(database_path) as connection:
+        with sqlite_connection(database_path) as connection:
             connection.execute(
                 """
                 CREATE TABLE processed_events (
@@ -487,7 +494,7 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_existing_document_chunks_are_backfilled_into_search_index(self):
         database_path = Path(self.temp_dir.name) / "legacy-documents.db"
-        with sqlite3.connect(database_path) as connection:
+        with sqlite_connection(database_path) as connection:
             connection.executescript(
                 """
                 CREATE TABLE documents (
@@ -530,7 +537,7 @@ class MemoryStoreTests(unittest.TestCase):
         )
 
         self.assertIn("青海湖二郎剑景区早上九点集合", context)
-        with sqlite3.connect(database_path) as connection:
+        with sqlite_connection(database_path) as connection:
             migration = connection.execute(
                 "SELECT 1 FROM schema_migrations WHERE name = ?",
                 ("document_chunks_fts_v1",),
