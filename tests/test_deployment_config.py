@@ -12,6 +12,14 @@ class DeploymentConfigTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(__file__).resolve().parents[1]
         self.compose_path = self.root / "deploy" / "napcat" / "compose.yml"
+        self.workflow_path = (
+            self.root / ".github" / "workflows" / "scheduled-bot.yml"
+        )
+
+    def test_scheduled_workflow_installs_full_test_dependencies(self):
+        workflow = self.workflow_path.read_text(encoding="utf-8")
+
+        self.assertIn("pip install -r requirements-onebot.txt", workflow)
 
     def test_napcat_compose_uses_private_ports_and_persistent_volumes(self):
         compose = yaml.safe_load(self.compose_path.read_text(encoding="utf-8"))
