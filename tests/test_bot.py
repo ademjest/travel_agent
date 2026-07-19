@@ -11,6 +11,8 @@ from bot import (
     QQOfficialTransport,
     TravelRiskBot,
 )
+from bot_application import TravelBotApplication
+from chat_transport import ChatEvent
 from document_service import DocumentIngestResult
 from memory_store import MemoryStore
 from outbox_worker import OutboxWorker
@@ -100,7 +102,49 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             self.bot.memory_store,
             QQOfficialTransport(api),
         )
+        self.bot.application = TravelBotApplication(
+            store=self.bot.memory_store,
+            travel_service=self.bot.travel_service,
+            travel_agent=self.bot.travel_agent,
+            document_service=self.bot.document_service,
+            upload_binding_service=self.bot.upload_binding_service,
+            outbox_worker=self.bot.outbox_worker,
+            reply_renderer=self.bot.reply_renderer,
+            group_allowed=self.bot.settings.allows_group,
+        )
         return api
+
+    @staticmethod
+    def group_event_key(message):
+        return f"qq_official:group:{message.group_openid}:{message.id}"
+
+    @staticmethod
+    def private_event_key(message):
+        return f"qq_official:private:private-user:{message.id}"
+
+    async def test_group_callback_normalizes_botpy_event(self):
+        application = SimpleNamespace(handle=AsyncMock())
+        self.bot.application = application
+        attachment = SimpleNamespace(
+            filename="plan.txt",
+            url="https://example.test/plan.txt",
+            content_type="text/plain",
+        )
+        message = SimpleNamespace(
+            group_openid="group-a",
+            id="group-normalized",
+            content="查询天气 西宁",
+            attachments=[attachment],
+            author=SimpleNamespace(member_openid="member-a"),
+        )
+
+        await self.bot.on_group_at_message_create(message)
+
+        event = application.handle.await_args.args[0]
+        self.assertIsInstance(event, ChatEvent)
+        self.assertEqual(event.scope_id, "group-a")
+        self.assertEqual(event.sender_id, "member-a")
+        self.assertEqual(event.attachments[0].filename, "plan.txt")
 
     async def test_on_ready_logs_build_revision(self):
         self.bot._connection = SimpleNamespace(
@@ -179,7 +223,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("QG-ABC234", api.group_messages[0]["content"])
         self.assertEqual(api.group_messages[0]["msg_type"], 0)
         self.assertEqual(
-            len(self.bot.memory_store.list_outbox_for_event(message.id)),
+            len(self.bot.memory_store.list_outbox_for_event(
+                self.group_event_key(message)
+            )),
             1,
         )
 
@@ -241,7 +287,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_group_at_message_create(message)
 
         self.assertEqual(
-            self.bot.memory_store.get_event_status(message.id),
+            self.bot.memory_store.get_event_status(
+                self.group_event_key(message)
+            ),
             "processing",
         )
         retry_time = datetime.now(timezone.utc) + timedelta(seconds=6)
@@ -254,7 +302,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("markdown", sent)
         self.assertIn("keyboard", sent)
         self.assertEqual(
-            self.bot.memory_store.get_event_status(message.id),
+            self.bot.memory_store.get_event_status(
+                self.group_event_key(message)
+            ),
             "completed",
         )
 
@@ -271,10 +321,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
 
         await self.bot.on_c2c_message_create(message)
 
-        self.assertEqual(
-            self.bot.upload_binding_service.private_calls,
-            [("private-user", "", [attachment])],
-        )
+        private_call = self.bot.upload_binding_service.private_calls[0]
+        self.assertEqual(private_call[:2], ("private-user", ""))
+        self.assertEqual(len(private_call[2]), 1)
         self.assertEqual(
             api.private_messages[0]["openid"],
             "private-user",
@@ -315,7 +364,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_c2c_message_create(message)
 
         self.assertEqual(
-            self.bot.memory_store.get_event_status(message.id),
+            self.bot.memory_store.get_event_status(
+                self.private_event_key(message)
+            ),
             "processing",
         )
 
@@ -325,7 +376,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.bot.upload_binding_service.private_calls), 1)
         self.assertEqual(len(api.private_messages), 1)
         self.assertEqual(
-            self.bot.memory_store.get_event_status(message.id),
+            self.bot.memory_store.get_event_status(
+                self.private_event_key(message)
+            ),
             "completed",
         )
 
@@ -342,7 +395,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         original_send = self.bot.outbox_worker.transport.send
 
         async def assert_persisted_before_send(outgoing):
-            rows = self.bot.memory_store.list_outbox_for_event(message.id)
+            rows = self.bot.memory_store.list_outbox_for_event(
+                self.group_event_key(message)
+            )
             self.assertEqual(len(rows), 1)
             await original_send(outgoing)
 
@@ -355,7 +410,9 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.bot.upload_binding_service.issue_calls), 1)
         self.assertEqual(len(api.group_messages), 1)
         self.assertEqual(
-            self.bot.memory_store.get_event_status(message.id),
+            self.bot.memory_store.get_event_status(
+                self.group_event_key(message)
+            ),
             "completed",
         )
 

@@ -12,6 +12,29 @@ class OutgoingMessage:
     payload: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class ChatAttachment:
+    filename: str
+    url: str
+    content_type: str = ""
+
+
+@dataclass(frozen=True)
+class ChatEvent:
+    platform: Literal["qq_official", "onebot"]
+    channel: Literal["group", "private"]
+    event_id: str
+    scope_id: str
+    sender_id: str
+    content: str
+    reply_to_id: str = ""
+    attachments: tuple[ChatAttachment, ...] = ()
+
+    @property
+    def event_key(self) -> str:
+        return f"{self.platform}:{self.channel}:{self.scope_id}:{self.event_id}"
+
+
 class MessageTransport(Protocol):
     async def send(self, message: OutgoingMessage) -> None:
         raise NotImplementedError
