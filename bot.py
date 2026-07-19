@@ -7,9 +7,11 @@ from botpy.message import C2CMessage, GroupMessage
 from dotenv import load_dotenv
 from openai import OpenAIError
 
+from chat_transport import OutgoingMessage
 from commands import parse_command
 from document_service import DocumentService
 from memory_store import MemoryStore
+from outbox_worker import OutboxWorker
 from qq_ui import build_group_message_payload
 from settings import Settings, SettingsError
 from travel_agent import TravelAgent
@@ -18,6 +20,34 @@ from upload_binding import UploadBindingService
 
 
 logger = logging.get_logger()
+
+
+class QQOfficialTransport:
+    def __init__(self, api):
+        self.api = api
+
+    async def send(self, message: OutgoingMessage) -> None:
+        if message.channel == "group":
+            await self.api.post_group_message(
+                group_openid=message.target_id,
+                msg_id=message.reply_to_id,
+                msg_seq=1,
+                **message.payload,
+            )
+            return
+        await self.api.post_c2c_message(
+            openid=message.target_id,
+            msg_id=message.reply_to_id,
+            msg_seq=1,
+            **message.payload,
+        )
+
+
+class QQOfficialReplyRenderer:
+    def render(self, channel, command_content, reply_text):
+        if channel == "group":
+            return build_group_message_payload(command_content, reply_text)
+        return {"msg_type": 0, "content": reply_text}
 
 
 class TravelRiskBot(botpy.Client):
@@ -44,6 +74,13 @@ class TravelRiskBot(botpy.Client):
             self.document_service,
             group_allowed=settings.allows_group,
         )
+        self.reply_renderer = QQOfficialReplyRenderer()
+        self.outbox_worker = OutboxWorker(
+            "qq_official",
+            self.memory_store,
+            QQOfficialTransport(self.api),
+        )
+        self._outbox_task = None
 
     async def on_ready(self):
         logger.info("Bot is online: %s", self.robot.name)
@@ -53,6 +90,13 @@ class TravelRiskBot(botpy.Client):
             os.getenv("APP_GIT_REF", "local"),
             os.getenv("APP_GIT_SHA", "unknown")[:12],
         )
+        await self.outbox_worker.dispatch_due_once()
+        outbox_task = getattr(self, "_outbox_task", None)
+        if outbox_task is None or outbox_task.done():
+            self._outbox_task = asyncio.create_task(
+                self.outbox_worker.run(),
+                name="qq-official-outbox",
+            )
 
     async def on_group_at_message_create(self, message: GroupMessage):
         group_openid = message.group_openid
@@ -70,19 +114,20 @@ class TravelRiskBot(botpy.Client):
         member_openid = str(
             getattr(message.author, "member_openid", "") or "unknown"
         )
-        event_claim = None
-        if message.id:
-            event_claim = await asyncio.to_thread(
-                self.memory_store.begin_event,
-                message.id,
-            )
-            if event_claim is None:
-                logger.info("Ignored duplicate message: msg_id=%s", message.id)
-                return
+        if not message.id:
+            logger.warning("Ignored group message without msg_id")
+            return
+        event_claim = await asyncio.to_thread(
+            self.memory_store.begin_event,
+            message.id,
+        )
+        if event_claim is None:
+            logger.info("Ignored duplicate message: msg_id=%s", message.id)
+            return
 
         content = (message.content or "").strip()
         memory_content = content
-        if event_claim and event_claim.prepared_reply is not None:
+        if event_claim.prepared_reply is not None:
             reply = event_claim.prepared_reply
             memory_content = (
                 event_claim.prepared_memory_content
@@ -150,61 +195,32 @@ class TravelRiskBot(botpy.Client):
                 logger.exception("Unexpected error while handling group message")
                 reply = "处理请求时出现内部错误，请稍后重试。"
 
-            if event_claim:
-                try:
-                    prepared = await asyncio.to_thread(
-                        self.memory_store.prepare_event_reply,
-                        event_claim.event_id,
-                        event_claim.claim_token,
-                        reply,
-                        memory_content,
-                    )
-                    if not prepared:
-                        raise RuntimeError(
-                            "Lost event processing lease: "
-                            f"{event_claim.event_id}"
-                        )
-                except Exception as exc:
-                    await self._mark_event_failed(event_claim, exc)
-                    logger.exception(
-                        "Failed to persist prepared group reply: msg_id=%s",
-                        message.id,
-                    )
-                    raise
-
+        payload = self.reply_renderer.render(
+            "group",
+            memory_content,
+            reply,
+        )
         try:
             await asyncio.to_thread(
-                self.memory_store.save_turn,
+                self.memory_store.prepare_event_outbox,
+                event_claim.event_id,
+                event_claim.claim_token,
+                "qq_official",
+                "group",
                 group_openid,
                 member_openid,
                 message.id,
+                payload,
                 memory_content or "空消息",
-                reply,
             )
-            message_payload = build_group_message_payload(
-                memory_content,
-                reply,
-            )
-            await message._api.post_group_message(
-                group_openid=group_openid,
-                msg_id=message.id,
-                msg_seq=1,
-                **message_payload,
-            )
-            if event_claim and not await asyncio.to_thread(
-                    self.memory_store.complete_event,
-                    event_claim.event_id,
-                    event_claim.claim_token):
-                raise RuntimeError(
-                    f"Lost event processing lease: {event_claim.event_id}"
-                )
         except Exception as exc:
             await self._mark_event_failed(event_claim, exc)
             logger.exception(
-                "Failed to send or persist group reply: msg_id=%s",
+                "Failed to persist prepared group reply: msg_id=%s",
                 message.id,
             )
             raise
+        await self.outbox_worker.dispatch_due_once()
 
     async def on_c2c_message_create(self, message: C2CMessage):
         user_openid = str(
@@ -220,20 +236,21 @@ class TravelRiskBot(botpy.Client):
         if not user_openid:
             logger.warning("Ignored private message without user_openid")
             return
-        event_claim = None
-        if message.id:
-            event_claim = await asyncio.to_thread(
-                self.memory_store.begin_event,
+        if not message.id:
+            logger.warning("Ignored private message without msg_id")
+            return
+        event_claim = await asyncio.to_thread(
+            self.memory_store.begin_event,
+            message.id,
+        )
+        if event_claim is None:
+            logger.info(
+                "Ignored duplicate private message: msg_id=%s",
                 message.id,
             )
-            if event_claim is None:
-                logger.info(
-                    "Ignored duplicate private message: msg_id=%s",
-                    message.id,
-                )
-                return
+            return
 
-        if event_claim and event_claim.prepared_reply is not None:
+        if event_claim.prepared_reply is not None:
             reply = event_claim.prepared_reply
         else:
             try:
@@ -248,49 +265,28 @@ class TravelRiskBot(botpy.Client):
                 logger.exception("Unexpected error while handling private message")
                 reply = "处理私聊文件时出现内部错误，请稍后重试。"
 
-            if event_claim:
-                try:
-                    prepared = await asyncio.to_thread(
-                        self.memory_store.prepare_event_reply,
-                        event_claim.event_id,
-                        event_claim.claim_token,
-                        reply,
-                    )
-                    if not prepared:
-                        raise RuntimeError(
-                            "Lost event processing lease: "
-                            f"{event_claim.event_id}"
-                        )
-                except Exception as exc:
-                    await self._mark_event_failed(event_claim, exc)
-                    logger.exception(
-                        "Failed to persist prepared private reply: msg_id=%s",
-                        message.id,
-                    )
-                    raise
-
+        payload = self.reply_renderer.render("private", "", reply)
         try:
-            await message._api.post_c2c_message(
-                openid=user_openid,
-                msg_type=0,
-                msg_id=message.id,
-                msg_seq=1,
-                content=reply,
+            await asyncio.to_thread(
+                self.memory_store.prepare_event_outbox,
+                event_claim.event_id,
+                event_claim.claim_token,
+                "qq_official",
+                "private",
+                user_openid,
+                user_openid,
+                message.id,
+                payload,
+                None,
             )
-            if event_claim and not await asyncio.to_thread(
-                    self.memory_store.complete_event,
-                    event_claim.event_id,
-                    event_claim.claim_token):
-                raise RuntimeError(
-                    f"Lost event processing lease: {event_claim.event_id}"
-                )
         except Exception as exc:
             await self._mark_event_failed(event_claim, exc)
             logger.exception(
-                "Failed to send private reply: msg_id=%s",
+                "Failed to persist prepared private reply: msg_id=%s",
                 message.id,
             )
             raise
+        await self.outbox_worker.dispatch_due_once()
 
     async def _mark_event_failed(self, event_claim, exc: Exception) -> None:
         if event_claim is None:
