@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 import botpy
 from botpy import logging
@@ -47,6 +48,11 @@ class TravelRiskBot(botpy.Client):
     async def on_ready(self):
         logger.info("Bot is online: %s", self.robot.name)
         logger.info("Memory database: %s", self.memory_store.database_path)
+        logger.info(
+            "Build: ref=%s sha=%s",
+            os.getenv("APP_GIT_REF", "local"),
+            os.getenv("APP_GIT_SHA", "unknown")[:12],
+        )
 
     async def on_group_at_message_create(self, message: GroupMessage):
         group_openid = message.group_openid

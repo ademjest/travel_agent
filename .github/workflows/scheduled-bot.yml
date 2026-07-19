@@ -70,6 +70,8 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL_ID: ${{ secrets.LLM_MODEL_ID }}
+          APP_GIT_REF: ${{ github.ref_name }}
+          APP_GIT_SHA: ${{ github.sha }}
           RUN_MINUTES: ${{ inputs.run_minutes || '340' }}
         run: |
           if ! [[ "$RUN_MINUTES" =~ ^[0-9]+$ ]] ||

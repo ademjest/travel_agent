@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -80,6 +81,22 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    async def test_on_ready_logs_build_revision(self):
+        self.bot._connection = SimpleNamespace(
+            state=SimpleNamespace(robot=SimpleNamespace(name="travel-bot"))
+        )
+
+        with patch.dict(
+            os.environ,
+            {"APP_GIT_REF": "main", "APP_GIT_SHA": "f6f0617abcdef"},
+        ):
+            with patch("bot.logger.info") as info:
+                await self.bot.on_ready()
+
+        messages = "\n".join(str(call) for call in info.call_args_list)
+        self.assertIn("main", messages)
+        self.assertIn("f6f0617abcde", messages)
 
     async def test_group_upload_command_issues_binding_code(self):
         api = FakeApi()
