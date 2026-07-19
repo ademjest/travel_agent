@@ -37,8 +37,8 @@ class FakeTravelAgent:
     def __init__(self):
         self.calls = []
 
-    def run(self, content, history, knowledge_context):
-        self.calls.append((content, history, knowledge_context))
+    def run(self, content, context):
+        self.calls.append((content, context))
         return SimpleNamespace(reply=f"agent:{content}", traces=())
 
 
@@ -107,7 +107,6 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             scope_id="group-a",
             sender_id="member-a",
             content=content,
-            reply_to_id=event_id,
         )
 
     async def test_fixed_command_creates_and_delivers_outbox_reply(self):
@@ -147,7 +146,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
 
         await self.application.handle(event)
 
-        knowledge_context = self.travel_agent.calls[0][2]
+        knowledge_context = self.travel_agent.calls[0][1].document_context
         self.assertIn("茶卡镇", knowledge_context)
 
     async def test_disallowed_group_is_ignored_before_claiming_event(self):
@@ -174,3 +173,16 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(self.travel_service.calls, ["查询天气 西宁"])
         self.assertEqual(len(self.transport.messages), 1)
+
+    async def test_group_event_is_persisted_as_normalized_observation(self):
+        event = self.group_event("message-observed", "明早八点集合")
+
+        await self.application.handle(event)
+
+        messages = self.store.get_recent_chat_messages(
+            "qq_official",
+            "group-a",
+        )
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].member_id, "member-a")
+        self.assertEqual(messages[0].content, "明早八点集合")

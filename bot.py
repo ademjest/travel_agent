@@ -128,7 +128,7 @@ class TravelRiskBot(botpy.Client):
                 getattr(message.author, "member_openid", "") or "unknown"
             ),
             content=(message.content or "").strip(),
-            reply_to_id=message.id,
+            reply_to_id=self._quoted_message_id(message),
             attachments=self._normalize_attachments(message.attachments),
         )
         await self.application.handle(event)
@@ -157,10 +157,18 @@ class TravelRiskBot(botpy.Client):
             scope_id=user_openid,
             sender_id=user_openid,
             content=(message.content or "").strip(),
-            reply_to_id=message.id,
             attachments=self._normalize_attachments(attachments),
         )
         await self.application.handle(event)
+
+    @staticmethod
+    def _quoted_message_id(message) -> str:
+        reference = getattr(message, "message_reference", None)
+        return str(
+            getattr(reference, "message_id", "")
+            or getattr(message, "reply_to_id", "")
+            or ""
+        )
 
     @staticmethod
     def _normalize_attachments(attachments) -> tuple[ChatAttachment, ...]:

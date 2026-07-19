@@ -8,6 +8,7 @@ from openai import OpenAIError
 
 from chat_transport import ChatEvent, ReplyRenderer
 from commands import parse_command
+from context_builder import ContextBuilder
 from document_service import DocumentService
 from memory_store import EventClaim, MemoryStore
 from outbox_worker import OutboxWorker
@@ -29,7 +30,8 @@ class TravelBotApplication:
             upload_binding_service: UploadBindingService,
             outbox_worker: OutboxWorker,
             reply_renderer: ReplyRenderer,
-            group_allowed: Callable[[str], bool] | None = None):
+            group_allowed: Callable[[str], bool] | None = None,
+            context_builder: ContextBuilder | None = None):
         self.store = store
         self.travel_service = travel_service
         self.travel_agent = travel_agent
@@ -38,11 +40,24 @@ class TravelBotApplication:
         self.outbox_worker = outbox_worker
         self.reply_renderer = reply_renderer
         self.group_allowed = group_allowed or (lambda group_id: True)
+        self.context_builder = context_builder or ContextBuilder(store)
 
     async def handle(self, event: ChatEvent) -> None:
         if event.channel == "group" and not self.group_allowed(event.scope_id):
             logger.warning("Ignored message from a group outside the allowlist")
             return
+        if event.channel == "group":
+            await asyncio.to_thread(
+                self.store.save_chat_message,
+                event.event_key,
+                event.platform,
+                event.scope_id,
+                event.sender_id,
+                event.event_id,
+                event.reply_to_id,
+                "user",
+                event.content or "[附件消息]",
+            )
         claim = await asyncio.to_thread(
             self.store.begin_event,
             event.event_key,
@@ -64,7 +79,7 @@ class TravelBotApplication:
                 event.channel,
                 event.scope_id,
                 event.sender_id,
-                event.reply_to_id or event.event_id,
+                event.event_id,
                 payload,
                 memory_content,
             )
@@ -124,21 +139,14 @@ class TravelBotApplication:
                         event.content,
                     )
                 else:
-                    history = await asyncio.to_thread(
-                        self.store.get_recent_turns,
-                        event.scope_id,
-                        event.sender_id,
-                    )
-                    knowledge_context = await asyncio.to_thread(
-                        self.store.build_document_context,
-                        event.scope_id,
-                        event.content,
+                    agent_context = await asyncio.to_thread(
+                        self.context_builder.build,
+                        event,
                     )
                     agent_result = await asyncio.to_thread(
                         self.travel_agent.run,
                         event.content,
-                        history,
-                        knowledge_context,
+                        agent_context,
                     )
                     reply = agent_result.reply
                     if agent_result.traces:
@@ -171,7 +179,7 @@ class TravelBotApplication:
                 event_id=event.event_key,
                 claim_token=claim.claim_token,
                 platform=event.platform,
-                reply_to_id=event.reply_to_id or event.event_id,
+                reply_to_id=event.event_id,
             )
             return result.reply, ""
         except Exception:

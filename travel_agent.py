@@ -7,6 +7,7 @@ from typing import Any, Callable, Sequence
 from botpy import logging
 from openai import OpenAI
 
+from context_builder import AgentContext
 from settings import Settings
 
 
@@ -155,11 +156,30 @@ class TravelAgent:
     def run(
             self,
             user_message: str,
-            history: Sequence[Any] = (),
+            history: Sequence[Any] | AgentContext = (),
             knowledge_context: str = "") -> AgentResult:
+        if isinstance(history, AgentContext):
+            context = history
+            recent_dialogue = context.recent_dialogue
+            knowledge_context = context.document_context
+            group_context = context.group_context
+            source_note = context.source_note
+        else:
+            recent_dialogue = history
+            group_context = ""
+            source_note = ""
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": _system_prompt()},
         ]
+        if group_context or source_note:
+            messages.append({
+                "role": "system",
+                "content": "\n\n".join(
+                    item
+                    for item in (source_note, group_context)
+                    if item
+                ),
+            })
         if knowledge_context:
             messages.append({
                 "role": "system",
@@ -171,16 +191,17 @@ class TravelAgent:
                 ),
             })
 
-        history_messages = self._history_messages(history)
+        history_messages = self._history_messages(recent_dialogue)
         history_chars = sum(
             len(message["content"])
             for message in history_messages
         )
         logger.info(
             "Agent context: history_turns=%s history_chars=%s "
-            "document_context_chars=%s",
+            "group_context_chars=%s document_context_chars=%s",
             len(history_messages) // 2,
             history_chars,
+            len(group_context),
             len(knowledge_context),
         )
 

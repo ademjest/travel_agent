@@ -34,6 +34,19 @@ class ConversationTurn:
 
 
 @dataclass(frozen=True)
+class ChatMessage:
+    message_key: str
+    platform: str
+    group_id: str
+    member_id: str
+    message_id: str
+    reply_to_id: str
+    role: str
+    content: str
+    created_at: str
+
+
+@dataclass(frozen=True)
 class StoredDocument:
     document_id: int
     filename: str
@@ -115,6 +128,21 @@ class MemoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_turns_session
                 ON conversation_turns(group_openid, member_openid, id DESC);
+
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    message_key TEXT PRIMARY KEY,
+                    platform TEXT NOT NULL,
+                    group_id TEXT NOT NULL,
+                    member_id TEXT NOT NULL,
+                    message_id TEXT NOT NULL,
+                    reply_to_id TEXT,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_chat_messages_group_time
+                ON chat_messages(platform, group_id, created_at DESC);
 
                 CREATE TABLE IF NOT EXISTS documents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1232,6 +1260,7 @@ class MemoryStore:
                     committed_at.isoformat(),
                 ),
             )
+
             if consumed.rowcount != 1:
                 raise RuntimeError("Upload binding is no longer available")
 
@@ -1286,6 +1315,104 @@ class MemoryStore:
                 ),
             )
             return int(cursor.lastrowid)
+
+    def save_chat_message(
+            self,
+            message_key: str,
+            platform: str,
+            group_id: str,
+            member_id: str,
+            message_id: str,
+            reply_to_id: str,
+            role: str,
+            content: str,
+            now: datetime | None = None) -> bool:
+        created_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT OR IGNORE INTO chat_messages (
+                    message_key,
+                    platform,
+                    group_id,
+                    member_id,
+                    message_id,
+                    reply_to_id,
+                    role,
+                    content,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    message_key,
+                    platform,
+                    group_id,
+                    member_id,
+                    message_id,
+                    reply_to_id,
+                    role,
+                    content,
+                    created_at.isoformat(),
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def get_recent_chat_messages(
+            self,
+            platform: str,
+            group_id: str,
+            limit: int = 16,
+            exclude_message_key: str = "") -> tuple[ChatMessage, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM chat_messages
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND message_key != ?
+                ORDER BY created_at DESC, message_key DESC
+                LIMIT ?
+                """,
+                (platform, group_id, exclude_message_key, limit),
+            ).fetchall()
+        return tuple(self._chat_message(row) for row in rows)
+
+    def get_chat_message(
+            self,
+            platform: str,
+            group_id: str,
+            message_id: str) -> ChatMessage | None:
+        if not message_id:
+            return None
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM chat_messages
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND message_id = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (platform, group_id, message_id),
+            ).fetchone()
+        return self._chat_message(row) if row is not None else None
+
+    @staticmethod
+    def _chat_message(row: sqlite3.Row) -> ChatMessage:
+        return ChatMessage(
+            message_key=str(row["message_key"]),
+            platform=str(row["platform"]),
+            group_id=str(row["group_id"]),
+            member_id=str(row["member_id"]),
+            message_id=str(row["message_id"]),
+            reply_to_id=str(row["reply_to_id"] or ""),
+            role=str(row["role"]),
+            content=str(row["content"]),
+            created_at=str(row["created_at"]),
+        )
 
     def build_document_context(
             self,

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from settings import Settings
 from travel_agent import TravelAgent
+from context_builder import AgentContext
 from memory_store import ConversationTurn
 
 
@@ -182,6 +183,29 @@ class TravelAgentTests(unittest.TestCase):
         messages = client.completions.requests[0]["messages"]
         self.assertTrue(any("茶卡镇" in item["content"] for item in messages))
         self.assertTrue(any(item["content"] == "第一站去哪里？" for item in messages))
+
+    def test_structured_context_includes_group_and_source_note(self):
+        client = FakeClient([
+            completion(assistant_message(content="集合时间是早上八点。"))
+        ])
+        agent = TravelAgent(
+            self.settings,
+            lambda name, arguments: "not used",
+            client=client,
+        )
+        context = AgentContext(
+            recent_dialogue=(),
+            group_context="成员 member-a：明早八点集合",
+            document_context="",
+            source_note="QQ 官方 Bot 仅包含部分群消息。",
+        )
+
+        agent.run("几点集合？", context)
+
+        messages = client.completions.requests[0]["messages"]
+        combined = "\n".join(item["content"] for item in messages)
+        self.assertIn("明早八点集合", combined)
+        self.assertIn("部分群消息", combined)
 
     def test_history_messages_respect_three_thousand_character_budget(self):
         history = [
