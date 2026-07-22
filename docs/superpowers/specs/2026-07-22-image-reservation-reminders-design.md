@@ -219,6 +219,8 @@ reservation-reminder:<reminder_id>
 - `advance_unit`：`day`、`month`、`none`
 - `visit_date`
 - `booking_date`
+- `date_candidates_json`：行程文档匹配到的零个、一个或多个 ISO 日期候选
+- `custom_reminder_times_json`：用户在草稿阶段设置的零个或多个北京时间绝对时间
 - `reminder_policy`：`default`、`custom`、`none`
 - `status`：`needs_input`、`ready`、`confirmed`、`cancelled`
 - `created_at`
