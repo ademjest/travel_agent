@@ -30,6 +30,7 @@ class TravelBotApplication:
             upload_binding_service: UploadBindingService,
             outbox_worker: OutboxWorker,
             reply_renderer: ReplyRenderer,
+            reminder_scheduler: object,
             reservation_image_service: object | None = None,
             reservation_service: object | None = None,
             group_allowed: Callable[[str], bool] | None = None,
@@ -41,6 +42,7 @@ class TravelBotApplication:
         self.upload_binding_service = upload_binding_service
         self.outbox_worker = outbox_worker
         self.reply_renderer = reply_renderer
+        self.reminder_scheduler = reminder_scheduler
         self.reservation_image_service = reservation_image_service
         self.reservation_service = reservation_service
         self.group_allowed = group_allowed or (lambda group_id: True)

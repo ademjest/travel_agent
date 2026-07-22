@@ -1,9 +1,11 @@
+import asyncio
 import os
 import tempfile
 import unittest
 import warnings
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import httpx
 
@@ -17,6 +19,7 @@ from bot_application import TravelBotApplication
 from document_service import DocumentIngestResult
 from memory_store import MemoryStore
 from onebot_app import (
+    OneBotAdapter,
     OneBotReplyRenderer,
     OneBotTransport,
     create_onebot_app,
@@ -69,6 +72,10 @@ class OneBotAppTests(unittest.TestCase):
             bind_port=8000,
         )
         worker = OutboxWorker("onebot", self.store, self.transport)
+        self.scheduler = SimpleNamespace(
+            scan_once=AsyncMock(return_value=0),
+            run=AsyncMock(),
+        )
         application = TravelBotApplication(
             store=self.store,
             travel_service=FakeTravelService(),
@@ -77,6 +84,7 @@ class OneBotAppTests(unittest.TestCase):
             upload_binding_service=FakeUploadService(),
             outbox_worker=worker,
             reply_renderer=OneBotReplyRenderer(),
+            reminder_scheduler=self.scheduler,
             group_allowed=self.settings.allows_group,
         )
         app = create_onebot_app(self.settings, application, self.store)
@@ -196,6 +204,67 @@ class OneBotAppTests(unittest.TestCase):
         messages = self.store.get_recent_chat_messages("onebot", "10001")
         self.assertEqual(len(messages), 1)
         self.assertEqual(len(self.transport.messages), 1)
+
+    def test_onebot_reminder_renderer_uses_at_segment(self):
+        payload = OneBotReplyRenderer().render_reminder(
+            "10001",
+            "景点预约提醒：青海湖",
+        )
+
+        self.assertEqual(payload["message"][0], {
+            "type": "at",
+            "data": {"qq": "10001"},
+        })
+        self.assertEqual(payload["message"][1]["type"], "text")
+
+    def test_onebot_image_segment_keeps_declared_size(self):
+        attachment = OneBotAdapter._attachments([{
+            "type": "image",
+            "data": {
+                "name": "booking.jpg",
+                "url": "https://example.test/booking.jpg",
+                "content_type": "image/jpeg",
+                "size": 2048,
+            },
+        }])[0]
+
+        self.assertEqual(attachment.size, 2048)
+
+    def test_lifespan_scans_before_dispatch_and_cancels_both_tasks(self):
+        order = []
+        stopped = []
+
+        async def scan_once():
+            order.append("scan")
+
+        async def dispatch_due_once():
+            order.append("dispatch")
+
+        async def run_forever(name):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                stopped.append(name)
+
+        transport = SimpleNamespace(aclose=AsyncMock())
+        application = SimpleNamespace(
+            reminder_scheduler=SimpleNamespace(
+                scan_once=scan_once,
+                run=lambda: run_forever("reminder"),
+            ),
+            outbox_worker=SimpleNamespace(
+                dispatch_due_once=dispatch_due_once,
+                run=lambda: run_forever("outbox"),
+                transport=transport,
+            ),
+        )
+        app = create_onebot_app(self.settings, application, self.store)
+
+        with TestClient(app):
+            self.assertEqual(order, ["scan", "dispatch"])
+
+        self.assertEqual(set(stopped), {"outbox", "reminder"})
+        transport.aclose.assert_awaited_once_with()
 
 
 class OneBotTransportTests(unittest.IsolatedAsyncioTestCase):

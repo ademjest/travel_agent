@@ -138,6 +138,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             upload_binding_service=self.upload_service,
             outbox_worker=self.worker,
             reply_renderer=FakeRenderer(),
+            reminder_scheduler=object(),
             group_allowed=lambda group_id: group_id == "group-a",
         )
 

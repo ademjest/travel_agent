@@ -12,7 +12,7 @@ from bot import (
     TravelRiskBot,
 )
 from bot_application import TravelBotApplication
-from chat_transport import ChatEvent
+from chat_transport import ChatEvent, OutgoingMessage
 from document_service import DocumentIngestResult
 from memory_store import MemoryStore
 from outbox_worker import OutboxWorker
@@ -42,6 +42,47 @@ class FakeApi:
             self.private_failures -= 1
             raise RuntimeError("private send failed")
         self.private_messages.append(kwargs)
+
+
+class QQOfficialTransportTests(unittest.IsolatedAsyncioTestCase):
+    async def test_official_active_group_message_omits_msg_id(self):
+        api = FakeApi()
+        transport = QQOfficialTransport(api)
+
+        await transport.send(OutgoingMessage(
+            channel="group",
+            target_id="group-a",
+            reply_to_id="",
+            payload={"msg_type": 0, "content": "主动提醒"},
+        ))
+
+        self.assertEqual(len(api.group_messages), 1)
+        self.assertNotIn("msg_id", api.group_messages[0])
+
+    async def test_official_passive_reply_keeps_msg_id(self):
+        api = FakeApi()
+        transport = QQOfficialTransport(api)
+
+        await transport.send(OutgoingMessage(
+            channel="group",
+            target_id="group-a",
+            reply_to_id="message-1",
+            payload={"msg_type": 0, "content": "被动回复"},
+        ))
+
+        self.assertEqual(api.group_messages[0]["msg_id"], "message-1")
+
+
+class QQOfficialReplyRendererTests(unittest.TestCase):
+    def test_official_reminder_renderer_mentions_recipient(self):
+        payload = QQOfficialReplyRenderer().render_reminder(
+            "member-a",
+            "景点预约提醒：青海湖",
+        )
+
+        self.assertEqual(payload["msg_type"], 0)
+        self.assertIn("member-a", payload["content"])
+        self.assertIn("景点预约提醒：青海湖", payload["content"])
 
 
 class FakeDocumentService:
@@ -91,6 +132,10 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.bot.travel_service = FakeTravelService()
         self.bot.travel_agent = None
         self.bot.upload_binding_service = FakeUploadBindingService()
+        self.bot.reminder_scheduler = SimpleNamespace(
+            scan_once=AsyncMock(return_value=0),
+            run=AsyncMock(),
+        )
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -110,6 +155,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             upload_binding_service=self.bot.upload_binding_service,
             outbox_worker=self.bot.outbox_worker,
             reply_renderer=self.bot.reply_renderer,
+            reminder_scheduler=self.bot.reminder_scheduler,
             group_allowed=self.bot.settings.allows_group,
         )
         return api
@@ -129,6 +175,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             filename="plan.txt",
             url="https://example.test/plan.txt",
             content_type="text/plain",
+            size=1234,
         )
         message = SimpleNamespace(
             group_openid="group-a",
@@ -145,16 +192,24 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event.scope_id, "group-a")
         self.assertEqual(event.sender_id, "member-a")
         self.assertEqual(event.attachments[0].filename, "plan.txt")
+        self.assertEqual(event.attachments[0].size, 1234)
 
     async def test_on_ready_logs_build_revision(self):
         self.bot._connection = SimpleNamespace(
             state=SimpleNamespace(robot=SimpleNamespace(name="travel-bot"))
         )
+        order = []
         worker = SimpleNamespace(
-            dispatch_due_once=AsyncMock(return_value=0),
+            dispatch_due_once=AsyncMock(
+                side_effect=lambda: order.append("dispatch")
+            ),
             run=AsyncMock(),
         )
         self.bot.outbox_worker = worker
+        self.bot.reminder_scheduler = SimpleNamespace(
+            scan_once=AsyncMock(side_effect=lambda: order.append("scan")),
+            run=AsyncMock(),
+        )
 
         with patch.dict(
             os.environ,
@@ -171,7 +226,35 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         messages = "\n".join(str(call) for call in info.call_args_list)
         self.assertIn("main", messages)
         self.assertIn("f6f0617abcde", messages)
+        self.assertEqual(order, ["scan", "dispatch"])
         worker.dispatch_due_once.assert_awaited_once_with()
+
+    async def test_repeated_on_ready_does_not_duplicate_background_tasks(self):
+        self.bot._connection = SimpleNamespace(
+            state=SimpleNamespace(robot=SimpleNamespace(name="travel-bot"))
+        )
+        self.bot.outbox_worker = SimpleNamespace(
+            dispatch_due_once=AsyncMock(return_value=0),
+            run=AsyncMock(),
+        )
+        self.bot.reminder_scheduler = SimpleNamespace(
+            scan_once=AsyncMock(return_value=0),
+            run=AsyncMock(),
+        )
+        running_task = SimpleNamespace(done=lambda: False)
+
+        with patch("bot.asyncio.create_task") as create_task:
+            def keep_running(coroutine, **kwargs):
+                coroutine.close()
+                return running_task
+
+            create_task.side_effect = keep_running
+            await self.bot.on_ready()
+            await self.bot.on_ready()
+
+        self.assertEqual(create_task.call_count, 2)
+        self.bot.reminder_scheduler.scan_once.assert_awaited()
+        self.bot.outbox_worker.dispatch_due_once.assert_awaited()
 
     async def test_on_ready_drains_a_restored_pending_reply(self):
         api = self.use_api(FakeApi())

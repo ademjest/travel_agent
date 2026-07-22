@@ -13,10 +13,13 @@ from document_service import DocumentService
 from memory_store import MemoryStore
 from outbox_worker import OutboxWorker
 from qq_ui import build_group_message_payload
+from reminder_scheduler import ReminderScheduler
+from reservation_service import LLMVisitDateExtractor, ReservationService
 from settings import Settings, SettingsError
 from travel_agent import TravelAgent
 from travel_service import TravelService
 from upload_binding import UploadBindingService
+from vision_service import ImageVisionExtractor, ReservationImageService
 
 
 logger = logging.get_logger()
@@ -28,12 +31,14 @@ class QQOfficialTransport:
 
     async def send(self, message: OutgoingMessage) -> None:
         if message.channel == "group":
-            await self.api.post_group_message(
-                group_openid=message.target_id,
-                msg_id=message.reply_to_id,
-                msg_seq=1,
+            parameters = {
+                "group_openid": message.target_id,
+                "msg_seq": 1,
                 **message.payload,
-            )
+            }
+            if message.reply_to_id:
+                parameters["msg_id"] = message.reply_to_id
+            await self.api.post_group_message(**parameters)
             return
         await self.api.post_c2c_message(
             openid=message.target_id,
@@ -48,6 +53,13 @@ class QQOfficialReplyRenderer:
         if channel == "group":
             return build_group_message_payload(command_content, reply_text)
         return {"msg_type": 0, "content": reply_text}
+
+    def render_reminder(self, recipient_id: str, text: str):
+        mention = f"<@!{recipient_id}> " if recipient_id else ""
+        return {
+            "msg_type": 0,
+            "content": mention + text,
+        }
 
 
 class TravelRiskBot(botpy.Client):
@@ -74,11 +86,41 @@ class TravelRiskBot(botpy.Client):
             self.document_service,
             group_allowed=settings.allows_group,
         )
+        self.image_extractor = (
+            ImageVisionExtractor(
+                model_id=settings.llm_model_id,
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url,
+            )
+            if settings.llm_configured
+            else None
+        )
+        self.reservation_image_service = ReservationImageService(
+            self.memory_store,
+            self.image_extractor,
+        )
+        self.reservation_service = ReservationService(
+            self.memory_store,
+            date_extractor=(
+                LLMVisitDateExtractor(
+                    settings.llm_model_id,
+                    self.image_extractor.client,
+                )
+                if self.image_extractor
+                else None
+            ),
+        )
         self.reply_renderer = QQOfficialReplyRenderer()
         self.outbox_worker = OutboxWorker(
             "qq_official",
             self.memory_store,
             QQOfficialTransport(self.api),
+        )
+        self.reminder_scheduler = ReminderScheduler(
+            platform="qq_official",
+            store=self.memory_store,
+            renderer=self.reply_renderer,
+            group_allowed=settings.allows_group,
         )
         self.application = TravelBotApplication(
             store=self.memory_store,
@@ -88,9 +130,13 @@ class TravelRiskBot(botpy.Client):
             upload_binding_service=self.upload_binding_service,
             outbox_worker=self.outbox_worker,
             reply_renderer=self.reply_renderer,
+            reminder_scheduler=self.reminder_scheduler,
+            reservation_image_service=self.reservation_image_service,
+            reservation_service=self.reservation_service,
             group_allowed=settings.allows_group,
         )
         self._outbox_task = None
+        self._reminder_task = None
 
     async def on_ready(self):
         deleted_messages = await asyncio.to_thread(
@@ -105,12 +151,19 @@ class TravelRiskBot(botpy.Client):
             os.getenv("APP_GIT_REF", "local"),
             os.getenv("APP_GIT_SHA", "unknown")[:12],
         )
+        await self.reminder_scheduler.scan_once()
         await self.outbox_worker.dispatch_due_once()
         outbox_task = getattr(self, "_outbox_task", None)
         if outbox_task is None or outbox_task.done():
             self._outbox_task = asyncio.create_task(
                 self.outbox_worker.run(),
                 name="qq-official-outbox",
+            )
+        reminder_task = getattr(self, "_reminder_task", None)
+        if reminder_task is None or reminder_task.done():
+            self._reminder_task = asyncio.create_task(
+                self.reminder_scheduler.run(),
+                name="qq-official-reservation-reminders",
             )
 
     async def on_group_at_message_create(self, message: GroupMessage):
@@ -185,6 +238,7 @@ class TravelRiskBot(botpy.Client):
                 content_type=str(
                     getattr(item, "content_type", "") or ""
                 ),
+                size=int(getattr(item, "size", 0) or 0),
             )
             for item in (attachments or [])
         )
