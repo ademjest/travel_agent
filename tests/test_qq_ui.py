@@ -9,8 +9,9 @@ class QQGroupUiTests(unittest.TestCase):
         rows = keyboard["content"]["rows"]
 
         self.assertLessEqual(len(rows), 5)
-        self.assertEqual(len(rows), 3)
+        self.assertEqual(len(rows), 4)
         button_ids = set()
+        commands = set()
         for row in rows:
             self.assertLessEqual(len(row["buttons"]), 5)
             for button in row["buttons"]:
@@ -18,12 +19,14 @@ class QQGroupUiTests(unittest.TestCase):
                 button_ids.add(button["id"])
                 self.assertIn(button["render_data"]["style"], (0, 1))
                 action = button["action"]
+                commands.add(action["data"])
                 self.assertEqual(action["type"], 2)
                 self.assertEqual(action["permission"], {"type": 2})
                 self.assertFalse(action["reply"])
                 self.assertFalse(action["enter"])
                 self.assertTrue(action["data"])
                 self.assertTrue(action["unsupport_tips"])
+        self.assertIn("查看预约提醒", commands)
 
     def test_help_and_menu_use_markdown_with_keyboard(self):
         for content in ("帮助", "/帮助", "菜单", "旅行面板"):
@@ -31,6 +34,14 @@ class QQGroupUiTests(unittest.TestCase):
                 payload = build_group_message_payload(content, "plain help")
                 self.assertEqual(payload["msg_type"], 2)
                 self.assertIn("青甘自驾助手", payload["markdown"]["content"])
+                self.assertIn(
+                    "确认前不会发送提醒",
+                    payload["markdown"]["content"],
+                )
+                self.assertIn(
+                    "查看预约提醒",
+                    payload["markdown"]["content"],
+                )
                 self.assertIn("keyboard", payload)
                 self.assertNotIn("content", payload)
 
