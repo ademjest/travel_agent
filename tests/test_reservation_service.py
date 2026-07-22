@@ -296,5 +296,223 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertIn("<untrusted_itinerary>", user_content)
 
 
+class ReservationManagementTests(ReservationDraftTests):
+    def ready_plan(self, custom_times=()):
+        service = ReservationService(
+            self.store,
+            FakeDateExtractor({
+                "青海湖": (date(2026, 8, 16),),
+                "黑独山": (),
+            }),
+        )
+        plan = service.create_draft(
+            self.image,
+            (
+                self.item("青海湖", True, 1, "day"),
+                self.item("黑独山", False, 0, "none"),
+            ),
+        )
+        if custom_times:
+            plan = service.set_draft_reminder_times(
+                "qq_official",
+                "group-a",
+                "member-a",
+                plan.plan_code,
+                1,
+                custom_times,
+            )
+        return service, plan
+
+    def test_default_confirmation_creates_two_reminders_only_for_required_item(self):
+        service, plan = self.ready_plan()
+        confirmed = service.confirm_plan(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+        )
+        reminders = self.store.list_reservation_reminders(
+            "qq_official",
+            "group-a",
+            "member-a",
+        )
+        self.assertEqual(confirmed.status, "confirmed")
+        self.assertEqual(len(reminders), 2)
+        self.assertTrue(all(not item.is_custom for item in reminders))
+
+    def test_custom_times_replace_both_defaults(self):
+        custom = parse_beijing_datetime_list(
+            "2026-08-14 18:30, 2026-08-15 07:00"
+        )
+        service, plan = self.ready_plan(custom)
+        service.confirm_plan(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+        )
+        reminders = self.store.list_reservation_reminders(
+            "qq_official",
+            "group-a",
+            "member-a",
+        )
+        self.assertEqual(len(reminders), 2)
+        self.assertTrue(all(item.is_custom for item in reminders))
+
+    def test_all_no_reservation_plan_confirms_with_zero_reminders(self):
+        service = ReservationService(self.store, FakeDateExtractor({}))
+        plan = service.create_draft(
+            self.image,
+            (self.item("黑独山", False, 0, "none"),),
+        )
+        confirmed = service.confirm_plan(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+        )
+        self.assertEqual(confirmed.status, "confirmed")
+        self.assertEqual(
+            self.store.list_reservation_reminders(
+                "qq_official", "group-a", "member-a"
+            ),
+            (),
+        )
+
+    def test_incomplete_plan_cannot_be_confirmed(self):
+        service = ReservationService(self.store, FakeDateExtractor({}))
+        plan = service.create_draft(
+            self.image,
+            (self.item("翡翠湖", True, 3, "day"),),
+        )
+        with self.assertRaisesRegex(ValueError, "补充"):
+            service.confirm_plan(
+                "qq_official",
+                "group-a",
+                "member-a",
+                plan.plan_code,
+            )
+        self.assertEqual(
+            self.store.list_reservation_reminders(
+                "qq_official", "group-a", "member-a"
+            ),
+            (),
+        )
+
+    def test_repeated_confirmation_is_idempotent(self):
+        service, plan = self.ready_plan()
+        first = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        second = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        self.assertEqual(first.plan_id, second.plan_id)
+        self.assertEqual(
+            len(self.store.list_reservation_reminders(
+                "qq_official", "group-a", "member-a"
+            )),
+            2,
+        )
+
+    def test_non_creator_cannot_view_modify_or_cancel(self):
+        service, plan = self.ready_plan()
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        item_code = confirmed.items[0].public_code
+        with self.assertRaisesRegex(PermissionError, "创建者"):
+            service.list_plans("qq_official", "group-a", "member-b")
+        with self.assertRaisesRegex(PermissionError, "创建者"):
+            service.modify_item_date(
+                "qq_official",
+                "group-a",
+                "member-b",
+                item_code,
+                date(2026, 8, 17),
+            )
+        with self.assertRaisesRegex(PermissionError, "创建者"):
+            service.cancel_item(
+                "qq_official", "group-a", "member-b", item_code
+            )
+
+    def test_modifying_visit_date_replaces_unsent_reminders(self):
+        service, plan = self.ready_plan()
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        item_code = confirmed.items[0].public_code
+        result = service.modify_item_date(
+            "qq_official",
+            "group-a",
+            "member-a",
+            item_code,
+            date(2026, 8, 18),
+        )
+        active = self.store.list_reservation_reminders(
+            "qq_official", "group-a", "member-a"
+        )
+        self.assertEqual(result.item.visit_date, date(2026, 8, 18))
+        self.assertEqual(len(active), 2)
+        self.assertEqual({item.status for item in active}, {"pending"})
+
+    def test_modifying_confirmed_times_replaces_default_set(self):
+        service, plan = self.ready_plan()
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        result = service.modify_item_times(
+            "qq_official",
+            "group-a",
+            "member-a",
+            confirmed.items[0].public_code,
+            parse_beijing_datetime_list("2026-08-15 07:30"),
+        )
+        active = self.store.list_reservation_reminders(
+            "qq_official", "group-a", "member-a"
+        )
+        self.assertEqual(len(active), 1)
+        self.assertTrue(active[0].is_custom)
+        self.assertEqual(result.item.reminder_policy, "custom")
+
+    def test_cancelled_item_has_no_active_reminders(self):
+        service, plan = self.ready_plan()
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        service.cancel_item(
+            "qq_official",
+            "group-a",
+            "member-a",
+            confirmed.items[0].public_code,
+        )
+        self.assertEqual(
+            self.store.list_reservation_reminders(
+                "qq_official", "group-a", "member-a"
+            ),
+            (),
+        )
+
+    def test_cancel_plan_cancels_every_item_and_reminder(self):
+        service, plan = self.ready_plan()
+        service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        warning = service.cancel_plan(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+        )
+        self.assertFalse(warning)
+        cancelled = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertEqual(cancelled.status, "cancelled")
+        self.assertTrue(
+            all(item.status == "cancelled" for item in cancelled.items)
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

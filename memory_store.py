@@ -158,6 +158,12 @@ class ReservationReminderRecord:
     last_error: str
 
 
+@dataclass(frozen=True)
+class ReservationMutationResult:
+    item: ReservationItemRecord
+    sending_warning: bool
+
+
 class MemoryStore:
     def __init__(self, database_path: str | Path | None = None):
         default_path = Path(__file__).resolve().parent / "data" / "travel_bot.db"
@@ -374,6 +380,15 @@ class MemoryStore:
                 ON reservation_reminders(
                     platform, status, scheduled_at_utc
                 );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                idx_reservation_reminder_identity
+                ON reservation_reminders(
+                    reservation_item_id,
+                    scheduled_at_utc,
+                    is_custom
+                )
+                WHERE status IN ('pending', 'queued');
 
                 CREATE TABLE IF NOT EXISTS schema_migrations (
                     name TEXT PRIMARY KEY,
@@ -1418,6 +1433,498 @@ class MemoryStore:
             )
         return True
 
+    def set_reservation_draft_item_times(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            item_index: int,
+            custom_times: tuple[datetime, ...],
+            now: datetime | None = None) -> bool:
+        updated_at = now or datetime.now(timezone.utc)
+        serialized = json.dumps([
+            value.astimezone(ZoneInfo("Asia/Shanghai")).isoformat()
+            for value in sorted(set(custom_times))
+        ])
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE reservation_items
+                SET custom_reminder_times_json = ?,
+                    reminder_policy = 'custom',
+                    updated_at = ?
+                WHERE id = (
+                    SELECT reservation_items.id
+                    FROM reservation_items
+                    JOIN reservation_plans
+                      ON reservation_plans.id = reservation_items.plan_id
+                    WHERE reservation_plans.platform = ?
+                      AND reservation_plans.group_id = ?
+                      AND reservation_plans.creator_id = ?
+                      AND reservation_plans.plan_code = ?
+                      AND reservation_plans.status = 'draft'
+                      AND reservation_items.item_index = ?
+                      AND reservation_items.requires_reservation = 1
+                )
+                """,
+                (
+                    serialized,
+                    updated_at.isoformat(),
+                    platform,
+                    group_id,
+                    creator_id,
+                    plan_code,
+                    item_index,
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def confirm_reservation_plan(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            reminders_by_item: dict[int, tuple[object, ...]],
+            now: datetime | None = None) -> ReservationPlanRecord:
+        confirmed_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            plan = connection.execute(
+                """
+                SELECT * FROM reservation_plans
+                WHERE platform = ? AND group_id = ? AND plan_code = ?
+                """,
+                (platform, group_id, plan_code),
+            ).fetchone()
+            if plan is None:
+                raise ValueError("预约计划不存在")
+            if plan["creator_id"] != creator_id:
+                raise PermissionError("只有创建者可以确认预约计划")
+            if plan["status"] == "confirmed":
+                existing_code = str(plan["plan_code"])
+            elif plan["status"] != "draft":
+                raise ValueError("预约计划当前不能确认")
+            else:
+                incomplete = connection.execute(
+                    """
+                    SELECT 1 FROM reservation_items
+                    WHERE plan_id = ?
+                      AND requires_reservation = 1
+                      AND status = 'needs_input'
+                    LIMIT 1
+                    """,
+                    (plan["id"],),
+                ).fetchone()
+                if incomplete is not None:
+                    raise ValueError("请先补充所有需要预约项目的日期")
+                connection.execute(
+                    """
+                    UPDATE reservation_plans
+                    SET status = 'confirmed',
+                        confirmed_at = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        confirmed_at.isoformat(),
+                        confirmed_at.isoformat(),
+                        plan["id"],
+                    ),
+                )
+                connection.execute(
+                    """
+                    UPDATE reservation_items
+                    SET status = 'confirmed', updated_at = ?
+                    WHERE plan_id = ? AND status = 'ready'
+                    """,
+                    (confirmed_at.isoformat(), plan["id"]),
+                )
+                for item_id, occurrences in reminders_by_item.items():
+                    for occurrence in occurrences:
+                        connection.execute(
+                            """
+                            INSERT OR IGNORE INTO reservation_reminders (
+                                reservation_item_id, platform, group_id,
+                                recipient_id, scheduled_at_utc, status,
+                                is_custom, created_at
+                            ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+                            """,
+                            (
+                                item_id,
+                                platform,
+                                group_id,
+                                creator_id,
+                                occurrence.scheduled_at_utc.isoformat(),
+                                int(occurrence.is_custom),
+                                confirmed_at.isoformat(),
+                            ),
+                        )
+                existing_code = str(plan["plan_code"])
+        loaded = self.get_reservation_plan(
+            platform,
+            group_id,
+            existing_code,
+        )
+        if loaded is None:
+            raise RuntimeError(
+                "confirmed reservation plan could not be loaded"
+            )
+        return loaded
+
+    def list_reservation_plans_for_creator(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> tuple[ReservationPlanRecord, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT plan_code FROM reservation_plans
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                ORDER BY id DESC
+                """,
+                (platform, group_id, creator_id),
+            ).fetchall()
+        plans = []
+        for row in rows:
+            plan = self.get_reservation_plan(
+                platform,
+                group_id,
+                str(row["plan_code"]),
+            )
+            if plan is not None:
+                plans.append(plan)
+        return tuple(plans)
+
+    def group_has_reservation_plans(
+            self,
+            platform: str,
+            group_id: str) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1 FROM reservation_plans
+                WHERE platform = ? AND group_id = ?
+                LIMIT 1
+                """,
+                (platform, group_id),
+            ).fetchone()
+        return row is not None
+
+    def get_reservation_item(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            public_code: str) -> ReservationItemRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT i.*
+                FROM reservation_items i
+                JOIN reservation_plans p ON p.id = i.plan_id
+                WHERE p.platform = ?
+                  AND p.group_id = ?
+                  AND p.creator_id = ?
+                  AND p.status = 'confirmed'
+                  AND i.public_code = ?
+                  AND i.status = 'confirmed'
+                """,
+                (platform, group_id, creator_id, public_code),
+            ).fetchone()
+        return self._reservation_item(row) if row is not None else None
+
+    def list_reservation_reminders(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            include_cancelled: bool = False,
+            ) -> tuple[ReservationReminderRecord, ...]:
+        status_sql = (
+            ""
+            if include_cancelled
+            else "AND r.status IN ('pending', 'queued', 'sent')"
+        )
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT r.*
+                FROM reservation_reminders r
+                JOIN reservation_items i
+                  ON i.id = r.reservation_item_id
+                JOIN reservation_plans p
+                  ON p.id = i.plan_id
+                WHERE p.platform = ?
+                  AND p.group_id = ?
+                  AND p.creator_id = ?
+                  {status_sql}
+                ORDER BY r.scheduled_at_utc, r.id
+                """,
+                (platform, group_id, creator_id),
+            ).fetchall()
+        return tuple(self._reservation_reminder(row) for row in rows)
+
+    def list_all_reservation_reminders(
+            self) -> tuple[ReservationReminderRecord, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM reservation_reminders ORDER BY id"
+            ).fetchall()
+        return tuple(self._reservation_reminder(row) for row in rows)
+
+    def _cancel_item_delivery_rows(
+            self,
+            connection: sqlite3.Connection,
+            item_id: int) -> bool:
+        sending = connection.execute(
+            """
+            SELECT 1
+            FROM reservation_reminders
+            JOIN outbox_messages
+              ON outbox_messages.event_id =
+                 reservation_reminders.outbox_event_id
+            WHERE reservation_reminders.reservation_item_id = ?
+              AND reservation_reminders.status IN ('pending', 'queued')
+              AND outbox_messages.status = 'sending'
+            LIMIT 1
+            """,
+            (item_id,),
+        ).fetchone() is not None
+        connection.execute(
+            """
+            UPDATE outbox_messages
+            SET status = 'cancelled',
+                lease_expires_at = NULL,
+                claim_token = NULL
+            WHERE event_id IN (
+                SELECT outbox_event_id
+                FROM reservation_reminders
+                WHERE reservation_item_id = ?
+            )
+              AND status IN ('pending', 'failed')
+            """,
+            (item_id,),
+        )
+        connection.execute(
+            """
+            UPDATE reservation_reminders
+            SET status = 'cancelled',
+                last_error = NULL
+            WHERE reservation_item_id = ?
+              AND status IN ('pending', 'queued')
+            """,
+            (item_id,),
+        )
+        return sending
+
+    def replace_reservation_item_schedule(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            public_code: str,
+            visit_date: date,
+            booking_date: date,
+            custom_times: tuple[datetime, ...],
+            reminder_policy: str,
+            occurrences: tuple[object, ...],
+            now: datetime | None = None,
+            ) -> ReservationMutationResult | None:
+        changed_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                """
+                SELECT i.id
+                FROM reservation_items i
+                JOIN reservation_plans p ON p.id = i.plan_id
+                WHERE p.platform = ?
+                  AND p.group_id = ?
+                  AND p.creator_id = ?
+                  AND p.status = 'confirmed'
+                  AND i.public_code = ?
+                  AND i.status = 'confirmed'
+                """,
+                (platform, group_id, creator_id, public_code),
+            ).fetchone()
+            if row is None:
+                return None
+            item_id = int(row["id"])
+            sending_warning = self._cancel_item_delivery_rows(
+                connection,
+                item_id,
+            )
+            connection.execute(
+                """
+                UPDATE reservation_items
+                SET visit_date = ?,
+                    booking_date = ?,
+                    date_candidates_json = ?,
+                    custom_reminder_times_json = ?,
+                    reminder_policy = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    visit_date.isoformat(),
+                    booking_date.isoformat(),
+                    json.dumps([visit_date.isoformat()]),
+                    json.dumps([
+                        value.astimezone(
+                            ZoneInfo("Asia/Shanghai")
+                        ).isoformat()
+                        for value in sorted(set(custom_times))
+                    ]),
+                    reminder_policy,
+                    changed_at.isoformat(),
+                    item_id,
+                ),
+            )
+            for occurrence in occurrences:
+                connection.execute(
+                    """
+                    INSERT INTO reservation_reminders (
+                        reservation_item_id, platform, group_id,
+                        recipient_id, scheduled_at_utc, status,
+                        is_custom, created_at
+                    ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+                    """,
+                    (
+                        item_id,
+                        platform,
+                        group_id,
+                        creator_id,
+                        occurrence.scheduled_at_utc.isoformat(),
+                        int(occurrence.is_custom),
+                        changed_at.isoformat(),
+                    ),
+                )
+        item = self.get_reservation_item(
+            platform,
+            group_id,
+            creator_id,
+            public_code,
+        )
+        if item is None:
+            raise RuntimeError(
+                "updated reservation item could not be loaded"
+            )
+        return ReservationMutationResult(item, sending_warning)
+
+    def cancel_reservation_item(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            public_code: str,
+            now: datetime | None = None,
+            ) -> ReservationMutationResult | None:
+        cancelled_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                """
+                SELECT i.*
+                FROM reservation_items i
+                JOIN reservation_plans p ON p.id = i.plan_id
+                WHERE p.platform = ?
+                  AND p.group_id = ?
+                  AND p.creator_id = ?
+                  AND p.status = 'confirmed'
+                  AND i.public_code = ?
+                  AND i.status = 'confirmed'
+                """,
+                (platform, group_id, creator_id, public_code),
+            ).fetchone()
+            if row is None:
+                return None
+            item_id = int(row["id"])
+            sending_warning = self._cancel_item_delivery_rows(
+                connection,
+                item_id,
+            )
+            connection.execute(
+                """
+                UPDATE reservation_items
+                SET status = 'cancelled', updated_at = ?
+                WHERE id = ?
+                """,
+                (cancelled_at.isoformat(), item_id),
+            )
+            cancelled_row = connection.execute(
+                "SELECT * FROM reservation_items WHERE id = ?",
+                (item_id,),
+            ).fetchone()
+        return ReservationMutationResult(
+            self._reservation_item(cancelled_row),
+            sending_warning,
+        )
+
+    def cancel_reservation_plan(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            now: datetime | None = None) -> bool | None:
+        cancelled_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            plan = connection.execute(
+                """
+                SELECT id FROM reservation_plans
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                  AND plan_code = ?
+                  AND status IN ('draft', 'confirmed')
+                """,
+                (platform, group_id, creator_id, plan_code),
+            ).fetchone()
+            if plan is None:
+                return None
+            item_rows = connection.execute(
+                "SELECT id FROM reservation_items WHERE plan_id = ?",
+                (plan["id"],),
+            ).fetchall()
+            sending_warning = False
+            for item_row in item_rows:
+                sending_warning = (
+                    self._cancel_item_delivery_rows(
+                        connection,
+                        int(item_row["id"]),
+                    )
+                    or sending_warning
+                )
+            connection.execute(
+                """
+                UPDATE reservation_items
+                SET status = 'cancelled', updated_at = ?
+                WHERE plan_id = ? AND status != 'cancelled'
+                """,
+                (cancelled_at.isoformat(), plan["id"]),
+            )
+            connection.execute(
+                """
+                UPDATE reservation_plans
+                SET status = 'cancelled',
+                    cancelled_at = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    cancelled_at.isoformat(),
+                    cancelled_at.isoformat(),
+                    plan["id"],
+                ),
+            )
+        return sending_warning
+
     @staticmethod
     def _reservation_image(row: sqlite3.Row) -> ReservationImageRecord:
         extraction = json.loads(row["extraction_json"] or "{}")
@@ -1484,6 +1991,24 @@ class MemoryStore:
             custom_reminder_times=custom_reminder_times,
             reminder_policy=str(row["reminder_policy"]),
             status=str(row["status"]),
+        )
+
+    @staticmethod
+    def _reservation_reminder(
+            row: sqlite3.Row) -> ReservationReminderRecord:
+        return ReservationReminderRecord(
+            reminder_id=int(row["id"]),
+            reservation_item_id=int(row["reservation_item_id"]),
+            platform=str(row["platform"]),
+            group_id=str(row["group_id"]),
+            recipient_id=str(row["recipient_id"]),
+            scheduled_at_utc=datetime.fromisoformat(
+                row["scheduled_at_utc"]
+            ).astimezone(timezone.utc),
+            status=str(row["status"]),
+            outbox_event_id=str(row["outbox_event_id"] or ""),
+            is_custom=bool(row["is_custom"]),
+            last_error=str(row["last_error"] or ""),
         )
 
     def create_upload_binding(

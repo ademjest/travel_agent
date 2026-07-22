@@ -429,3 +429,220 @@ class ReservationService:
         if not changed:
             raise ValueError("未找到可修改的预约计划")
         return self.store.get_reservation_plan(platform, group_id, plan_code)
+
+    def set_draft_reminder_times(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            item_index: int,
+            custom_times: Sequence[datetime]):
+        if not custom_times:
+            raise ValueError("至少需要一个完整提醒时间")
+        changed = self.store.set_reservation_draft_item_times(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+            item_index,
+            tuple(custom_times),
+        )
+        if not changed:
+            raise ValueError("未找到可设置提醒的预约项目")
+        return self.store.get_reservation_plan(platform, group_id, plan_code)
+
+    def confirm_plan(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str):
+        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
+        if plan is None:
+            raise ValueError("预约计划不存在")
+        if plan.creator_id != creator_id:
+            raise PermissionError("只有创建者可以确认预约计划")
+        reminders = {}
+        for item in plan.items:
+            if item.requires_reservation:
+                if item.status == "needs_input" or item.booking_date is None:
+                    raise ValueError("请先补充所有需要预约项目的日期")
+                reminders[item.item_id] = build_reminder_occurrences(
+                    item.booking_date,
+                    item.custom_reminder_times,
+                )
+        return self.store.confirm_reservation_plan(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+            reminders,
+        )
+
+    def list_plans(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str):
+        plans = self.store.list_reservation_plans_for_creator(
+            platform,
+            group_id,
+            creator_id,
+        )
+        if (
+                not plans
+                and self.store.group_has_reservation_plans(
+                    platform,
+                    group_id,
+                )):
+            raise PermissionError("只有创建者可以查看预约提醒")
+        return plans
+
+    def format_plan_list(self, plans: Sequence[object]) -> str:
+        if not plans:
+            return "当前没有预约提醒"
+        lines = []
+        for plan in plans:
+            lines.append(f"{plan.plan_code}（{plan.status}）")
+            for item in plan.items:
+                visit = (
+                    item.visit_date.isoformat()
+                    if item.visit_date
+                    else "未定"
+                )
+                booking = (
+                    item.booking_date.isoformat()
+                    if item.booking_date
+                    else "无需预约"
+                )
+                reminder_text = "无"
+                if item.booking_date and item.status == "confirmed":
+                    reminder_text = "、".join(
+                        occurrence.scheduled_at_utc.astimezone(
+                            BEIJING_TZ
+                        ).strftime(ABSOLUTE_TIME_FORMAT)
+                        for occurrence in build_reminder_occurrences(
+                            item.booking_date,
+                            item.custom_reminder_times,
+                        )
+                    )
+                lines.append(
+                    f"- {item.public_code} {item.attraction_name} "
+                    f"游览 {visit}，预约 {booking}，"
+                    f"提醒 {reminder_text}，状态 {item.status}"
+                )
+        return "\n".join(lines)
+
+    def modify_item_date(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            public_code: str,
+            visit_date: date):
+        item = self.store.get_reservation_item(
+            platform,
+            group_id,
+            creator_id,
+            public_code,
+        )
+        if item is None:
+            raise PermissionError("只有创建者可以修改预约提醒")
+        booking_date = calculate_booking_date(
+            visit_date,
+            item.advance_value,
+            item.advance_unit,
+        )
+        occurrences = build_reminder_occurrences(
+            booking_date,
+            item.custom_reminder_times,
+        )
+        return self.store.replace_reservation_item_schedule(
+            platform=platform,
+            group_id=group_id,
+            creator_id=creator_id,
+            public_code=public_code,
+            visit_date=visit_date,
+            booking_date=booking_date,
+            custom_times=item.custom_reminder_times,
+            reminder_policy=item.reminder_policy,
+            occurrences=occurrences,
+        )
+
+    def modify_item_times(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            public_code: str,
+            custom_times: Sequence[datetime]):
+        item = self.store.get_reservation_item(
+            platform,
+            group_id,
+            creator_id,
+            public_code,
+        )
+        if item is None:
+            raise PermissionError("只有创建者可以修改预约提醒")
+        if not custom_times:
+            raise ValueError("至少需要一个完整提醒时间")
+        if item.booking_date is None or item.visit_date is None:
+            raise ValueError("预约项目缺少日期")
+        occurrences = build_reminder_occurrences(
+            item.booking_date,
+            custom_times,
+        )
+        return self.store.replace_reservation_item_schedule(
+            platform=platform,
+            group_id=group_id,
+            creator_id=creator_id,
+            public_code=public_code,
+            visit_date=item.visit_date,
+            booking_date=item.booking_date,
+            custom_times=tuple(custom_times),
+            reminder_policy="custom",
+            occurrences=occurrences,
+        )
+
+    def cancel_item(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            public_code: str):
+        result = self.store.cancel_reservation_item(
+            platform,
+            group_id,
+            creator_id,
+            public_code,
+        )
+        if result is None:
+            raise PermissionError("只有创建者可以取消预约提醒")
+        return result
+
+    def cancel_plan(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str) -> bool:
+        result = self.store.cancel_reservation_plan(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+        )
+        if result is None:
+            raise PermissionError("只有创建者可以取消预约计划")
+        return result
+
+    @staticmethod
+    def format_mutation(result: object) -> str:
+        message = (
+            f"{result.item.public_code} {result.item.attraction_name} "
+            f"已更新，当前状态 {result.item.status}。"
+        )
+        if result.sending_warning:
+            message += " 提醒正在发送，可能已经发出。"
+        return message
