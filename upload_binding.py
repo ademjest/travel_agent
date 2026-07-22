@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
+from chat_transport import storage_scope_id
 from document_service import DocumentService
 from memory_store import MemoryStore, UploadBindingRedemption
 
@@ -20,6 +21,7 @@ UPLOAD_CODE_PATTERN = re.compile(r"QG-[A-HJ-NP-Z2-9]{6}", re.IGNORECASE)
 class PrivateUploadResult:
     reply: str
     group_openid: str = ""
+    outbox_id: int | None = None
 
 
 class UploadBindingService:
@@ -56,7 +58,21 @@ class UploadBindingService:
             self,
             c2c_user_openid: str,
             content: str,
-            attachments: list) -> PrivateUploadResult:
+            attachments: list,
+            *,
+            event_id: str = "",
+            claim_token: str = "",
+            platform: str = "qq_official",
+            reply_to_id: str = "") -> PrivateUploadResult:
+        if event_id:
+            existing = self.memory_store.list_outbox_for_event(event_id)
+            if existing:
+                reply = existing[0].payload.get("content", "")
+                return PrivateUploadResult(
+                    reply=str(reply),
+                    outbox_id=existing[0].outbox_id,
+                )
+
         text = (content or "").strip()
         code_match = UPLOAD_CODE_PATTERN.search(text.upper())
         redemption = None
@@ -71,12 +87,21 @@ class UploadBindingService:
             if error_reply:
                 return PrivateUploadResult(reply=error_reply)
             if not self.group_allowed(redemption.binding.group_openid):
-                self.memory_store.consume_upload_binding(
-                    redemption.binding.binding_id,
-                    now=self.now_provider(),
+                reply = (
+                    "目标群当前不在机器人允许列表中，请回到群里重新申请。"
+                )
+                outbox_id = self._commit_binding_reply(
+                    binding_id=redemption.binding.binding_id,
+                    reply=reply,
+                    c2c_user_openid=c2c_user_openid,
+                    event_id=event_id,
+                    claim_token=claim_token,
+                    platform=platform,
+                    reply_to_id=reply_to_id,
                 )
                 return PrivateUploadResult(
-                    reply="目标群当前不在机器人允许列表中，请回到群里重新申请。"
+                    reply=reply,
+                    outbox_id=outbox_id,
                 )
             if not attachments:
                 return PrivateUploadResult(
@@ -95,7 +120,7 @@ class UploadBindingService:
                 )
             )
 
-        pending = self.memory_store.claim_pending_upload_binding(
+        pending = self.memory_store.get_pending_upload_binding(
             c2c_user_openid,
             now=self.now_provider(),
         )
@@ -107,28 +132,111 @@ class UploadBindingService:
                 )
             )
         if not self.group_allowed(pending.group_openid):
-            return PrivateUploadResult(
-                reply="目标群当前不在机器人允许列表中，请回到群里重新申请。"
+            reply = "目标群当前不在机器人允许列表中，请回到群里重新申请。"
+            outbox_id = self._commit_binding_reply(
+                binding_id=pending.binding_id,
+                reply=reply,
+                c2c_user_openid=c2c_user_openid,
+                event_id=event_id,
+                claim_token=claim_token,
+                platform=platform,
+                reply_to_id=reply_to_id,
             )
-
-        document_result = self.document_service.ingest_attachments(
-            pending.group_openid,
-            f"c2c:{c2c_user_openid}",
-            list(attachments),
-        )
-        if not document_result.handled:
             return PrivateUploadResult(
-                reply=(
-                    "该附件格式暂不支持。请发送 .docx、.txt 或 .md 文件，"
-                    "本次绑定已失效，请回到目标群重新申请。"
-                ),
+                reply=reply,
                 group_openid=pending.group_openid,
+                outbox_id=outbox_id,
             )
 
-        return PrivateUploadResult(
-            reply=f"{document_result.reply}\n本次绑定已失效。",
-            group_openid=pending.group_openid,
+        prepared = self.document_service.prepare_attachments(
+            list(attachments)
         )
+        if not prepared:
+            reply = (
+                "该附件格式暂不支持。请发送 .docx、.txt 或 .md 文件，"
+                "本次绑定已失效，请回到目标群重新申请。"
+            )
+            outbox_id = self._commit_binding_reply(
+                binding_id=pending.binding_id,
+                reply=reply,
+                c2c_user_openid=c2c_user_openid,
+                event_id=event_id,
+                claim_token=claim_token,
+                platform=platform,
+                reply_to_id=reply_to_id,
+            )
+            return PrivateUploadResult(
+                reply=reply,
+                group_openid=pending.group_openid,
+                outbox_id=outbox_id,
+            )
+
+        if not event_id or not claim_token or not reply_to_id:
+            raise ValueError("Document upload requires an event claim")
+
+        document = prepared[0]
+        reply_lines = [
+            (
+                f"已保存旅行文档：{document.filename}"
+                f"（{len(document.full_text)} 字，{len(document.chunks)} 个片段）。"
+            )
+        ]
+        if document.summary:
+            reply_lines.append("已生成长期行程摘要。")
+        reply_lines.extend((
+            "文档属于群共享长期资料，不受最近 6 轮对话限制。后续提问时会按内容检索相关片段。",
+            "本次绑定已失效。",
+        ))
+        reply = "\n".join(reply_lines)
+        outbox_id = self.memory_store.commit_private_document_event(
+            event_id=event_id,
+            claim_token=claim_token,
+            platform=platform,
+            binding_id=pending.binding_id,
+            group_openid=pending.group_openid,
+            document_group_openid=storage_scope_id(
+                platform,
+                pending.group_openid,
+            ),
+            uploader_openid=f"c2c:{c2c_user_openid}",
+            document=document,
+            reply=reply,
+            target_user_openid=c2c_user_openid,
+            reply_to_id=reply_to_id,
+            now=self.now_provider(),
+        )
+        return PrivateUploadResult(
+            reply=reply,
+            group_openid=pending.group_openid,
+            outbox_id=outbox_id,
+        )
+
+    def _commit_binding_reply(
+            self,
+            *,
+            binding_id: int,
+            reply: str,
+            c2c_user_openid: str,
+            event_id: str,
+            claim_token: str,
+            platform: str,
+            reply_to_id: str) -> int | None:
+        if event_id and claim_token and reply_to_id:
+            return self.memory_store.commit_private_reply_event(
+                event_id=event_id,
+                claim_token=claim_token,
+                platform=platform,
+                binding_id=binding_id,
+                reply=reply,
+                target_user_openid=c2c_user_openid,
+                reply_to_id=reply_to_id,
+                now=self.now_provider(),
+            )
+        self.memory_store.consume_upload_binding(
+            binding_id,
+            now=self.now_provider(),
+        )
+        return None
 
     @staticmethod
     def _redemption_error(redemption: UploadBindingRedemption) -> str:

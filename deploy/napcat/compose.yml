@@ -1,0 +1,40 @@
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:v4.18.9@sha256:32891e1f5aa654ef84fb4fcfb1724b4d844a26c2fcb11519945e64e22d13e766
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NAPCAT_WEBUI_PORT:-6099}:6099"
+    expose:
+      - "3000"
+    volumes:
+      - qq_config:/app/.config/QQ
+      - napcat_config:/app/napcat/config
+
+  onebot:
+    image: travel-agent-onebot:1.0.0
+    build:
+      context: ../..
+      dockerfile: deploy/napcat/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - napcat
+    expose:
+      - "8000"
+    environment:
+      ONEBOT_HTTP_URL: http://napcat:3000
+      ONEBOT_ACCESS_TOKEN: ${ONEBOT_ACCESS_TOKEN}
+      ONEBOT_INBOUND_TOKEN: ${ONEBOT_INBOUND_TOKEN}
+      ONEBOT_ALLOWED_GROUPS: ${ONEBOT_ALLOWED_GROUPS}
+      ONEBOT_BIND_HOST: 0.0.0.0
+      ONEBOT_BIND_PORT: 8000
+      AMAP_API_KEY: ${AMAP_API_KEY}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL_ID: ${LLM_MODEL_ID}
+    volumes:
+      - travel_data:/app/data
+
+volumes:
+  qq_config:
+  napcat_config:
+  travel_data:

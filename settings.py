@@ -62,3 +62,59 @@ class Settings:
             and self.llm_base_url
             and self.llm_model_id
         )
+
+
+@dataclass(frozen=True)
+class OneBotSettings:
+    http_url: str
+    access_token: str
+    inbound_token: str
+    allowed_group_ids: frozenset[str]
+    bind_host: str = "127.0.0.1"
+    bind_port: int = 8000
+
+    @classmethod
+    def from_env(cls) -> "OneBotSettings":
+        access_token = os.getenv("ONEBOT_ACCESS_TOKEN", "").strip()
+        inbound_token = os.getenv("ONEBOT_INBOUND_TOKEN", "").strip()
+        missing = []
+        if not access_token:
+            missing.append("ONEBOT_ACCESS_TOKEN")
+        if not inbound_token:
+            missing.append("ONEBOT_INBOUND_TOKEN")
+        if missing:
+            raise SettingsError(
+                "Missing required environment variables: "
+                + ", ".join(missing)
+            )
+
+        raw_port = os.getenv("ONEBOT_BIND_PORT", "8000").strip()
+        try:
+            bind_port = int(raw_port)
+        except ValueError as exc:
+            raise SettingsError("ONEBOT_BIND_PORT must be an integer") from exc
+        if not 1 <= bind_port <= 65535:
+            raise SettingsError("ONEBOT_BIND_PORT must be between 1 and 65535")
+
+        return cls(
+            http_url=(
+                os.getenv("ONEBOT_HTTP_URL", "http://127.0.0.1:3000")
+                .strip()
+                .rstrip("/")
+            ),
+            access_token=access_token,
+            inbound_token=inbound_token,
+            allowed_group_ids=frozenset(
+                value.strip()
+                for value in os.getenv("ONEBOT_ALLOWED_GROUPS", "").split(",")
+                if value.strip()
+            ),
+            bind_host=(
+                os.getenv("ONEBOT_BIND_HOST", "127.0.0.1").strip()
+                or "127.0.0.1"
+            ),
+            bind_port=bind_port,
+        )
+
+    def allows_group(self, group_id: str) -> bool:
+        return str(group_id) in self.allowed_group_ids

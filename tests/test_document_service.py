@@ -63,6 +63,26 @@ class DocumentServiceTests(unittest.TestCase):
         )
         self.assertIn("茶卡镇", context)
 
+    def test_prepare_attachments_does_not_persist_document(self):
+        attachment = SimpleNamespace(
+            filename="plan.docx",
+            url="https://example.test/plan.docx",
+            size=100,
+        )
+        with patch.object(
+                self.service,
+                "_download_attachment",
+                return_value=make_docx_bytes()):
+            prepared = self.service.prepare_attachments([attachment])
+
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(prepared[0].filename, "plan.docx")
+        context = self.service.memory_store.build_document_context(
+            "group",
+            "茶卡住哪里",
+        )
+        self.assertEqual(context, "")
+
     def test_legacy_doc_requires_conversion(self):
         attachment = SimpleNamespace(
             filename="old-plan.doc",

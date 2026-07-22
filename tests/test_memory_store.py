@@ -3,11 +3,19 @@ import tempfile
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from document_service import PreparedDocument
 from memory_store import MemoryStore
+
+
+@contextmanager
+def sqlite_connection(database_path):
+    with closing(sqlite3.connect(database_path)) as connection:
+        with connection:
+            yield connection
 
 
 class BarrierConnection:
@@ -97,6 +105,151 @@ class MemoryStoreTests(unittest.TestCase):
             "completed",
         )
         self.assertIsNone(self.store.begin_event("completed-event"))
+
+    def test_prepared_event_creates_one_pending_outbox_row(self):
+        claim = self.store.begin_event("qq_official:group:g1:m1")
+
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=claim.event_id,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m1",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+        )
+
+        pending = self.store.list_due_outbox("qq_official")
+        self.assertEqual([item.outbox_id for item in pending], [outbox_id])
+        self.assertEqual(pending[0].payload["content"], "reply")
+
+    def test_repreparing_same_event_does_not_duplicate_outbox(self):
+        event_id = "qq_official:group:g1:m2"
+        first = self.store.begin_event(event_id)
+        first_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=first.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m2",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+        )
+        self.store.fail_event(event_id, first.claim_token, "send failed")
+        second = self.store.begin_event(event_id)
+
+        second_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=second.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m2",
+            payload={"msg_type": 0, "content": "changed"},
+            memory_content="changed question",
+        )
+
+        self.assertEqual(second_id, first_id)
+        rows = self.store.list_outbox_for_event(event_id)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].payload["content"], "reply")
+
+    def test_sending_row_is_recovered_after_lease_expiry(self):
+        now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
+        claim = self.store.begin_event(
+            "qq_official:group:g1:m3",
+            now=now,
+        )
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=claim.event_id,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m3",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+            now=now,
+        )
+
+        token = self.store.claim_outbox(
+            outbox_id,
+            now=now,
+            lease_duration=timedelta(minutes=1),
+        )
+
+        self.assertIsNotNone(token)
+        self.assertEqual(
+            self.store.list_due_outbox(
+                "qq_official",
+                now + timedelta(seconds=59),
+            ),
+            (),
+        )
+        due = self.store.list_due_outbox(
+            "qq_official",
+            now + timedelta(minutes=1),
+        )
+        self.assertEqual([item.outbox_id for item in due], [outbox_id])
+
+    def test_mark_outbox_sent_completes_group_event_and_saves_turn(self):
+        now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
+        event_id = "qq_official:group:g1:m4"
+        claim = self.store.begin_event(event_id, now=now)
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=claim.claim_token,
+            platform="qq_official",
+            channel="group",
+            target_id="g1",
+            sender_id="u1",
+            reply_to_id="m4",
+            payload={"msg_type": 0, "content": "reply"},
+            memory_content="question",
+            now=now,
+        )
+        token = self.store.claim_outbox(outbox_id, now=now)
+
+        self.assertTrue(
+            self.store.mark_outbox_sent(outbox_id, token, now=now)
+        )
+        self.assertEqual(self.store.get_event_status(event_id), "completed")
+        turns = self.store.get_recent_turns("g1", "u1")
+        self.assertEqual(len(turns), 1)
+        self.assertEqual(turns[0].user_content, "question")
+        self.assertEqual(turns[0].assistant_content, "reply")
+
+    def test_onebot_group_turn_uses_platform_scoped_session(self):
+        event_id = "onebot:group:10001:message-1"
+        claim = self.store.begin_event(event_id)
+        outbox_id = self.store.prepare_event_outbox(
+            event_id=event_id,
+            claim_token=claim.claim_token,
+            platform="onebot",
+            channel="group",
+            target_id="10001",
+            sender_id="20001",
+            reply_to_id="message-1",
+            payload={"message": "reply"},
+            memory_content="question",
+        )
+        token = self.store.claim_outbox(outbox_id)
+
+        self.assertTrue(self.store.mark_outbox_sent(outbox_id, token))
+        self.assertEqual(
+            len(self.store.get_recent_turns("onebot:10001", "20001")),
+            1,
+        )
+        self.assertEqual(
+            self.store.get_recent_turns("10001", "20001"),
+            (),
+        )
 
     def test_failed_event_can_be_reclaimed_immediately(self):
         first_claim = self.store.begin_event("failed-event")
@@ -196,7 +349,7 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_legacy_processed_events_are_migrated_as_completed(self):
         database_path = Path(self.temp_dir.name) / "legacy.db"
-        with sqlite3.connect(database_path) as connection:
+        with sqlite_connection(database_path) as connection:
             connection.execute(
                 """
                 CREATE TABLE processed_events (
@@ -367,7 +520,7 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_existing_document_chunks_are_backfilled_into_search_index(self):
         database_path = Path(self.temp_dir.name) / "legacy-documents.db"
-        with sqlite3.connect(database_path) as connection:
+        with sqlite_connection(database_path) as connection:
             connection.executescript(
                 """
                 CREATE TABLE documents (
@@ -410,7 +563,7 @@ class MemoryStoreTests(unittest.TestCase):
         )
 
         self.assertIn("青海湖二郎剑景区早上九点集合", context)
-        with sqlite3.connect(database_path) as connection:
+        with sqlite_connection(database_path) as connection:
             migration = connection.execute(
                 "SELECT 1 FROM schema_migrations WHERE name = ?",
                 ("document_chunks_fts_v1",),
@@ -572,6 +725,65 @@ class MemoryStoreTests(unittest.TestCase):
 
         self.assertEqual(first.group_openid, "group-a")
         self.assertIsNone(second)
+
+    def test_competing_document_events_consume_binding_once(self):
+        now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
+        self.store.create_upload_binding(
+            "document-race-hash",
+            "group-a",
+            "member-a",
+            now + timedelta(minutes=10),
+            now=now,
+        )
+        redemption = self.store.redeem_upload_binding(
+            "document-race-hash",
+            "private-user",
+            now=now,
+        )
+        first_claim = self.store.begin_event("private-event-1", now=now)
+        second_claim = self.store.begin_event("private-event-2", now=now)
+        document = PreparedDocument(
+            filename="plan.txt",
+            sha256="same-document",
+            full_text="8月16日从西宁前往青海湖，晚上住宿茶卡镇。",
+            chunks=("8月16日从西宁前往青海湖，晚上住宿茶卡镇。",),
+            summary="青甘自驾行程",
+        )
+
+        def commit(event_id, claim_token):
+            try:
+                self.store.commit_private_document_event(
+                    event_id=event_id,
+                    claim_token=claim_token,
+                    platform="qq_official",
+                    binding_id=redemption.binding.binding_id,
+                    group_openid="group-a",
+                    uploader_openid="c2c:private-user",
+                    document=document,
+                    reply="已保存旅行文档：plan.txt",
+                    target_user_openid="private-user",
+                    reply_to_id=event_id,
+                    now=now,
+                )
+                return "committed"
+            except RuntimeError:
+                return "rejected"
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = sorted(executor.map(
+                lambda args: commit(*args),
+                (
+                    (first_claim.event_id, first_claim.claim_token),
+                    (second_claim.event_id, second_claim.claim_token),
+                ),
+            ))
+
+        self.assertEqual(results, ["committed", "rejected"])
+        outbox_count = sum(
+            len(self.store.list_outbox_for_event(event_id))
+            for event_id in ("private-event-1", "private-event-2")
+        )
+        self.assertEqual(outbox_count, 1)
 
 
 if __name__ == "__main__":
