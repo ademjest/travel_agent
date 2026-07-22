@@ -164,6 +164,22 @@ class ReservationMutationResult:
     sending_warning: bool
 
 
+@dataclass(frozen=True)
+class DueReservationReminder:
+    reminder_id: int
+    reservation_item_id: int
+    platform: str
+    group_id: str
+    recipient_id: str
+    scheduled_at_utc: datetime
+    attraction_name: str
+    visit_date: date
+    booking_date: date
+    opening_hours: str
+    price_text: str
+    booking_channel: str
+
+
 class MemoryStore:
     def __init__(self, database_path: str | Path | None = None):
         default_path = Path(__file__).resolve().parent / "data" / "travel_bot.db"
@@ -859,27 +875,69 @@ class MemoryStore:
             claim_token: str,
             error: str,
             next_attempt_at: datetime) -> bool:
+        error_text = str(error)[:MAX_EVENT_ERROR_CHARS]
         with self._connect() as connection:
-            cursor = connection.execute(
+            row = connection.execute(
                 """
-                UPDATE outbox_messages
-                SET status = 'failed',
-                    next_attempt_at = ?,
-                    lease_expires_at = NULL,
-                    claim_token = NULL,
-                    last_error = ?
-                WHERE id = ?
-                  AND status = 'sending'
-                  AND claim_token = ?
+                SELECT
+                    o.event_id,
+                    r.status AS reminder_status
+                FROM outbox_messages o
+                LEFT JOIN reservation_reminders r
+                  ON r.outbox_event_id = o.event_id
+                WHERE o.id = ?
+                  AND o.status = 'sending'
+                  AND o.claim_token = ?
                 """,
-                (
-                    next_attempt_at.isoformat(),
-                    str(error)[:MAX_EVENT_ERROR_CHARS],
-                    outbox_id,
-                    claim_token,
-                ),
+                (outbox_id, claim_token),
+            ).fetchone()
+            if row is None:
+                return False
+            if row["reminder_status"] == "cancelled":
+                cursor = connection.execute(
+                    """
+                    UPDATE outbox_messages
+                    SET status = 'cancelled',
+                        lease_expires_at = NULL,
+                        claim_token = NULL,
+                        last_error = ?
+                    WHERE id = ?
+                      AND status = 'sending'
+                      AND claim_token = ?
+                    """,
+                    (error_text, outbox_id, claim_token),
+                )
+            else:
+                cursor = connection.execute(
+                    """
+                    UPDATE outbox_messages
+                    SET status = 'failed',
+                        next_attempt_at = ?,
+                        lease_expires_at = NULL,
+                        claim_token = NULL,
+                        last_error = ?
+                    WHERE id = ?
+                      AND status = 'sending'
+                      AND claim_token = ?
+                    """,
+                    (
+                        next_attempt_at.isoformat(),
+                        error_text,
+                        outbox_id,
+                        claim_token,
+                    ),
+                )
+            if cursor.rowcount != 1:
+                return False
+            connection.execute(
+                """
+                UPDATE reservation_reminders
+                SET last_error = ?
+                WHERE outbox_event_id = ?
+                """,
+                (error_text, row["event_id"]),
             )
-        return cursor.rowcount == 1
+        return True
 
     def mark_outbox_sent(
             self,
@@ -922,6 +980,18 @@ class MemoryStore:
             )
             if cursor.rowcount != 1:
                 return False
+
+            connection.execute(
+                """
+                UPDATE reservation_reminders
+                SET status = 'sent',
+                    sent_at = ?,
+                    last_error = NULL
+                WHERE outbox_event_id = ?
+                  AND status = 'queued'
+                """,
+                (sent_at.isoformat(), row["event_id"]),
+            )
 
             if row["channel"] == "group":
                 connection.execute(
@@ -1676,6 +1746,174 @@ class MemoryStore:
                 "SELECT * FROM reservation_reminders ORDER BY id"
             ).fetchall()
         return tuple(self._reservation_reminder(row) for row in rows)
+
+    def list_due_reservation_reminders(
+            self,
+            platform: str,
+            now: datetime | None = None,
+            limit: int = 50) -> tuple[DueReservationReminder, ...]:
+        current = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    r.id AS reminder_id,
+                    r.reservation_item_id,
+                    r.platform,
+                    r.group_id,
+                    r.recipient_id,
+                    r.scheduled_at_utc,
+                    i.attraction_name,
+                    i.visit_date,
+                    i.booking_date,
+                    i.opening_hours,
+                    i.price_text,
+                    i.booking_channel
+                FROM reservation_reminders r
+                JOIN reservation_items i
+                  ON i.id = r.reservation_item_id
+                JOIN reservation_plans p
+                  ON p.id = i.plan_id
+                WHERE r.platform = ?
+                  AND r.status = 'pending'
+                  AND julianday(r.scheduled_at_utc) <= julianday(?)
+                  AND i.status = 'confirmed'
+                  AND p.status = 'confirmed'
+                ORDER BY r.scheduled_at_utc, r.id
+                LIMIT ?
+                """,
+                (platform, current.isoformat(), limit),
+            ).fetchall()
+        return tuple(
+            DueReservationReminder(
+                reminder_id=int(row["reminder_id"]),
+                reservation_item_id=int(row["reservation_item_id"]),
+                platform=str(row["platform"]),
+                group_id=str(row["group_id"]),
+                recipient_id=str(row["recipient_id"]),
+                scheduled_at_utc=datetime.fromisoformat(
+                    row["scheduled_at_utc"]
+                ).astimezone(timezone.utc),
+                attraction_name=str(row["attraction_name"]),
+                visit_date=date.fromisoformat(row["visit_date"]),
+                booking_date=date.fromisoformat(row["booking_date"]),
+                opening_hours=str(row["opening_hours"]),
+                price_text=str(row["price_text"]),
+                booking_channel=str(row["booking_channel"]),
+            )
+            for row in rows
+        )
+
+    def mark_reservation_reminder_terminal(
+            self,
+            reminder_id: int,
+            status: str,
+            error: str = "",
+            now: datetime | None = None) -> bool:
+        if status not in {"expired", "blocked"}:
+            raise ValueError(
+                "terminal reminder status must be expired or blocked"
+            )
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE reservation_reminders
+                SET status = ?, last_error = ?
+                WHERE id = ? AND status = 'pending'
+                """,
+                (
+                    status,
+                    str(error)[:MAX_EVENT_ERROR_CHARS],
+                    reminder_id,
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def queue_reservation_reminder(
+            self,
+            reminder_id: int,
+            payload: dict[str, object],
+            prepared_reply: str,
+            now: datetime | None = None) -> int | None:
+        queued_at = now or datetime.now(timezone.utc)
+        event_id = f"reservation-reminder:{reminder_id}"
+        payload_json = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            reminder = connection.execute(
+                "SELECT * FROM reservation_reminders WHERE id = ?",
+                (reminder_id,),
+            ).fetchone()
+            if reminder is None:
+                return None
+            existing = connection.execute(
+                "SELECT id FROM outbox_messages WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if existing is not None:
+                return int(existing["id"])
+            if (
+                    reminder["status"] != "pending"
+                    or datetime.fromisoformat(
+                        reminder["scheduled_at_utc"]
+                    ) > queued_at):
+                return None
+
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO processed_events (
+                    event_id, status, created_at, updated_at,
+                    attempt_count, prepared_reply,
+                    prepared_memory_content
+                ) VALUES (?, 'processing', ?, ?, 1, ?, ?)
+                """,
+                (
+                    event_id,
+                    queued_at.isoformat(),
+                    queued_at.isoformat(),
+                    prepared_reply,
+                    "自动预约提醒",
+                ),
+            )
+            cursor = connection.execute(
+                """
+                INSERT INTO outbox_messages (
+                    event_id, platform, channel, target_id, sender_id,
+                    reply_to_id, payload_json, status, attempt_count,
+                    next_attempt_at, created_at
+                ) VALUES (
+                    ?, ?, 'group', ?, ?, '', ?, 'pending', 0, ?, ?
+                )
+                """,
+                (
+                    event_id,
+                    reminder["platform"],
+                    reminder["group_id"],
+                    reminder["recipient_id"],
+                    payload_json,
+                    queued_at.isoformat(),
+                    queued_at.isoformat(),
+                ),
+            )
+            outbox_id = int(cursor.lastrowid)
+            updated = connection.execute(
+                """
+                UPDATE reservation_reminders
+                SET status = 'queued',
+                    outbox_event_id = ?,
+                    queued_at = ?,
+                    last_error = NULL
+                WHERE id = ? AND status = 'pending'
+                """,
+                (event_id, queued_at.isoformat(), reminder_id),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError("reservation reminder queue race")
+        return outbox_id
 
     def _cancel_item_delivery_rows(
             self,
