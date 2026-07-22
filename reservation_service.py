@@ -646,3 +646,94 @@ class ReservationService:
         if result.sending_warning:
             message += " 提醒正在发送，可能已经发出。"
         return message
+
+    def handle_command(self, command: object, event: object) -> str:
+        name = command.name
+        args = command.args
+        platform = event.platform
+        group_id = event.scope_id
+        creator_id = event.sender_id
+
+        if name == "reservation_list":
+            return self.format_plan_list(
+                self.list_plans(platform, group_id, creator_id)
+            )
+        if name == "reservation_complete_date":
+            plan = self.complete_item_date(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+                int(args[1]),
+                date.fromisoformat(args[2]),
+            )
+            return self.format_draft(plan)
+        if name == "reservation_add_item":
+            plan = self.add_manual_item(
+                platform=platform,
+                group_id=group_id,
+                creator_id=creator_id,
+                plan_code=args[0],
+                attraction_name=args[1],
+                visit_date=date.fromisoformat(args[2]),
+                advance_value=int(args[3]),
+                advance_unit=args[4],
+                requires_reservation=args[5] == "1",
+            )
+            return self.format_draft(plan)
+        if name == "reservation_set_times":
+            plan = self.set_draft_reminder_times(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+                int(args[1]),
+                parse_beijing_datetime_list(args[2]),
+            )
+            return self.format_draft(plan)
+        if name == "reservation_confirm":
+            plan = self.confirm_plan(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+            )
+            return f"预约计划 {plan.plan_code} 已确认。"
+        if name == "reservation_cancel_plan":
+            warning = self.cancel_plan(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+            )
+            return (
+                "预约计划已取消。"
+                + (" 提醒正在发送，可能已经发出。" if warning else "")
+            )
+        if name == "reservation_modify_date":
+            result = self.modify_item_date(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+                date.fromisoformat(args[1]),
+            )
+            return self.format_mutation(result)
+        if name == "reservation_modify_times":
+            result = self.modify_item_times(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+                parse_beijing_datetime_list(args[1]),
+            )
+            return self.format_mutation(result)
+        if name == "reservation_cancel_item":
+            result = self.cancel_item(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+            )
+            return self.format_mutation(result)
+        raise ValueError("不是预约提醒命令")

@@ -30,6 +30,8 @@ class TravelBotApplication:
             upload_binding_service: UploadBindingService,
             outbox_worker: OutboxWorker,
             reply_renderer: ReplyRenderer,
+            reservation_image_service: object | None = None,
+            reservation_service: object | None = None,
             group_allowed: Callable[[str], bool] | None = None,
             context_builder: ContextBuilder | None = None):
         self.store = store
@@ -39,6 +41,8 @@ class TravelBotApplication:
         self.upload_binding_service = upload_binding_service
         self.outbox_worker = outbox_worker
         self.reply_renderer = reply_renderer
+        self.reservation_image_service = reservation_image_service
+        self.reservation_service = reservation_service
         self.group_allowed = group_allowed or (lambda group_id: True)
         self.context_builder = context_builder or ContextBuilder(store)
 
@@ -112,6 +116,66 @@ class TravelBotApplication:
             event: ChatEvent,
             memory_content: str) -> tuple[str, str]:
         try:
+            image_attachments = (
+                [
+                    attachment
+                    for attachment in event.attachments
+                    if self.reservation_image_service.is_supported_attachment(
+                        attachment
+                    )
+                ]
+                if (
+                    self.reservation_image_service is not None
+                    and self.reservation_service is not None
+                )
+                else []
+            )
+            if len(image_attachments) > 1:
+                return (
+                    "一次只能识别一张预约图片，请逐张发送。",
+                    memory_content or "发送多张预约图片",
+                )
+            if len(image_attachments) == 1:
+                try:
+                    result = await asyncio.to_thread(
+                        self.reservation_image_service.process_attachment,
+                        storage_scope_id=event.storage_scope_id,
+                        platform=event.platform,
+                        group_id=event.scope_id,
+                        uploader_id=event.sender_id,
+                        attachment=image_attachments[0],
+                    )
+                except ValueError as exc:
+                    return (
+                        f"图片处理失败：{exc}。请检查图片后重新发送。",
+                        memory_content or "上传景点预约图片失败",
+                    )
+                except Exception:
+                    logger.exception("Reservation image download failed")
+                    return (
+                        "图片下载失败，请稍后重新发送；"
+                        "本次没有创建预约计划。",
+                        memory_content or "上传景点预约图片失败",
+                    )
+                extraction_items = (
+                    result.extraction.items
+                    if result.extraction is not None
+                    else ()
+                )
+                plan = await asyncio.to_thread(
+                    self.reservation_service.create_draft,
+                    result.image,
+                    extraction_items,
+                )
+                reply = self.reservation_service.format_draft(plan)
+                if result.extraction is None:
+                    reply = (
+                        "图片已保存，但自动识别失败，"
+                        "已转为全手动草稿。\n"
+                        + reply
+                    )
+                return reply, "上传景点预约图片"
+
             document_result = await asyncio.to_thread(
                 self.document_service.ingest_attachments,
                 event.storage_scope_id,
@@ -127,7 +191,15 @@ class TravelBotApplication:
                 )
             else:
                 command = parse_command(event.content)
-                if command.name == "upload_document":
+                if (
+                        command.name.startswith("reservation_")
+                        and self.reservation_service is not None):
+                    reply = await asyncio.to_thread(
+                        self.reservation_service.handle_command,
+                        command,
+                        event,
+                    )
+                elif command.name == "upload_document":
                     reply = await asyncio.to_thread(
                         self.upload_binding_service.issue_binding,
                         event.scope_id,
@@ -155,6 +227,8 @@ class TravelBotApplication:
                             for trace in agent_result.traces
                         )
                         logger.info("Agent tool trace: %s", trace_text)
+        except (ValueError, PermissionError) as exc:
+            reply = str(exc)
         except OpenAIError as exc:
             logger.error("LLM request failed: %s", exc)
             reply = (

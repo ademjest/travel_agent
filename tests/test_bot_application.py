@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_application import TravelBotApplication
-from chat_transport import ChatEvent
+from chat_transport import ChatAttachment, ChatEvent
 from document_service import DocumentIngestResult
 from memory_store import MemoryStore
 from outbox_worker import OutboxWorker
@@ -70,6 +70,48 @@ class FakeUploadBindingService:
         return PrivateUploadResult(reply="private-reply")
 
 
+class FakeReservationImageService:
+    def __init__(self):
+        self.calls = []
+        self.error = None
+
+    @staticmethod
+    def is_supported_attachment(attachment):
+        return attachment.content_type.startswith("image/")
+
+    def process_attachment(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
+        image = SimpleNamespace(
+            image_id=1,
+            storage_scope_id=kwargs["storage_scope_id"],
+            platform=kwargs["platform"],
+            group_id=kwargs["group_id"],
+            uploader_id=kwargs["uploader_id"],
+            status="extracted",
+        )
+        extraction = SimpleNamespace(items=())
+        return SimpleNamespace(image=image, extraction=extraction)
+
+
+class FakeReservationService:
+    def __init__(self):
+        self.created = []
+        self.commands = []
+
+    def create_draft(self, image, items):
+        self.created.append((image, items))
+        return SimpleNamespace(plan_code="R-20260722-001", items=())
+
+    def format_draft(self, plan):
+        return f"预约计划 {plan.plan_code}"
+
+    def handle_command(self, command, event):
+        self.commands.append((command, event))
+        return "预约命令已处理"
+
+
 class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -84,11 +126,15 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.travel_agent = FakeTravelAgent()
         self.document_service = FakeDocumentService()
         self.upload_service = FakeUploadBindingService()
+        self.reservation_image_service = FakeReservationImageService()
+        self.reservation_service = FakeReservationService()
         self.application = TravelBotApplication(
             store=self.store,
             travel_service=self.travel_service,
             travel_agent=self.travel_agent,
             document_service=self.document_service,
+            reservation_image_service=self.reservation_image_service,
+            reservation_service=self.reservation_service,
             upload_binding_service=self.upload_service,
             outbox_worker=self.worker,
             reply_renderer=FakeRenderer(),
@@ -186,3 +232,77 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].member_id, "member-a")
         self.assertEqual(messages[0].content, "明早八点集合")
+
+    async def test_single_image_is_routed_before_document_and_agent(self):
+        event = ChatEvent(
+            platform="qq_official",
+            channel="group",
+            event_id="image-1",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+            ),
+        )
+        await self.application.handle(event)
+        self.assertEqual(len(self.reservation_image_service.calls), 1)
+        self.assertEqual(len(self.reservation_service.created), 1)
+        self.assertEqual(self.document_service.calls, [])
+        self.assertEqual(self.travel_agent.calls, [])
+
+    async def test_multiple_images_are_rejected_without_model_call(self):
+        attachments = tuple(
+            ChatAttachment(
+                filename=f"booking-{index}.jpg",
+                url=f"https://example.test/{index}.jpg",
+                content_type="image/jpeg",
+            )
+            for index in (1, 2)
+        )
+        event = ChatEvent(
+            platform="qq_official",
+            channel="group",
+            event_id="image-2",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=attachments,
+        )
+        await self.application.handle(event)
+        self.assertEqual(self.reservation_image_service.calls, [])
+        sent = self.transport.messages[0].payload
+        self.assertIn("逐张发送", str(sent))
+
+    async def test_image_download_failure_creates_no_plan(self):
+        self.reservation_image_service.error = ValueError(
+            "图片超过 5 MB 限制"
+        )
+        event = ChatEvent(
+            platform="qq_official",
+            channel="group",
+            event_id="image-failed",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+            ),
+        )
+        await self.application.handle(event)
+        self.assertEqual(self.reservation_service.created, [])
+        self.assertIn("5 MB", str(self.transport.messages[0].payload))
+
+    async def test_reservation_command_runs_before_travel_agent(self):
+        event = self.group_event("reservation-list", "查看预约提醒")
+        await self.application.handle(event)
+        self.assertEqual(len(self.reservation_service.commands), 1)
+        self.assertEqual(self.travel_agent.calls, [])

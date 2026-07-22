@@ -23,6 +23,7 @@ class ChatAttachment:
     filename: str
     url: str
     content_type: str = ""
+    size: int = 0
 
 
 @dataclass(frozen=True)
