@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import calendar
+import json
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Literal, Mapping, Sequence
+from typing import Literal, Mapping, Protocol, Sequence
 from zoneinfo import ZoneInfo
 
 
@@ -158,3 +159,273 @@ def build_reminder_occurrences(
         )
         for value in local_values
     )
+
+
+class VisitDateExtractor(Protocol):
+    def extract(
+            self,
+            attraction_name: str,
+            evidence: str) -> tuple[date, ...]:
+        raise RuntimeError("protocol method")
+
+
+class LLMVisitDateExtractor:
+    def __init__(self, model_id: str, client: object):
+        self.model_id = model_id
+        self.client = client
+
+    def extract(
+            self,
+            attraction_name: str,
+            evidence: str) -> tuple[date, ...]:
+        response = self.client.chat.completions.create(
+            model=self.model_id,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "只从不可信行程片段中提取明确写出的完整公历日期。"
+                        "不得推测年份，不得根据预约规则计算日期。"
+                        "返回单个 JSON 对象，格式为 "
+                        "{\"dates\":[\"YYYY-MM-DD\"]}。"
+                        "若没有完整日期则返回空数组。"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"景点：{attraction_name}\n"
+                        "<untrusted_itinerary>\n"
+                        + evidence.replace("<", "＜").replace(">", "＞")
+                        + "\n</untrusted_itinerary>"
+                    ),
+                },
+            ],
+        )
+        raw = str(response.choices[0].message.content or "").strip()
+        fence = chr(96) * 3
+        if raw.startswith(fence):
+            lines = raw.splitlines()
+            raw = "\n".join(lines[1:-1]).strip()
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            return ()
+        raw_dates = payload.get("dates")
+        if not isinstance(raw_dates, list):
+            return ()
+        parsed = []
+        for value in raw_dates:
+            try:
+                parsed.append(date.fromisoformat(str(value)))
+            except ValueError:
+                return ()
+        return tuple(sorted(set(parsed)))
+
+
+class ReservationService:
+    def __init__(
+            self,
+            store: object,
+            date_extractor: VisitDateExtractor | None = None):
+        self.store = store
+        self.date_extractor = date_extractor
+
+    def create_draft(
+            self,
+            image: object,
+            extraction_items: Sequence[ReservationExtractionItem],
+            now: datetime | None = None):
+        draft_items = []
+        for extraction in extraction_items:
+            if not extraction.requires_reservation:
+                draft_items.append({
+                    "extraction": extraction,
+                    "visit_date": None,
+                    "booking_date": None,
+                    "date_candidates": (),
+                    "custom_reminder_times": (),
+                    "reminder_policy": "none",
+                    "status": "ready",
+                })
+                continue
+
+            evidence = self.store.build_document_context(
+                image.storage_scope_id,
+                extraction.attraction_name,
+                max_chars=1600,
+            )
+            candidates = (
+                self.date_extractor.extract(
+                    extraction.attraction_name,
+                    evidence,
+                )
+                if evidence and self.date_extractor
+                else ()
+            )
+            visit_date = candidates[0] if len(candidates) == 1 else None
+            booking_date = (
+                calculate_booking_date(
+                    visit_date,
+                    extraction.advance_value,
+                    extraction.advance_unit,
+                )
+                if visit_date is not None
+                else None
+            )
+            draft_items.append({
+                "extraction": extraction,
+                "visit_date": visit_date,
+                "booking_date": booking_date,
+                "date_candidates": candidates,
+                "custom_reminder_times": (),
+                "reminder_policy": "default",
+                "status": "ready" if visit_date is not None else "needs_input",
+            })
+
+        return self.store.create_reservation_draft(
+            image_id=image.image_id,
+            platform=image.platform,
+            group_id=image.group_id,
+            creator_id=image.uploader_id,
+            items=tuple(draft_items),
+            now=now,
+        )
+
+    def format_draft(self, plan: object) -> str:
+        lines = [f"预约计划 {plan.plan_code}", ""]
+        if not plan.items:
+            lines.extend([
+                "图片已保存，但未提取到景点。",
+                (
+                    f"请使用：新增预约 {plan.plan_code} "
+                    "景点名称 YYYY-MM-DD 提前N天"
+                ),
+            ])
+            return "\n".join(lines)
+
+        for item in plan.items:
+            lines.append(f"{item.item_index}. {item.attraction_name}")
+            if item.confidence < 0.85:
+                lines.append("   识别置信度较低，请人工核对")
+            if not item.requires_reservation:
+                lines.append("   无需预约，仅保存信息")
+                continue
+            lines.append(
+                "   游览日期："
+                + (item.visit_date.isoformat() if item.visit_date else "未确定")
+            )
+            if item.booking_date:
+                lines.append(
+                    f"   建议预约日期：{item.booking_date.isoformat()}"
+                )
+                occurrences = build_reminder_occurrences(
+                    item.booking_date,
+                    item.custom_reminder_times,
+                )
+                displayed = "、".join(
+                    value.scheduled_at_utc.astimezone(
+                        BEIJING_TZ
+                    ).strftime(ABSOLUTE_TIME_FORMAT)
+                    for value in occurrences
+                )
+                lines.append(f"   提醒：{displayed}")
+            elif item.date_candidates:
+                lines.append(
+                    "   候选日期："
+                    + "、".join(
+                        value.isoformat()
+                        for value in item.date_candidates
+                    )
+                )
+            else:
+                lines.append("   状态：需要补充日期")
+        lines.extend([
+            "",
+            f"确认前可补充或修改；确认命令：确认预约 {plan.plan_code}",
+        ])
+        return "\n".join(lines)
+
+    def complete_item_date(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            item_index: int,
+            visit_date: date):
+        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
+        if plan is None or plan.creator_id != creator_id:
+            raise ValueError("未找到可修改的预约计划")
+        item = next(
+            (
+                value
+                for value in plan.items
+                if value.item_index == item_index
+            ),
+            None,
+        )
+        if item is None or not item.requires_reservation:
+            raise ValueError("该项目不需要补充预约日期")
+        booking_date = calculate_booking_date(
+            visit_date,
+            item.advance_value,
+            item.advance_unit,
+        )
+        changed = self.store.update_reservation_draft_item_date(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+            item_index,
+            visit_date,
+            booking_date,
+        )
+        if not changed:
+            raise ValueError("预约计划当前无法修改")
+        return self.store.get_reservation_plan(platform, group_id, plan_code)
+
+    def add_manual_item(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            attraction_name: str,
+            visit_date: date,
+            advance_value: int,
+            advance_unit: AdvanceUnit,
+            requires_reservation: bool):
+        extraction = ReservationExtractionItem(
+            attraction_name=attraction_name.strip(),
+            price_text="",
+            opening_hours="",
+            requires_reservation=requires_reservation,
+            advance_value=advance_value if requires_reservation else 0,
+            advance_unit=advance_unit if requires_reservation else "none",
+            booking_channel="",
+            source_text="用户手动新增",
+            confidence=1.0,
+        )
+        booking_date = (
+            calculate_booking_date(
+                visit_date,
+                extraction.advance_value,
+                extraction.advance_unit,
+            )
+            if requires_reservation
+            else None
+        )
+        changed = self.store.append_reservation_draft_item(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+            extraction,
+            visit_date,
+            booking_date,
+            "default" if requires_reservation else "none",
+            "ready",
+        )
+        if not changed:
+            raise ValueError("未找到可修改的预约计划")
+        return self.store.get_reservation_plan(platform, group_id, plan_code)

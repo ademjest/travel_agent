@@ -1295,6 +1295,129 @@ class MemoryStore:
             ),
         )
 
+    def update_reservation_draft_item_date(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            item_index: int,
+            visit_date: date,
+            booking_date: date,
+            now: datetime | None = None) -> bool:
+        updated_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE reservation_items
+                SET visit_date = ?,
+                    booking_date = ?,
+                    date_candidates_json = ?,
+                    status = 'ready',
+                    updated_at = ?
+                WHERE id = (
+                    SELECT reservation_items.id
+                    FROM reservation_items
+                    JOIN reservation_plans
+                      ON reservation_plans.id = reservation_items.plan_id
+                    WHERE reservation_plans.platform = ?
+                      AND reservation_plans.group_id = ?
+                      AND reservation_plans.creator_id = ?
+                      AND reservation_plans.plan_code = ?
+                      AND reservation_plans.status = 'draft'
+                      AND reservation_items.item_index = ?
+                      AND reservation_items.requires_reservation = 1
+                )
+                """,
+                (
+                    visit_date.isoformat(),
+                    booking_date.isoformat(),
+                    json.dumps([visit_date.isoformat()]),
+                    updated_at.isoformat(),
+                    platform,
+                    group_id,
+                    creator_id,
+                    plan_code,
+                    item_index,
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def append_reservation_draft_item(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            extraction: object,
+            visit_date: date | None,
+            booking_date: date | None,
+            reminder_policy: str,
+            status: str,
+            now: datetime | None = None) -> bool:
+        created_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            plan = connection.execute(
+                """
+                SELECT id FROM reservation_plans
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                  AND plan_code = ?
+                  AND status = 'draft'
+                """,
+                (platform, group_id, creator_id, plan_code),
+            ).fetchone()
+            if plan is None:
+                return False
+            index_row = connection.execute(
+                """
+                SELECT COALESCE(MAX(item_index), 0) + 1 AS next_index
+                FROM reservation_items WHERE plan_id = ?
+                """,
+                (plan["id"],),
+            ).fetchone()
+            cursor = connection.execute(
+                """
+                INSERT INTO reservation_items (
+                    plan_id, item_index, attraction_name, price_text,
+                    opening_hours, booking_channel, source_text, confidence,
+                    requires_reservation, advance_value, advance_unit,
+                    visit_date, booking_date, date_candidates_json,
+                    custom_reminder_times_json, reminder_policy, status,
+                    created_at, updated_at
+                ) VALUES (
+                    ?, ?, ?, '', '', '', ?, 1.0, ?, ?, ?, ?, ?, ?, '[]',
+                    ?, ?, ?, ?
+                )
+                """,
+                (
+                    plan["id"],
+                    index_row["next_index"],
+                    extraction.attraction_name,
+                    extraction.source_text,
+                    int(extraction.requires_reservation),
+                    extraction.advance_value,
+                    extraction.advance_unit,
+                    visit_date.isoformat() if visit_date else None,
+                    booking_date.isoformat() if booking_date else None,
+                    json.dumps(
+                        [visit_date.isoformat()] if visit_date else []
+                    ),
+                    reminder_policy,
+                    status,
+                    created_at.isoformat(),
+                    created_at.isoformat(),
+                ),
+            )
+            item_id = int(cursor.lastrowid)
+            connection.execute(
+                "UPDATE reservation_items SET public_code = ? WHERE id = ?",
+                (f"A-{item_id:06d}", item_id),
+            )
+        return True
+
     @staticmethod
     def _reservation_image(row: sqlite3.Row) -> ReservationImageRecord:
         extraction = json.loads(row["extraction_json"] or "{}")
