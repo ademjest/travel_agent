@@ -33,6 +33,90 @@ class ReminderOccurrence:
     is_custom: bool
 
 
+ResolutionReason = Literal[
+    "resolved",
+    "ambiguous",
+    "not_scheduled",
+    "not_found",
+]
+
+
+@dataclass(frozen=True)
+class VisitDateResolution:
+    dates: tuple[date, ...]
+    reason: ResolutionReason
+
+
+@dataclass(frozen=True)
+class _TripRange:
+    start: date
+    end: date
+
+
+@dataclass(frozen=True)
+class _DatedItinerarySegment:
+    dates: tuple[date, ...]
+    lines: tuple[str, ...]
+
+
+_CHINESE_TRIP_RANGE_RE = re.compile(
+    r"(?P<start_year>20\d{2})\s*年\s*"
+    r"(?P<start_month>\d{1,2})\s*月\s*"
+    r"(?P<start_day>\d{1,2})\s*日?\s*"
+    r"(?:—|–|-|~|～|至|到)+\s*"
+    r"(?:(?P<end_year>20\d{2})\s*年\s*)?"
+    r"(?P<end_month>\d{1,2})\s*月\s*"
+    r"(?P<end_day>\d{1,2})\s*日?"
+)
+_ISO_TRIP_RANGE_RE = re.compile(
+    r"(?P<start_year>20\d{2})[-/.]"
+    r"(?P<start_month>\d{1,2})[-/.]"
+    r"(?P<start_day>\d{1,2})\s*"
+    r"(?:—|–|~|～|至|到)+\s*"
+    r"(?:(?P<end_year>20\d{2})[-/.])?"
+    r"(?P<end_month>\d{1,2})[-/.]"
+    r"(?P<end_day>\d{1,2})"
+)
+_FULL_DATE_RE = re.compile(
+    r"(?<!\d)(?P<year>20\d{2})\s*(?:年\s*|[-/.])"
+    r"(?P<month>\d{1,2})\s*(?:月\s*|[-/.])"
+    r"(?P<day>\d{1,2})\s*日?"
+)
+_PARTIAL_DATE_RE = re.compile(
+    r"(?<![\d年])(?P<month>\d{1,2})\s*月\s*"
+    r"(?P<day>\d{1,2})\s*日"
+)
+_NEGATIVE_VISIT_MARKERS = (
+    "不去",
+    "不进入",
+    "取消",
+    "不安排",
+    "仅路过",
+    "只路过",
+    "路过不进",
+    "外围经过",
+    "经过外围",
+    "远观",
+    "不游览",
+    "不参观",
+)
+_POSITIVE_ACTIVITY_MARKERS = (
+    "→",
+    "->",
+    "游览",
+    "参观",
+    "前往",
+    "到达",
+    "进入",
+    "打卡",
+    "观看",
+    "上午",
+    "下午",
+    "傍晚",
+    "重点安排",
+)
+
+
 def _required_text(payload: Mapping[str, object], key: str) -> str:
     value = str(payload.get(key) or "").strip()
     if not value:
@@ -159,6 +243,235 @@ def build_reminder_occurrences(
         )
         for value in local_values
     )
+
+
+class ItineraryResolver(Protocol):
+    def resolve(
+            self,
+            documents: Sequence[object],
+            attraction_names: Sequence[str]) -> Mapping[
+                str,
+                VisitDateResolution,
+            ]:
+        raise RuntimeError("protocol method")
+
+
+class ReservationItineraryResolver:
+    @staticmethod
+    def _safe_date(year: int, month: int, day: int) -> date | None:
+        try:
+            return date(year, month, day)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _trip_range(cls, text: str) -> _TripRange | None:
+        ranges = set()
+        for pattern in (_CHINESE_TRIP_RANGE_RE, _ISO_TRIP_RANGE_RE):
+            for match in pattern.finditer(text):
+                start_year = int(match.group("start_year"))
+                end_year = int(match.group("end_year") or start_year)
+                start = cls._safe_date(
+                    start_year,
+                    int(match.group("start_month")),
+                    int(match.group("start_day")),
+                )
+                end = cls._safe_date(
+                    end_year,
+                    int(match.group("end_month")),
+                    int(match.group("end_day")),
+                )
+                if start is not None and end is not None and start <= end:
+                    ranges.add((start, end))
+        if len(ranges) != 1:
+            return None
+        start, end = next(iter(ranges))
+        return _TripRange(start=start, end=end)
+
+    @staticmethod
+    def _is_trip_range_line(line: str) -> bool:
+        return bool(
+            _CHINESE_TRIP_RANGE_RE.search(line)
+            or _ISO_TRIP_RANGE_RE.search(line)
+        )
+
+    @classmethod
+    def _partial_date(
+            cls,
+            month: int,
+            day: int,
+            trip_range: _TripRange | None) -> date | None:
+        if trip_range is None:
+            return None
+        candidates = {
+            candidate
+            for year in range(trip_range.start.year, trip_range.end.year + 1)
+            if (candidate := cls._safe_date(year, month, day)) is not None
+            and trip_range.start <= candidate <= trip_range.end
+        }
+        if len(candidates) != 1:
+            return None
+        return next(iter(candidates))
+
+    @classmethod
+    def _line_dates(
+            cls,
+            line: str,
+            trip_range: _TripRange | None) -> tuple[date, ...]:
+        if cls._is_trip_range_line(line):
+            return ()
+
+        positioned: list[tuple[int, date]] = []
+        for match in _FULL_DATE_RE.finditer(line):
+            parsed = cls._safe_date(
+                int(match.group("year")),
+                int(match.group("month")),
+                int(match.group("day")),
+            )
+            if parsed is not None:
+                positioned.append((match.start(), parsed))
+        for match in _PARTIAL_DATE_RE.finditer(line):
+            parsed = cls._partial_date(
+                int(match.group("month")),
+                int(match.group("day")),
+                trip_range,
+            )
+            if parsed is not None:
+                positioned.append((match.start(), parsed))
+
+        if (
+                not positioned
+                or min(position for position, unused in positioned) > 24):
+            return ()
+        return tuple(sorted({value for unused, value in positioned}))
+
+    @staticmethod
+    def _merge_chunks(chunks: Sequence[str]) -> str:
+        merged = ""
+        for raw_chunk in chunks:
+            chunk = str(raw_chunk or "").strip()
+            if not chunk:
+                continue
+            if not merged:
+                merged = chunk
+                continue
+            overlap = 0
+            maximum = min(len(merged), len(chunk), 500)
+            for size in range(maximum, 19, -1):
+                if merged.endswith(chunk[:size]):
+                    overlap = size
+                    break
+            merged += chunk[overlap:] if overlap else "\n" + chunk
+        return merged
+
+    @classmethod
+    def _segments(
+            cls,
+            chunks: Sequence[str]) -> tuple[_DatedItinerarySegment, ...]:
+        text = cls._merge_chunks(chunks)
+        trip_range = cls._trip_range(text)
+        segments = []
+        current_dates: tuple[date, ...] = ()
+        current_lines: list[str] = []
+
+        for raw_line in text.splitlines():
+            line = re.sub(r"[ \t]+", " ", raw_line).strip()
+            if not line:
+                continue
+            dates = cls._line_dates(line, trip_range)
+            if dates:
+                if current_dates:
+                    segments.append(_DatedItinerarySegment(
+                        dates=current_dates,
+                        lines=tuple(current_lines),
+                    ))
+                current_dates = dates
+                current_lines = [line]
+            elif current_dates:
+                current_lines.append(line)
+
+        if current_dates:
+            segments.append(_DatedItinerarySegment(
+                dates=current_dates,
+                lines=tuple(current_lines),
+            ))
+        return tuple(segments)
+
+    @staticmethod
+    def _segment_match(
+            segment: _DatedItinerarySegment,
+            attraction_name: str) -> str:
+        matching = [
+            (index, line)
+            for index, line in enumerate(segment.lines)
+            if attraction_name in line
+        ]
+        if not matching:
+            return ""
+        if any(
+                any(marker in line for marker in _NEGATIVE_VISIT_MARKERS)
+                for unused, line in matching):
+            return "negative"
+        if any(
+                index == 0
+                or any(
+                    marker in line
+                    for marker in _POSITIVE_ACTIVITY_MARKERS
+                )
+                for index, line in matching):
+            return "positive"
+        return ""
+
+    @classmethod
+    def _resolve_document(
+            cls,
+            document: object,
+            attraction_names: Sequence[str]) -> dict[
+                str,
+                VisitDateResolution,
+            ]:
+        segments = cls._segments(document.chunks)
+        resolutions = {}
+        for attraction_name in attraction_names:
+            positive_dates = set()
+            negative_seen = False
+            for segment in segments:
+                match = cls._segment_match(segment, attraction_name)
+                if match == "positive":
+                    positive_dates.update(segment.dates)
+                elif match == "negative":
+                    negative_seen = True
+
+            dates = tuple(sorted(positive_dates))
+            if len(dates) == 1:
+                reason: ResolutionReason = "resolved"
+            elif len(dates) > 1:
+                reason = "ambiguous"
+            elif negative_seen:
+                reason = "not_scheduled"
+            else:
+                reason = "not_found"
+            resolutions[attraction_name] = VisitDateResolution(dates, reason)
+        return resolutions
+
+    def resolve(
+            self,
+            documents: Sequence[object],
+            attraction_names: Sequence[str]) -> Mapping[
+                str,
+                VisitDateResolution,
+            ]:
+        names = tuple(dict.fromkeys(
+            str(name).strip()
+            for name in attraction_names
+            if str(name).strip()
+        ))
+        if not documents:
+            return {
+                name: VisitDateResolution((), "not_found")
+                for name in names
+            }
+        return self._resolve_document(documents[0], names)
 
 
 class VisitDateExtractor(Protocol):

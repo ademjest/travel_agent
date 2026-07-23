@@ -4,11 +4,13 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-from memory_store import MemoryStore
+from memory_store import MemoryStore, StoredDocumentContent
 from reservation_service import (
     LLMVisitDateExtractor,
     ReservationExtractionItem,
+    ReservationItineraryResolver,
     ReservationService,
+    VisitDateResolution,
     build_reminder_occurrences,
     calculate_booking_date,
     normalize_extraction_item,
@@ -138,6 +140,130 @@ class DateResponseClient:
                 )
             ]
         )
+
+
+class ReservationItineraryResolverTests(unittest.TestCase):
+    def test_resolves_qinghai_daily_dates_without_using_trip_start(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="青甘七日自驾行程更新版V3.docx",
+            chunks=(
+                (
+                    "旅行日期：2026年8月16日—8月22日\n"
+                    "8月16日｜曹家堡机场 → 西宁市区酒店；"
+                    "当天不去青海湖或茶卡盐湖。\n"
+                    "8月17日｜西宁 → 日月山 → 青海湖 → "
+                    "茶卡盐湖 → 都兰。\n"
+                    "8月18日｜都兰 → 察尔汗盐湖 → 大柴旦。\n"
+                    "8月19日｜大柴旦 → 翡翠湖 → 黑独山 → 敦煌。\n"
+                    "8月20日｜上午参观莫高窟，傍晚游览鸣沙山月牙泉。\n"
+                    "8月21日｜敦煌 → 嘉峪关外围经过，但不进入关城 → 张掖。"
+                ),
+            ),
+        )
+        resolver = ReservationItineraryResolver()
+
+        resolutions = resolver.resolve(
+            (document,),
+            (
+                "青海湖",
+                "茶卡盐湖",
+                "察尔汗盐湖",
+                "翡翠湖",
+                "莫高窟",
+                "鸣沙山",
+                "嘉峪关",
+                "水上雅丹",
+            ),
+        )
+
+        self.assertEqual(resolutions["青海湖"].dates, (date(2026, 8, 17),))
+        self.assertEqual(resolutions["茶卡盐湖"].dates, (date(2026, 8, 17),))
+        self.assertEqual(resolutions["察尔汗盐湖"].dates, (date(2026, 8, 18),))
+        self.assertEqual(resolutions["翡翠湖"].dates, (date(2026, 8, 19),))
+        self.assertEqual(resolutions["莫高窟"].dates, (date(2026, 8, 20),))
+        self.assertEqual(resolutions["鸣沙山"].dates, (date(2026, 8, 20),))
+        self.assertEqual(resolutions["嘉峪关"].reason, "not_scheduled")
+        self.assertEqual(resolutions["水上雅丹"].reason, "not_found")
+        self.assertNotIn(
+            date(2026, 8, 16),
+            tuple(
+                candidate
+                for resolution in resolutions.values()
+                for candidate in resolution.dates
+            ),
+        )
+
+    def test_keeps_multiple_positive_dates_for_manual_confirmation(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="敦煌安排.md",
+            chunks=(
+                "旅行日期：2026年8月16日—8月22日\n"
+                "8月20日或8月21日｜参观莫高窟。",
+            ),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("莫高窟",),
+        )["莫高窟"]
+
+        self.assertEqual(
+            resolution.dates,
+            (date(2026, 8, 20), date(2026, 8, 21)),
+        )
+        self.assertEqual(resolution.reason, "ambiguous")
+
+    def test_partial_date_without_explicit_trip_range_is_not_inferred(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="无年份.md",
+            chunks=("8月20日｜参观莫高窟。",),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("莫高窟",),
+        )["莫高窟"]
+
+        self.assertEqual(resolution, VisitDateResolution((), "not_found"))
+
+    def test_overlapping_chunks_do_not_duplicate_date_candidates(self):
+        overlap = "8月20日｜上午参观莫高窟，傍晚游览鸣沙山。"
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="重叠.md",
+            chunks=(
+                "旅行日期：2026年8月16日—8月22日\n" + overlap,
+                overlap + "\n8月21日｜前往张掖。",
+            ),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("莫高窟",),
+        )["莫高窟"]
+
+        self.assertEqual(resolution.dates, (date(2026, 8, 20),))
+
+    def test_undated_booking_policy_does_not_inherit_previous_day(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="预约说明.md",
+            chunks=(
+                "旅行日期：2026年8月16日—8月22日\n"
+                "8月20日｜敦煌市内休整。\n"
+                "预约说明：水上雅丹提前3天预约。",
+            ),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("水上雅丹",),
+        )["水上雅丹"]
+
+        self.assertEqual(resolution, VisitDateResolution((), "not_found"))
 
 
 class ReservationDraftTests(unittest.TestCase):
