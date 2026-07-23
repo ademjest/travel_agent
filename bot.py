@@ -14,7 +14,7 @@ from memory_store import MemoryStore
 from outbox_worker import OutboxWorker
 from qq_ui import build_group_message_payload
 from reminder_scheduler import ReminderScheduler
-from reservation_service import LLMVisitDateExtractor, ReservationService
+from reservation_service import ReservationService
 from settings import Settings, SettingsError
 from travel_agent import TravelAgent
 from travel_service import TravelService
@@ -99,17 +99,7 @@ class TravelRiskBot(botpy.Client):
             self.memory_store,
             self.image_extractor,
         )
-        self.reservation_service = ReservationService(
-            self.memory_store,
-            date_extractor=(
-                LLMVisitDateExtractor(
-                    settings.llm_model_id,
-                    self.image_extractor.client,
-                )
-                if self.image_extractor
-                else None
-            ),
-        )
+        self.reservation_service = ReservationService(self.memory_store)
         self.reply_renderer = QQOfficialReplyRenderer()
         self.outbox_worker = OutboxWorker(
             "qq_official",

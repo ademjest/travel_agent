@@ -2,11 +2,9 @@ import tempfile
 import unittest
 from datetime import date, datetime, timezone
 from pathlib import Path
-from types import SimpleNamespace
 
 from memory_store import MemoryStore, StoredDocumentContent
 from reservation_service import (
-    LLMVisitDateExtractor,
     ReservationExtractionItem,
     ReservationItineraryResolver,
     ReservationService,
@@ -112,34 +110,20 @@ class ReservationRuleTests(unittest.TestCase):
             parse_beijing_datetime_list("明早七点")
 
 
-class FakeDateExtractor:
-    def __init__(self, dates_by_attraction):
-        self.dates_by_attraction = dates_by_attraction
+class FakeItineraryResolver:
+    def __init__(self, resolutions):
+        self.resolutions = resolutions
         self.calls = []
 
-    def extract(self, attraction_name, evidence):
-        self.calls.append((attraction_name, evidence))
-        return self.dates_by_attraction.get(attraction_name, ())
-
-
-class DateResponseClient:
-    def __init__(self, contents):
-        self.contents = list(contents)
-        self.calls = []
-        self.chat = SimpleNamespace(
-            completions=SimpleNamespace(create=self.create)
-        )
-
-    def create(self, **request):
-        self.calls.append(request)
-        content = self.contents.pop(0)
-        return SimpleNamespace(
-            choices=[
-                SimpleNamespace(
-                    message=SimpleNamespace(content=content)
-                )
-            ]
-        )
+    def resolve(self, documents, attraction_names):
+        self.calls.append((tuple(documents), tuple(attraction_names)))
+        return {
+            name: self.resolutions.get(
+                name,
+                VisitDateResolution((), "not_found"),
+            )
+            for name in attraction_names
+        }
 
 
 class ReservationItineraryResolverTests(unittest.TestCase):
@@ -376,11 +360,15 @@ class ReservationDraftTests(unittest.TestCase):
         )
 
     def test_unique_document_date_becomes_ready(self):
+        resolver = FakeItineraryResolver({
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 16),),
+                "resolved",
+            ),
+        })
         service = ReservationService(
             self.store,
-            FakeDateExtractor({
-                "青海湖": (date(2026, 8, 16),),
-            }),
+            itinerary_resolver=resolver,
         )
         plan = service.create_draft(
             self.image,
@@ -389,15 +377,17 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(plan.items[0].status, "ready")
         self.assertEqual(plan.items[0].visit_date, date(2026, 8, 16))
         self.assertEqual(plan.items[0].booking_date, date(2026, 8, 15))
-        self.assertLessEqual(len(service.date_extractor.calls[0][1]), 1600)
+        self.assertEqual(len(resolver.calls), 1)
+        self.assertEqual(resolver.calls[0][1], ("青海湖",))
+        self.assertEqual(resolver.calls[0][0][0].filename, "行程.md")
 
     def test_zero_or_multiple_dates_require_manual_input(self):
         service = ReservationService(
             self.store,
-            FakeDateExtractor({
-                "莫高窟": (
-                    date(2026, 8, 20),
-                    date(2026, 8, 21),
+            itinerary_resolver=FakeItineraryResolver({
+                "莫高窟": VisitDateResolution(
+                    (date(2026, 8, 20), date(2026, 8, 21)),
+                    "ambiguous",
                 ),
             }),
         )
@@ -415,25 +405,34 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(len(plan.items[0].date_candidates), 2)
 
     def test_no_reservation_item_skips_date_matching(self):
-        extractor = FakeDateExtractor({})
-        service = ReservationService(self.store, extractor)
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=resolver,
+        )
         plan = service.create_draft(
             self.image,
             (self.item("黑独山", False, 0, "none"),),
         )
         self.assertEqual(plan.items[0].status, "ready")
         self.assertEqual(plan.items[0].reminder_policy, "none")
-        self.assertEqual(extractor.calls, [])
+        self.assertEqual(resolver.calls, [])
 
     def test_empty_extraction_still_creates_manual_draft(self):
-        service = ReservationService(self.store, FakeDateExtractor({}))
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
         plan = service.create_draft(self.image, ())
         self.assertEqual(plan.items, ())
         reply = service.format_draft(plan)
         self.assertIn("新增预约", reply)
 
     def test_manual_add_and_date_completion_recalculate_booking_date(self):
-        service = ReservationService(self.store, FakeDateExtractor({}))
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
         plan = service.create_draft(self.image, ())
         added = service.add_manual_item(
             platform="qq_official",
@@ -463,34 +462,36 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(completed.items[0].status, "ready")
         self.assertEqual(completed.items[0].booking_date, date(2026, 8, 15))
 
-    def test_llm_date_extractor_rejects_incomplete_year(self):
-        client = DateResponseClient(['{"dates":["08-20"]}'])
-        extractor = LLMVisitDateExtractor("model", client)
-        self.assertEqual(
-            extractor.extract("莫高窟", "8月20日游览莫高窟"),
-            (),
+    def test_not_scheduled_item_uses_explicit_manual_decision_status(self):
+        resolver = FakeItineraryResolver({
+            "嘉峪关": VisitDateResolution((), "not_scheduled"),
+        })
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=resolver,
         )
 
-    def test_llm_date_extractor_accepts_only_complete_iso_dates(self):
-        client = DateResponseClient([
-            '{"dates":["2026-08-20","2026-08-20"]}'
-        ])
-        extractor = LLMVisitDateExtractor("model", client)
-        self.assertEqual(
-            extractor.extract("莫高窟", "2026-08-20 游览莫高窟"),
-            (date(2026, 8, 20),),
+        plan = service.create_draft(
+            self.image,
+            (self.item("嘉峪关", True, 1, "day"),),
         )
-        user_content = client.calls[0]["messages"][1]["content"]
-        self.assertIn("<untrusted_itinerary>", user_content)
+
+        self.assertEqual(plan.items[0].status, "not_scheduled")
+        self.assertIn(
+            "行程未安排该景点，需要手动决定",
+            service.format_draft(plan),
+        )
 
 
 class ReservationManagementTests(ReservationDraftTests):
     def ready_plan(self, custom_times=()):
         service = ReservationService(
             self.store,
-            FakeDateExtractor({
-                "青海湖": (date(2026, 8, 16),),
-                "黑独山": (),
+            itinerary_resolver=FakeItineraryResolver({
+                "青海湖": VisitDateResolution(
+                    (date(2026, 8, 16),),
+                    "resolved",
+                ),
             }),
         )
         plan = service.create_draft(
@@ -548,7 +549,10 @@ class ReservationManagementTests(ReservationDraftTests):
         self.assertTrue(all(item.is_custom for item in reminders))
 
     def test_all_no_reservation_plan_confirms_with_zero_reminders(self):
-        service = ReservationService(self.store, FakeDateExtractor({}))
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
         plan = service.create_draft(
             self.image,
             (self.item("黑独山", False, 0, "none"),),
@@ -568,7 +572,10 @@ class ReservationManagementTests(ReservationDraftTests):
         )
 
     def test_incomplete_plan_cannot_be_confirmed(self):
-        service = ReservationService(self.store, FakeDateExtractor({}))
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
         plan = service.create_draft(
             self.image,
             (self.item("翡翠湖", True, 3, "day"),),

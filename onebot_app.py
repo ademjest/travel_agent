@@ -18,7 +18,7 @@ from document_service import DocumentService
 from memory_store import MemoryStore
 from outbox_worker import OutboxWorker
 from reminder_scheduler import ReminderScheduler
-from reservation_service import LLMVisitDateExtractor, ReservationService
+from reservation_service import ReservationService
 from settings import OneBotSettings, Settings
 from travel_agent import TravelAgent
 from travel_service import TravelService
@@ -351,17 +351,7 @@ def create_runtime_app() -> FastAPI:
         store,
         image_extractor,
     )
-    reservation_service = ReservationService(
-        store,
-        date_extractor=(
-            LLMVisitDateExtractor(
-                travel_settings.llm_model_id,
-                image_extractor.client,
-            )
-            if image_extractor
-            else None
-        ),
-    )
+    reservation_service = ReservationService(store)
     transport = OneBotTransport(
         onebot_settings.http_url,
         onebot_settings.access_token,

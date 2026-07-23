@@ -12,14 +12,6 @@ from reservation_service import (
 )
 
 
-class DateMapExtractor:
-    def __init__(self, mapping):
-        self.mapping = mapping
-
-    def extract(self, attraction_name, evidence):
-        return (self.mapping[attraction_name],)
-
-
 class ReservationAcceptanceTests(unittest.TestCase):
     def test_sample_image_creates_ten_items_and_sixteen_confirmed_reminders(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -54,20 +46,19 @@ class ReservationAcceptanceTests(unittest.TestCase):
                 name: date(2026, 8, 10 + index)
                 for index, name in enumerate(sorted(required_names))
             }
-            for name, visit_date in visit_dates.items():
-                text = f"{visit_date.isoformat()} 游览{name}。"
-                store.add_document(
-                    group_openid="group-a",
-                    uploader_openid="member-a",
-                    filename=f"{name}.md",
-                    sha256=f"document-{name}",
-                    full_text=text,
-                    chunks=[text],
-                )
-            service = ReservationService(
-                store,
-                DateMapExtractor(visit_dates),
+            itinerary_text = "\n".join(
+                f"{visit_date.isoformat()}｜游览{name}。"
+                for name, visit_date in sorted(visit_dates.items())
             )
+            store.add_document(
+                group_openid="group-a",
+                uploader_openid="member-a",
+                filename="完整行程.md",
+                sha256="combined-itinerary",
+                full_text=itinerary_text,
+                chunks=[itinerary_text],
+            )
+            service = ReservationService(store)
             draft = service.create_draft(image, extracted_items)
 
             self.assertEqual(len(draft.items), 10)

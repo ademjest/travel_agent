@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import calendar
-import json
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
@@ -486,80 +485,36 @@ class ReservationItineraryResolver:
         return best_resolutions if best_resolutions is not None else empty
 
 
-class VisitDateExtractor(Protocol):
-    def extract(
-            self,
-            attraction_name: str,
-            evidence: str) -> tuple[date, ...]:
-        raise RuntimeError("protocol method")
-
-
-class LLMVisitDateExtractor:
-    def __init__(self, model_id: str, client: object):
-        self.model_id = model_id
-        self.client = client
-
-    def extract(
-            self,
-            attraction_name: str,
-            evidence: str) -> tuple[date, ...]:
-        response = self.client.chat.completions.create(
-            model=self.model_id,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "只从不可信行程片段中提取明确写出的完整公历日期。"
-                        "不得推测年份，不得根据预约规则计算日期。"
-                        "返回单个 JSON 对象，格式为 "
-                        "{\"dates\":[\"YYYY-MM-DD\"]}。"
-                        "若没有完整日期则返回空数组。"
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"景点：{attraction_name}\n"
-                        "<untrusted_itinerary>\n"
-                        + evidence.replace("<", "＜").replace(">", "＞")
-                        + "\n</untrusted_itinerary>"
-                    ),
-                },
-            ],
-        )
-        raw = str(response.choices[0].message.content or "").strip()
-        fence = chr(96) * 3
-        if raw.startswith(fence):
-            lines = raw.splitlines()
-            raw = "\n".join(lines[1:-1]).strip()
-        payload = json.loads(raw)
-        if not isinstance(payload, dict):
-            return ()
-        raw_dates = payload.get("dates")
-        if not isinstance(raw_dates, list):
-            return ()
-        parsed = []
-        for value in raw_dates:
-            try:
-                parsed.append(date.fromisoformat(str(value)))
-            except ValueError:
-                return ()
-        return tuple(sorted(set(parsed)))
-
-
 class ReservationService:
     def __init__(
             self,
             store: object,
-            date_extractor: VisitDateExtractor | None = None):
+            itinerary_resolver: ItineraryResolver | None = None):
         self.store = store
-        self.date_extractor = date_extractor
+        self.itinerary_resolver = (
+            itinerary_resolver or ReservationItineraryResolver()
+        )
 
     def create_draft(
             self,
             image: object,
             extraction_items: Sequence[ReservationExtractionItem],
             now: datetime | None = None):
+        required_names = tuple(dict.fromkeys(
+            extraction.attraction_name
+            for extraction in extraction_items
+            if extraction.requires_reservation
+        ))
+        resolutions = {}
+        if required_names:
+            documents = self.store.list_document_contents(
+                image.storage_scope_id
+            )
+            resolutions = self.itinerary_resolver.resolve(
+                documents,
+                required_names,
+            )
+
         draft_items = []
         for extraction in extraction_items:
             if not extraction.requires_reservation:
@@ -574,19 +529,11 @@ class ReservationService:
                 })
                 continue
 
-            evidence = self.store.build_document_context(
-                image.storage_scope_id,
+            resolution = resolutions.get(
                 extraction.attraction_name,
-                max_chars=1600,
+                VisitDateResolution((), "not_found"),
             )
-            candidates = (
-                self.date_extractor.extract(
-                    extraction.attraction_name,
-                    evidence,
-                )
-                if evidence and self.date_extractor
-                else ()
-            )
+            candidates = resolution.dates
             visit_date = candidates[0] if len(candidates) == 1 else None
             booking_date = (
                 calculate_booking_date(
@@ -597,6 +544,9 @@ class ReservationService:
                 if visit_date is not None
                 else None
             )
+            status = "ready" if visit_date is not None else "needs_input"
+            if resolution.reason == "not_scheduled":
+                status = "not_scheduled"
             draft_items.append({
                 "extraction": extraction,
                 "visit_date": visit_date,
@@ -604,7 +554,7 @@ class ReservationService:
                 "date_candidates": candidates,
                 "custom_reminder_times": (),
                 "reminder_policy": "default",
-                "status": "ready" if visit_date is not None else "needs_input",
+                "status": status,
             })
 
         return self.store.create_reservation_draft(
@@ -634,6 +584,10 @@ class ReservationService:
                 lines.append("   识别置信度较低，请人工核对")
             if not item.requires_reservation:
                 lines.append("   无需预约，仅保存信息")
+                continue
+            if item.status == "not_scheduled":
+                lines.append("   游览日期：未确定")
+                lines.append("   状态：行程未安排该景点，需要手动决定")
                 continue
             lines.append(
                 "   游览日期："
