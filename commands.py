@@ -39,6 +39,7 @@ ADD_ITEM_RE = re.compile(
 SET_TIMES_RE = re.compile(
     rf"^设置提醒\s+({PLAN_CODE})\s+(\d+)\s+(.+)$"
 )
+REFRESH_PLAN_RE = re.compile(rf"^刷新预约\s+({PLAN_CODE})$")
 CONFIRM_PLAN_RE = re.compile(rf"^确认预约\s+({PLAN_CODE})$")
 CANCEL_PLAN_RE = re.compile(rf"^取消预约\s+({PLAN_CODE})$")
 MODIFY_DATE_RE = re.compile(
@@ -94,6 +95,13 @@ def parse_command(content: str) -> Command:
 
     if command == "查看预约提醒":
         return Command(name="reservation_list")
+
+    if command == "确认创建预约提醒":
+        return Command(name="reservation_confirm_help")
+
+    match = REFRESH_PLAN_RE.fullmatch(command)
+    if match:
+        return Command(name="reservation_refresh", args=match.groups())
 
     match = COMPLETE_DATE_RE.fullmatch(command)
     if match:

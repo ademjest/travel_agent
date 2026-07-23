@@ -129,6 +129,18 @@ class CommandTests(unittest.TestCase):
                 command = parse_command(content)
                 self.assertEqual((command.name, command.args), expected)
 
+    def test_reservation_refresh_command(self):
+        command = parse_command("刷新预约 R-20260723-001")
+
+        self.assertEqual(command.name, "reservation_refresh")
+        self.assertEqual(command.args, ("R-20260723-001",))
+
+    def test_invalid_natural_confirmation_gets_deterministic_guidance(self):
+        command = parse_command("确认创建预约提醒")
+
+        self.assertEqual(command.name, "reservation_confirm_help")
+        self.assertEqual(command.args, ())
+
     def test_invalid_reservation_time_is_left_for_strict_service_validation(self):
         command = parse_command("设置提醒 R-20260722-001 1 明早七点")
         self.assertEqual(command.name, "reservation_set_times")

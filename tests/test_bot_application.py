@@ -307,3 +307,18 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         await self.application.handle(event)
         self.assertEqual(len(self.reservation_service.commands), 1)
         self.assertEqual(self.travel_agent.calls, [])
+
+    async def test_invalid_confirmation_phrase_uses_reservation_service_not_llm(self):
+        event = self.group_event(
+            "reservation-confirm-help",
+            "确认创建预约提醒",
+        )
+
+        await self.application.handle(event)
+
+        self.assertEqual(len(self.reservation_service.commands), 1)
+        self.assertEqual(
+            self.reservation_service.commands[0][0].name,
+            "reservation_confirm_help",
+        )
+        self.assertEqual(self.travel_agent.calls, [])
