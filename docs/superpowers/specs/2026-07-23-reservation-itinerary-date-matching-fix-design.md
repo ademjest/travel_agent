@@ -38,7 +38,7 @@ The bot must also accept structured Excel itinerary files so that clearer row-ba
 
 Add a deterministic, reservation-specific itinerary resolver and a format-specific `.xlsx` extractor.
 
-`DocumentService` remains the only document ingestion boundary. It converts all supported formats into the existing `full_text`, chunks, and summary representation. The reservation flow reads stored `full_text` through a narrow store query, selects one itinerary document for the whole draft, parses daily schedule entries, and resolves attraction dates from positive evidence in those entries.
+`DocumentService` remains the only document ingestion boundary. It converts all supported formats into the existing in-memory `full_text`, chunks, and summary representation. SQLite persists the preview, summary, and ordered chunks. The reservation flow reads all stored chunks grouped by document through a narrow store query, selects one itinerary document for the whole draft, parses daily schedule entries, and resolves attraction dates from positive evidence in those entries.
 
 The alternatives were rejected for these reasons:
 
@@ -72,7 +72,7 @@ generic document context     reservation itinerary resolver
 
 The generic document context builder remains unchanged. The reservation service no longer calls it once per attraction to obtain date evidence.
 
-The store exposes a narrowly scoped read operation that returns the group's stored documents with their identifiers, filenames, full text, and creation order. No table or column changes are required.
+The store exposes a narrowly scoped read operation that returns the group's stored documents with their identifiers, filenames, ordered chunks, and creation order. The resolver scans all chunks in a document and deduplicates any date evidence repeated by chunk overlap. No table or column changes are required.
 
 ## Excel Ingestion
 
@@ -125,7 +125,7 @@ The resolver receives:
 
 - the image storage scope;
 - the distinct attraction names whose reservation items require a visit date;
-- all stored documents for that scope, newest first.
+- all stored documents for that scope, newest first, with each document's chunks in chunk-index order.
 
 Items that do not require reservations continue to bypass visit-date resolution.
 
@@ -209,7 +209,7 @@ None of these attractions may inherit the trip start date `2026-08-16` unless a 
 ## Error and Compatibility Behavior
 
 - Existing `.docx`, `.txt`, and `.md` ingestion behavior remains unchanged.
-- Existing stored documents work from their current `full_text`; re-upload is not required.
+- Existing stored documents work from their current ordered chunks; re-upload is not required.
 - Generic `build_document_context` behavior remains unchanged for ordinary questions.
 - Failure to resolve an itinerary date is not a workflow error. The draft is created with an explicit manual-input state.
 - Multiple date candidates are retained for review instead of choosing the earliest or latest candidate.
