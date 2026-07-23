@@ -186,6 +186,57 @@ class ReservationAcceptanceTests(unittest.TestCase):
                 (date(2026, 8, 16), date(2026, 8, 16)),
             )
 
+    def test_existing_draft_refreshes_after_later_xlsx_upload(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(Path(temp_dir) / "late-xlsx.db")
+            image, unused = store.create_reservation_image(
+                storage_scope_id="group-late",
+                platform="qq_official",
+                group_id="group-late",
+                uploader_id="member-a",
+                sha256="9" * 64,
+                file_path="data/images/99/late.jpg",
+                content_type="image/jpeg",
+                byte_size=100,
+                model_id="fake-model",
+            )
+            item = normalize_extraction_item({
+                "attraction_name": "青海湖",
+                "requires_reservation": True,
+                "advance_value": 1,
+                "advance_unit": "day",
+                "confidence": 0.99,
+            })
+            service = ReservationService(store)
+            draft = service.create_draft(image, (item,))
+            self.assertEqual(draft.items[0].status, "needs_input")
+
+            documents = DocumentService(store)
+            attachment = SimpleNamespace(
+                filename="青甘行程.xlsx",
+                url="https://example.test/青甘行程.xlsx",
+                size=100,
+            )
+            with patch.object(
+                    documents,
+                    "_download_attachment",
+                    return_value=make_acceptance_xlsx()):
+                documents.ingest_attachments(
+                    "group-late", "member-a", [attachment]
+                )
+
+            listed = service.list_plans(
+                "qq_official", "group-late", "member-a"
+            )
+            self.assertEqual(
+                listed[0].items[0].visit_date,
+                date(2026, 8, 17),
+            )
+            self.assertEqual(
+                listed[0].items[0].booking_date,
+                date(2026, 8, 16),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

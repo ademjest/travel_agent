@@ -2,7 +2,9 @@ import tempfile
 import unittest
 from datetime import date, datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
+from commands import parse_command
 from memory_store import MemoryStore, StoredDocumentContent
 from reservation_service import (
     ReservationExtractionItem,
@@ -482,6 +484,117 @@ class ReservationDraftTests(unittest.TestCase):
             service.format_draft(plan),
         )
 
+    def test_refresh_plan_resolves_unresolved_items_from_latest_documents(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 1)
+        self.assertEqual(result.plan.items[0].visit_date, date(2026, 8, 17))
+        self.assertEqual(result.plan.items[0].booking_date, date(2026, 8, 16))
+
+    def test_refresh_plan_preserves_manual_ready_date(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        service.complete_item_date(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+            1,
+            date(2026, 8, 20),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 0)
+        self.assertEqual(result.plan.items[0].visit_date, date(2026, 8, 20))
+
+    def test_refresh_plan_keeps_ambiguous_candidates_for_manual_choice(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("莫高窟", True, 1, "month"),),
+        )
+        resolver.resolutions = {
+            "莫高窟": VisitDateResolution(
+                (date(2026, 8, 20), date(2026, 8, 21)),
+                "ambiguous",
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.plan.items[0].status, "needs_input")
+        self.assertEqual(
+            result.plan.items[0].date_candidates,
+            (date(2026, 8, 20), date(2026, 8, 21)),
+        )
+
+    def test_refresh_plan_promotes_newly_scheduled_item_to_ready(self):
+        resolver = FakeItineraryResolver({
+            "嘉峪关": VisitDateResolution((), "not_scheduled")
+        })
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("嘉峪关", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "嘉峪关": VisitDateResolution(
+                (date(2026, 8, 21),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 1)
+        self.assertEqual(result.plan.items[0].status, "ready")
+        self.assertEqual(result.plan.items[0].visit_date, date(2026, 8, 21))
+
+    def test_refresh_plan_rejects_another_creator(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+
+        with self.assertRaisesRegex(PermissionError, "创建者"):
+            service.refresh_plan(
+                "qq_official", "group-a", "member-b", plan.plan_code
+            )
+
 
 class ReservationManagementTests(ReservationDraftTests):
     def ready_plan(self, custom_times=()):
@@ -609,6 +722,125 @@ class ReservationManagementTests(ReservationDraftTests):
             )),
             2,
         )
+
+    def test_list_plans_refreshes_draft_before_formatting(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        plans = service.list_plans("qq_official", "group-a", "member-a")
+
+        refreshed = next(
+            item for item in plans if item.plan_code == plan.plan_code
+        )
+        self.assertEqual(refreshed.items[0].status, "ready")
+
+    def test_confirmation_refreshes_draft_before_creating_reminders(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(confirmed.status, "confirmed")
+        reminders = self.store.list_reservation_reminders(
+            "qq_official", "group-a", "member-a"
+        )
+        self.assertEqual(len(reminders), 2)
+
+    def test_refresh_plan_does_not_change_confirmed_plan(self):
+        resolver = FakeItineraryResolver({
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 16),), "resolved"
+            )
+        })
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 18),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 0)
+        self.assertEqual(result.plan.status, "confirmed")
+        self.assertEqual(
+            result.plan.items[0].visit_date,
+            confirmed.items[0].visit_date,
+        )
+
+    def test_explicit_refresh_command_returns_updated_draft(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+        event = SimpleNamespace(
+            platform="qq_official",
+            scope_id="group-a",
+            sender_id="member-a",
+        )
+
+        reply = service.handle_command(
+            parse_command(f"刷新预约 {plan.plan_code}"),
+            event,
+        )
+
+        self.assertIn("刷新 1 个项目", reply)
+        self.assertIn("2026-08-17", reply)
+
+    def test_confirmation_help_command_returns_exact_syntax(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        event = SimpleNamespace(
+            platform="qq_official",
+            scope_id="group-a",
+            sender_id="member-a",
+        )
+
+        reply = service.handle_command(
+            parse_command("确认创建预约提醒"),
+            event,
+        )
+
+        self.assertIn("查看预约提醒", reply)
+        self.assertIn("确认预约 R-YYYYMMDD-NNN", reply)
 
     def test_non_creator_cannot_view_modify_or_cancel(self):
         service, plan = self.ready_plan()
