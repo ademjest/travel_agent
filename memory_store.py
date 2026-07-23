@@ -1435,6 +1435,64 @@ class MemoryStore:
             )
         return cursor.rowcount == 1
 
+    def refresh_reservation_draft_items(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            updates: tuple[dict[str, object], ...],
+            now: datetime | None = None) -> int:
+        updated_at = now or datetime.now(timezone.utc)
+        changed = 0
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            plan = connection.execute(
+                """
+                SELECT id FROM reservation_plans
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                  AND plan_code = ?
+                  AND status = 'draft'
+                """,
+                (platform, group_id, creator_id, plan_code),
+            ).fetchone()
+            if plan is None:
+                return 0
+            for update in updates:
+                visit_date = update["visit_date"]
+                booking_date = update["booking_date"]
+                cursor = connection.execute(
+                    """
+                    UPDATE reservation_items
+                    SET visit_date = ?,
+                        booking_date = ?,
+                        date_candidates_json = ?,
+                        status = ?,
+                        updated_at = ?
+                    WHERE plan_id = ?
+                      AND item_index = ?
+                      AND requires_reservation = 1
+                      AND visit_date IS NULL
+                      AND status IN ('needs_input', 'not_scheduled')
+                    """,
+                    (
+                        visit_date.isoformat() if visit_date else None,
+                        booking_date.isoformat() if booking_date else None,
+                        json.dumps([
+                            value.isoformat()
+                            for value in update["date_candidates"]
+                        ]),
+                        update["status"],
+                        updated_at.isoformat(),
+                        int(plan["id"]),
+                        int(update["item_index"]),
+                    ),
+                )
+                changed += cursor.rowcount
+        return changed
+
     def append_reservation_draft_item(
             self,
             platform: str,
