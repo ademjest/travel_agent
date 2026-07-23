@@ -100,6 +100,24 @@ class TravelAgentTests(unittest.TestCase):
         self.assertEqual(result.reply, "请告诉我驾车起点和终点。")
         self.assertEqual(result.traces, ())
 
+    def test_system_prompt_keeps_reservation_writes_in_fixed_commands(self):
+        client = FakeClient([
+            completion(assistant_message(content="请使用固定预约命令。"))
+        ])
+        agent = TravelAgent(
+            self.settings,
+            lambda name, arguments: "not used",
+            client=client,
+        )
+
+        agent.run("根据 Excel 创建预约提醒")
+
+        system_prompt = client.completions.requests[0]["messages"][0]["content"]
+        self.assertIn("查看预约提醒", system_prompt)
+        self.assertIn("刷新预约 R-", system_prompt)
+        self.assertIn("确认预约 R-", system_prompt)
+        self.assertIn("不得声称已经创建或修改预约提醒", system_prompt)
+
     def test_client_uses_longer_timeout_and_one_retry(self):
         with patch("travel_agent.OpenAI") as openai:
             TravelAgent(
