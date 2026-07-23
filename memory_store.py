@@ -56,6 +56,13 @@ class StoredDocument:
 
 
 @dataclass(frozen=True)
+class StoredDocumentContent:
+    document_id: int
+    filename: str
+    chunks: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class UploadBinding:
     binding_id: int
     group_openid: str
@@ -2921,6 +2928,46 @@ class MemoryStore:
             role=str(row["role"]),
             content=str(row["content"]),
             created_at=str(row["created_at"]),
+        )
+
+    def list_document_contents(
+            self,
+            group_openid: str) -> tuple[StoredDocumentContent, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    d.id AS document_id,
+                    d.filename,
+                    c.chunk_index,
+                    c.content
+                FROM documents d
+                LEFT JOIN document_chunks c ON c.document_id = d.id
+                WHERE d.group_openid = ?
+                ORDER BY d.id DESC, c.chunk_index ASC
+                """,
+                (group_openid,),
+            ).fetchall()
+
+        grouped: list[dict[str, object]] = []
+        for row in rows:
+            document_id = int(row["document_id"])
+            if not grouped or grouped[-1]["document_id"] != document_id:
+                grouped.append({
+                    "document_id": document_id,
+                    "filename": str(row["filename"]),
+                    "chunks": [],
+                })
+            if row["content"] is not None:
+                grouped[-1]["chunks"].append(str(row["content"]))
+
+        return tuple(
+            StoredDocumentContent(
+                document_id=int(item["document_id"]),
+                filename=str(item["filename"]),
+                chunks=tuple(item["chunks"]),
+            )
+            for item in grouped
         )
 
     def build_document_context(

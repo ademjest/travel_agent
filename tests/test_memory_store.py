@@ -571,6 +571,44 @@ class MemoryStoreTests(unittest.TestCase):
         if migrated_store._document_fts_available:
             self.assertIsNotNone(migration)
 
+    def test_lists_document_contents_newest_first_with_ordered_chunks(self):
+        self.store.add_document(
+            "group-a",
+            "member",
+            "older.md",
+            "older-hash",
+            "older first\nolder second",
+            ["older first", "older second"],
+        )
+        self.store.add_document(
+            "group-a",
+            "member",
+            "newer.md",
+            "newer-hash",
+            "newer only",
+            ["newer only"],
+        )
+        self.store.add_document(
+            "group-b",
+            "member",
+            "secret.md",
+            "secret-hash",
+            "other group",
+            ["other group"],
+        )
+
+        documents = self.store.list_document_contents("group-a")
+
+        self.assertEqual(
+            tuple(document.filename for document in documents),
+            ("newer.md", "older.md"),
+        )
+        self.assertEqual(documents[0].chunks, ("newer only",))
+        self.assertEqual(
+            documents[1].chunks,
+            ("older first", "older second"),
+        )
+
     def test_duplicate_document_is_not_inserted_twice(self):
         first = self.store.add_document(
             "group", "member", "plan.docx", "same-hash", "行程内容", ["行程内容"]
