@@ -21,6 +21,43 @@ class DeploymentConfigTests(unittest.TestCase):
 
         self.assertIn("pip install -r requirements-onebot.txt", workflow)
 
+    def test_scheduled_workflow_diagnoses_qq_without_secrets(self):
+        workflow = self.workflow_path.read_text(encoding="utf-8")
+        self.assertNotIn("# - name: Diagnose QQ connectivity", workflow)
+        diagnostic = workflow.split(
+            "- name: Diagnose QQ connectivity",
+            maxsplit=1,
+        )[1].split("- name: Run QQ Bot", maxsplit=1)[0]
+
+        self.assertIn("getent ahosts bots.qq.com", diagnostic)
+        self.assertIn("curl -4 -I", diagnostic)
+        self.assertIn("curl -6 -I", diagnostic)
+        self.assertIn("--connect-timeout 5", diagnostic)
+        self.assertIn("--max-time 10", diagnostic)
+        self.assertNotIn("QQ_BOT_APPID", diagnostic)
+        self.assertNotIn("QQ_BOT_SECRET", diagnostic)
+
+    def test_scheduled_workflow_retries_login_and_reports_heartbeat(self):
+        workflow = self.workflow_path.read_text(encoding="utf-8")
+
+        self.assertIn("max_attempts=3", workflow)
+        self.assertIn(
+            'for attempt in $(seq 1 "$max_attempts"); do',
+            workflow,
+        )
+        self.assertIn("delay=$((attempt * 30))", workflow)
+        self.assertIn("QQ Bot heartbeat", workflow)
+        self.assertIn("sleep 60", workflow)
+        self.assertIn('kill "$heartbeat_pid"', workflow)
+        self.assertIn(
+            'if [ "$status" -eq 124 ] || [ "$status" -eq 130 ]; then',
+            workflow,
+        )
+        self.assertIn(
+            "if: always() && steps.run_bot.outcome != 'skipped'",
+            workflow,
+        )
+
     def test_napcat_compose_uses_private_ports_and_persistent_volumes(self):
         compose = yaml.safe_load(self.compose_path.read_text(encoding="utf-8"))
         napcat = compose["services"]["napcat"]

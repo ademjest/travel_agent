@@ -63,17 +63,22 @@ jobs:
       - name: Diagnose QQ connectivity
         shell: bash
         run: |
+          echo "Installed networking packages"
           python -m pip show qq-botpy aiohttp aiohappyeyeballs
+
+          echo "DNS addresses for bots.qq.com"
           getent ahosts bots.qq.com || true
-      
+
+          echo "QQ token endpoint over IPv4"
           curl -4 -I \
-            --connect-timeout 10 \
-            --max-time 20 \
+            --connect-timeout 5 \
+            --max-time 10 \
             https://bots.qq.com/app/getAppAccessToken || true
-      
+
+          echo "QQ token endpoint over IPv6"
           curl -6 -I \
-            --connect-timeout 10 \
-            --max-time 20 \
+            --connect-timeout 5 \
+            --max-time 10 \
             https://bots.qq.com/app/getAppAccessToken || true
 
       - name: Run QQ Bot
@@ -99,19 +104,46 @@ jobs:
 
           echo "Bot will run for $RUN_MINUTES minutes"
 
-          status=0
-          timeout --signal=INT --kill-after=30s \
-            "${RUN_MINUTES}m" python -u bot.py || status=$?
+          max_attempts=3
+          status=1
 
-          if [ "$status" -eq 124 ] || [ "$status" -eq 130 ]; then
-            echo "Bot reached scheduled stop time"
-            exit 0
-          fi
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Starting QQ Bot attempt $attempt/$max_attempts"
 
-          if [ "$status" -ne 0 ]; then
-            echo "Bot exited unexpectedly with status $status"
-            exit "$status"
-          fi
+            (
+              while true; do
+                sleep 60
+                echo "QQ Bot heartbeat: attempt $attempt/$max_attempts is still running"
+              done
+            ) &
+            heartbeat_pid=$!
+
+            status=0
+            timeout --signal=INT --kill-after=30s \
+              "${RUN_MINUTES}m" python -u bot.py || status=$?
+
+            kill "$heartbeat_pid" 2>/dev/null || true
+            wait "$heartbeat_pid" 2>/dev/null || true
+
+            if [ "$status" -eq 124 ] || [ "$status" -eq 130 ]; then
+              echo "Bot reached scheduled stop time"
+              exit 0
+            fi
+
+            if [ "$status" -eq 0 ]; then
+              echo "Bot exited normally"
+              exit 0
+            fi
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              delay=$((attempt * 30))
+              echo "Bot exited with status $status; retrying in $delay seconds"
+              sleep "$delay"
+            fi
+          done
+
+          echo "Bot exited unexpectedly after $max_attempts attempts with status $status"
+          exit "$status"
 
       - name: Checkpoint and encrypt SQLite state
         id: encrypt

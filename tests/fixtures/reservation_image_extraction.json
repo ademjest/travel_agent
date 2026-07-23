@@ -1,0 +1,115 @@
+{
+  "raw_text": "青海湖(90R，08:30-18:00，提前1天)；翡翠湖(50R，07:30-20:00，提前3天)；日月山54R(8:00-17:00，无需提前)；莫高窟(A类238R，08:00-18:00，提前1月)；鸣沙山(110R，05:00-20:30，提前3天)；嘉峪关(110R，08:00-18:30，提前3天)；察尔汗盐湖(40R，08:30-20:30，提前1天)；茶卡盐湖(60R，07:10-21:30，提前5天)；水上雅丹(60R，08:30-18:00，提前3天)；黑独山(60R，08:30-20:00，无需预约)",
+  "items": [
+    {
+      "attraction_name": "青海湖",
+      "price_text": "90R",
+      "opening_hours": "08:30-18:00",
+      "requires_reservation": true,
+      "advance_value": 1,
+      "advance_unit": "day",
+      "booking_channel": "",
+      "source_text": "青海湖(90R，08:30-18:00，提前1天)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "翡翠湖",
+      "price_text": "50R",
+      "opening_hours": "07:30-20:00",
+      "requires_reservation": true,
+      "advance_value": 3,
+      "advance_unit": "day",
+      "booking_channel": "",
+      "source_text": "翡翠湖(50R，07:30-20:00，提前3天)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "日月山",
+      "price_text": "54R",
+      "opening_hours": "08:00-17:00",
+      "requires_reservation": false,
+      "advance_value": 0,
+      "advance_unit": "none",
+      "booking_channel": "",
+      "source_text": "日月山54R(8:00-17:00，无需提前)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "莫高窟",
+      "price_text": "A类238R",
+      "opening_hours": "08:00-18:00",
+      "requires_reservation": true,
+      "advance_value": 1,
+      "advance_unit": "month",
+      "booking_channel": "",
+      "source_text": "莫高窟(A类238R，08:00-18:00，提前1月)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "鸣沙山",
+      "price_text": "110R",
+      "opening_hours": "05:00-20:30",
+      "requires_reservation": true,
+      "advance_value": 3,
+      "advance_unit": "day",
+      "booking_channel": "",
+      "source_text": "鸣沙山(110R，05:00-20:30，提前3天)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "嘉峪关",
+      "price_text": "110R",
+      "opening_hours": "08:00-18:30",
+      "requires_reservation": true,
+      "advance_value": 3,
+      "advance_unit": "day",
+      "booking_channel": "",
+      "source_text": "嘉峪关(110R，08:00-18:30，提前3天)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "察尔汗盐湖",
+      "price_text": "40R",
+      "opening_hours": "08:30-20:30",
+      "requires_reservation": true,
+      "advance_value": 1,
+      "advance_unit": "day",
+      "booking_channel": "",
+      "source_text": "察尔汗盐湖(40R，08:30-20:30，提前1天)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "茶卡盐湖",
+      "price_text": "60R",
+      "opening_hours": "07:10-21:30",
+      "requires_reservation": true,
+      "advance_value": 5,
+      "advance_unit": "day",
+      "booking_channel": "",
+      "source_text": "茶卡盐湖(60R，07:10-21:30，提前5天)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "水上雅丹",
+      "price_text": "60R",
+      "opening_hours": "08:30-18:00",
+      "requires_reservation": true,
+      "advance_value": 3,
+      "advance_unit": "day",
+      "booking_channel": "",
+      "source_text": "水上雅丹(60R，08:30-18:00，提前3天)",
+      "confidence": 0.99
+    },
+    {
+      "attraction_name": "黑独山",
+      "price_text": "60R",
+      "opening_hours": "08:30-20:00",
+      "requires_reservation": false,
+      "advance_value": 0,
+      "advance_unit": "none",
+      "booking_channel": "",
+      "source_text": "黑独山(60R，08:30-20:00，无需预约)",
+      "confidence": 0.99
+    }
+  ]
+}

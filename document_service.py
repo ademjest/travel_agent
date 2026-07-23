@@ -4,12 +4,16 @@ import hashlib
 import io
 import re
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
+from zipfile import BadZipFile
 
 import requests
 from docx import Document
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
 
 from memory_store import MemoryStore
 
@@ -18,7 +22,8 @@ MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
 DOCUMENT_TIMEOUT = 20
 CHUNK_SIZE = 1800
 CHUNK_OVERLAP = 200
-SUPPORTED_EXTENSIONS = {".docx", ".txt", ".md"}
+SUPPORTED_EXTENSIONS = {".docx", ".txt", ".md", ".xlsx"}
+LEGACY_EXCEL_EXTENSION = ".xls"
 
 
 @dataclass(frozen=True)
@@ -77,6 +82,7 @@ class DocumentService:
             attachments: list) -> DocumentIngestResult:
         document_attachments = []
         legacy_documents = []
+        legacy_excel_documents = []
 
         for attachment in attachments:
             filename = str(getattr(attachment, "filename", "") or "")
@@ -85,8 +91,13 @@ class DocumentService:
                 document_attachments.append(attachment)
             elif extension == ".doc":
                 legacy_documents.append(filename)
+            elif extension == LEGACY_EXCEL_EXTENSION:
+                legacy_excel_documents.append(filename)
 
-        if not document_attachments and not legacy_documents:
+        if (
+                not document_attachments
+                and not legacy_documents
+                and not legacy_excel_documents):
             return DocumentIngestResult(handled=False)
 
         messages = []
@@ -96,6 +107,13 @@ class DocumentService:
             memory_names.append(filename)
             messages.append(
                 f"暂不支持旧版 Word 文件 {filename}，请转换为 .docx 后重新上传。"
+            )
+
+        for filename in legacy_excel_documents:
+            memory_names.append(filename)
+            messages.append(
+                f"暂不支持旧版 Excel 文件 {filename}，"
+                "请另存为 .xlsx 后重新上传。"
             )
 
         for attachment in document_attachments:
@@ -163,6 +181,63 @@ class DocumentService:
         return data
 
     @staticmethod
+    def _excel_value(value: object) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, datetime):
+            if not any((
+                    value.hour,
+                    value.minute,
+                    value.second,
+                    value.microsecond,
+            )):
+                return value.date().isoformat()
+            return value.isoformat(sep=" ", timespec="minutes")
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, bool):
+            return "TRUE" if value else "FALSE"
+        return str(value).strip()
+
+    @staticmethod
+    def _extract_xlsx_text(data: bytes) -> str:
+        try:
+            workbook = load_workbook(
+                io.BytesIO(data),
+                read_only=True,
+                data_only=True,
+            )
+            try:
+                parts = []
+                for worksheet in workbook.worksheets:
+                    if worksheet.sheet_state != "visible":
+                        continue
+                    rows = []
+                    for raw_row in worksheet.iter_rows(values_only=True):
+                        values = [
+                            DocumentService._excel_value(value)
+                            for value in raw_row
+                        ]
+                        while values and not values[-1]:
+                            values.pop()
+                        if any(values):
+                            rows.append(" | ".join(values))
+                    if rows:
+                        parts.append(f"[工作表：{worksheet.title}]")
+                        parts.extend(rows)
+                return "\n".join(parts)
+            finally:
+                workbook.close()
+        except (
+                BadZipFile,
+                InvalidFileException,
+                KeyError,
+                OSError,
+                ValueError,
+        ) as exc:
+            raise ValueError("Excel 文件损坏、加密或无法读取") from exc
+
+    @staticmethod
     def _extract_text(filename: str, data: bytes) -> str:
         extension = Path(filename).suffix.lower()
         if extension == ".docx":
@@ -178,6 +253,8 @@ class DocumentService:
                     if any(cells):
                         parts.append(" | ".join(cells))
             text = "\n".join(parts)
+        elif extension == ".xlsx":
+            text = DocumentService._extract_xlsx_text(data)
         else:
             text = DocumentService._decode_text(data)
 

@@ -25,6 +25,31 @@ class Command:
     error: str = ""
 
 
+PLAN_CODE = r"R-\d{8}-\d{3}"
+ITEM_CODE = r"A-\d{6}"
+ISO_DATE = r"\d{4}-\d{2}-\d{2}"
+
+COMPLETE_DATE_RE = re.compile(
+    rf"^补充预约\s+({PLAN_CODE})\s+(\d+)\s+({ISO_DATE})$"
+)
+ADD_ITEM_RE = re.compile(
+    rf"^新增预约\s+({PLAN_CODE})\s+(.+?)\s+({ISO_DATE})\s+"
+    r"(提前(\d+)(天|月)|无需预约)$"
+)
+SET_TIMES_RE = re.compile(
+    rf"^设置提醒\s+({PLAN_CODE})\s+(\d+)\s+(.+)$"
+)
+CONFIRM_PLAN_RE = re.compile(rf"^确认预约\s+({PLAN_CODE})$")
+CANCEL_PLAN_RE = re.compile(rf"^取消预约\s+({PLAN_CODE})$")
+MODIFY_DATE_RE = re.compile(
+    rf"^修改预约提醒\s+({ITEM_CODE})\s+游览日期\s+({ISO_DATE})$"
+)
+MODIFY_TIMES_RE = re.compile(
+    rf"^修改预约提醒\s+({ITEM_CODE})\s+时间\s+(.+)$"
+)
+CANCEL_ITEM_RE = re.compile(rf"^取消预约提醒\s+({ITEM_CODE})$")
+
+
 def normalize_command(content: str) -> str:
     command = " ".join(content.strip().split())
     if command.startswith("/"):
@@ -66,6 +91,70 @@ def parse_command(content: str) -> Command:
         return Command(name="status")
     if command in {"上传文档", "文档上传", "导入文档"}:
         return Command(name="upload_document")
+
+    if command == "查看预约提醒":
+        return Command(name="reservation_list")
+
+    match = COMPLETE_DATE_RE.fullmatch(command)
+    if match:
+        return Command(
+            name="reservation_complete_date",
+            args=match.groups(),
+        )
+
+    match = ADD_ITEM_RE.fullmatch(command)
+    if match:
+        plan_code, attraction, visit_date, rule, value, unit = match.groups()
+        if rule == "无需预约":
+            return Command(
+                name="reservation_add_item",
+                args=(
+                    plan_code,
+                    attraction,
+                    visit_date,
+                    "0",
+                    "none",
+                    "0",
+                ),
+            )
+        return Command(
+            name="reservation_add_item",
+            args=(
+                plan_code,
+                attraction,
+                visit_date,
+                value,
+                "day" if unit == "天" else "month",
+                "1",
+            ),
+        )
+
+    match = SET_TIMES_RE.fullmatch(command)
+    if match:
+        return Command(name="reservation_set_times", args=match.groups())
+
+    match = CONFIRM_PLAN_RE.fullmatch(command)
+    if match:
+        return Command(name="reservation_confirm", args=match.groups())
+
+    match = CANCEL_PLAN_RE.fullmatch(command)
+    if match:
+        return Command(
+            name="reservation_cancel_plan",
+            args=match.groups(),
+        )
+
+    match = MODIFY_DATE_RE.fullmatch(command)
+    if match:
+        return Command(name="reservation_modify_date", args=match.groups())
+
+    match = MODIFY_TIMES_RE.fullmatch(command)
+    if match:
+        return Command(name="reservation_modify_times", args=match.groups())
+
+    match = CANCEL_ITEM_RE.fullmatch(command)
+    if match:
+        return Command(name="reservation_cancel_item", args=match.groups())
 
     for prefix in ("天气预报", "查询预报"):
         if command.startswith(prefix):

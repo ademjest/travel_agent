@@ -17,10 +17,13 @@ from chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
 from document_service import DocumentService
 from memory_store import MemoryStore
 from outbox_worker import OutboxWorker
+from reminder_scheduler import ReminderScheduler
+from reservation_service import ReservationService
 from settings import OneBotSettings, Settings
 from travel_agent import TravelAgent
 from travel_service import TravelService
 from upload_binding import UploadBindingService
+from vision_service import ImageVisionExtractor, ReservationImageService
 
 
 class OneBotTransport:
@@ -85,6 +88,16 @@ class OneBotTransport:
 class OneBotReplyRenderer:
     def render(self, channel, command_content, reply_text):
         return {"message": reply_text}
+
+    def render_reminder(self, recipient_id: str, text: str):
+        if not recipient_id:
+            return {"message": text}
+        return {
+            "message": [
+                {"type": "at", "data": {"qq": recipient_id}},
+                {"type": "text", "data": {"text": f" {text}"}},
+            ],
+        }
 
 
 class OneBotAdapter:
@@ -229,6 +242,7 @@ class OneBotAdapter:
                 ),
                 url=str(data.get("url") or ""),
                 content_type=str(data.get("content_type") or ""),
+                size=int(data.get("size") or 0),
             ))
         return tuple(attachments)
 
@@ -245,16 +259,26 @@ def create_onebot_app(
             store.delete_chat_messages_before,
             datetime.now(timezone.utc) - timedelta(days=30),
         )
+        await application.reminder_scheduler.scan_once()
         await application.outbox_worker.dispatch_due_once()
-        task = asyncio.create_task(
+        outbox_task = asyncio.create_task(
             application.outbox_worker.run(),
             name="onebot-outbox",
+        )
+        reminder_task = asyncio.create_task(
+            application.reminder_scheduler.run(),
+            name="onebot-reservation-reminders",
         )
         try:
             yield
         finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+            outbox_task.cancel()
+            reminder_task.cancel()
+            await asyncio.gather(
+                outbox_task,
+                reminder_task,
+                return_exceptions=True,
+            )
             close_transport = getattr(
                 application.outbox_worker.transport,
                 "aclose",
@@ -314,11 +338,32 @@ def create_runtime_app() -> FastAPI:
         document_service,
         group_allowed=onebot_settings.allows_group,
     )
+    image_extractor = (
+        ImageVisionExtractor(
+            model_id=travel_settings.llm_model_id,
+            api_key=travel_settings.llm_api_key,
+            base_url=travel_settings.llm_base_url,
+        )
+        if travel_settings.llm_configured
+        else None
+    )
+    reservation_image_service = ReservationImageService(
+        store,
+        image_extractor,
+    )
+    reservation_service = ReservationService(store)
     transport = OneBotTransport(
         onebot_settings.http_url,
         onebot_settings.access_token,
     )
     worker = OutboxWorker("onebot", store, transport)
+    reply_renderer = OneBotReplyRenderer()
+    reminder_scheduler = ReminderScheduler(
+        platform="onebot",
+        store=store,
+        renderer=reply_renderer,
+        group_allowed=onebot_settings.allows_group,
+    )
     application = TravelBotApplication(
         store=store,
         travel_service=travel_service,
@@ -326,7 +371,10 @@ def create_runtime_app() -> FastAPI:
         document_service=document_service,
         upload_binding_service=upload_service,
         outbox_worker=worker,
-        reply_renderer=OneBotReplyRenderer(),
+        reply_renderer=reply_renderer,
+        reminder_scheduler=reminder_scheduler,
+        reservation_image_service=reservation_image_service,
+        reservation_service=reservation_service,
         group_allowed=onebot_settings.allows_group,
     )
     return create_onebot_app(onebot_settings, application, store)
