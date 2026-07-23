@@ -588,6 +588,18 @@ class ReservationService:
         if plan.status != "draft":
             return ReservationRefreshResult(plan, 0)
 
+        refresh_revision = self.store.claim_reservation_refresh(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+        )
+        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
+        if plan is None:
+            raise RuntimeError("reservation draft disappeared during refresh")
+        if refresh_revision is None or plan.status != "draft":
+            return ReservationRefreshResult(plan, 0)
+
         items = tuple(
             item
             for item in plan.items
@@ -628,26 +640,14 @@ class ReservationService:
             status = "ready" if visit_date is not None else "needs_input"
             if resolution.reason == "not_scheduled":
                 status = "not_scheduled"
-            desired = (
-                visit_date,
-                booking_date,
-                resolution.dates,
-                status,
-            )
-            current = (
-                item.visit_date,
-                item.booking_date,
-                item.date_candidates,
-                item.status,
-            )
-            if desired != current:
-                updates.append({
-                    "item_index": item.item_index,
-                    "visit_date": visit_date,
-                    "booking_date": booking_date,
-                    "date_candidates": resolution.dates,
-                    "status": status,
-                })
+            updates.append({
+                "item_index": item.item_index,
+                "visit_date": visit_date,
+                "booking_date": booking_date,
+                "date_candidates": resolution.dates,
+                "status": status,
+                "refresh_revision": refresh_revision,
+            })
 
         changed = self.store.refresh_reservation_draft_items(
             platform,

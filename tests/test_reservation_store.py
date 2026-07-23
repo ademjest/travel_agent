@@ -1,5 +1,7 @@
+import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -54,6 +56,34 @@ class ReservationStoreTests(unittest.TestCase):
                 "status": "needs_input",
             },),
         )
+
+    def test_legacy_reservation_tables_gain_refresh_revision_columns(self):
+        database_path = Path(self.temp_dir.name) / "legacy-reservations.db"
+        MemoryStore(database_path)
+        with closing(sqlite3.connect(database_path)) as connection:
+            for table in ("reservation_plans", "reservation_items"):
+                columns = {
+                    row[1]
+                    for row in connection.execute(
+                        f"PRAGMA table_info({table})"
+                    ).fetchall()
+                }
+                if "refresh_revision" in columns:
+                    connection.execute(
+                        f"ALTER TABLE {table} DROP COLUMN refresh_revision"
+                    )
+
+        MemoryStore(database_path)
+
+        with closing(sqlite3.connect(database_path)) as connection:
+            for table in ("reservation_plans", "reservation_items"):
+                columns = {
+                    row[1]
+                    for row in connection.execute(
+                        f"PRAGMA table_info({table})"
+                    ).fetchall()
+                }
+                self.assertIn("refresh_revision", columns)
 
     def test_image_deduplication_is_scoped_to_group_storage(self):
         first, first_is_new = self.store.create_reservation_image(
@@ -189,6 +219,9 @@ class ReservationStoreTests(unittest.TestCase):
 
     def test_refresh_draft_items_updates_only_owned_unresolved_items(self):
         plan = self.create_refreshable_plan()
+        revision = self.store.claim_reservation_refresh(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
 
         changed = self.store.refresh_reservation_draft_items(
             platform="qq_official",
@@ -201,6 +234,7 @@ class ReservationStoreTests(unittest.TestCase):
                 "booking_date": date(2026, 8, 16),
                 "date_candidates": (date(2026, 8, 17),),
                 "status": "ready",
+                "refresh_revision": revision,
             },),
         )
 
@@ -223,6 +257,7 @@ class ReservationStoreTests(unittest.TestCase):
                 "booking_date": date(2026, 8, 17),
                 "date_candidates": (date(2026, 8, 18),),
                 "status": "ready",
+                "refresh_revision": revision,
             },),
         )
         self.assertEqual(wrong_owner, 0)
@@ -238,6 +273,9 @@ class ReservationStoreTests(unittest.TestCase):
             date(2026, 8, 20),
             date(2026, 8, 19),
         )
+        revision = self.store.claim_reservation_refresh(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
 
         changed = self.store.refresh_reservation_draft_items(
             "qq_official",
@@ -250,6 +288,7 @@ class ReservationStoreTests(unittest.TestCase):
                 "booking_date": date(2026, 8, 16),
                 "date_candidates": (date(2026, 8, 17),),
                 "status": "ready",
+                "refresh_revision": revision,
             },),
         )
 

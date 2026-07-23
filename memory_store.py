@@ -347,6 +347,7 @@ class MemoryStore:
                     group_id TEXT NOT NULL,
                     creator_id TEXT NOT NULL,
                     status TEXT NOT NULL,
+                    refresh_revision INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     confirmed_at TEXT,
@@ -374,6 +375,7 @@ class MemoryStore:
                     custom_reminder_times_json TEXT NOT NULL DEFAULT '[]',
                     reminder_policy TEXT NOT NULL,
                     status TEXT NOT NULL,
+                    refresh_revision INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY(plan_id) REFERENCES reservation_plans(id)
@@ -477,6 +479,30 @@ class MemoryStore:
                 connection.execute(
                     "ALTER TABLE processed_events "
                     "ADD COLUMN prepared_memory_content TEXT"
+                )
+
+            reservation_plan_columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(reservation_plans)"
+                ).fetchall()
+            }
+            if "refresh_revision" not in reservation_plan_columns:
+                connection.execute(
+                    "ALTER TABLE reservation_plans ADD COLUMN "
+                    "refresh_revision INTEGER NOT NULL DEFAULT 0"
+                )
+
+            reservation_item_columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(reservation_items)"
+                ).fetchall()
+            }
+            if "refresh_revision" not in reservation_item_columns:
+                connection.execute(
+                    "ALTER TABLE reservation_items ADD COLUMN "
+                    "refresh_revision INTEGER NOT NULL DEFAULT 0"
                 )
 
             connection.execute(
@@ -1435,6 +1461,48 @@ class MemoryStore:
             )
         return cursor.rowcount == 1
 
+    def claim_reservation_refresh(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            now: datetime | None = None) -> int | None:
+        updated_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            plan = connection.execute(
+                """
+                SELECT id, refresh_revision
+                FROM reservation_plans
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                  AND plan_code = ?
+                  AND status = 'draft'
+                """,
+                (platform, group_id, creator_id, plan_code),
+            ).fetchone()
+            if plan is None:
+                return None
+            revision = int(plan["refresh_revision"]) + 1
+            cursor = connection.execute(
+                """
+                UPDATE reservation_plans
+                SET refresh_revision = ?, updated_at = ?
+                WHERE id = ?
+                  AND status = 'draft'
+                  AND refresh_revision = ?
+                """,
+                (
+                    revision,
+                    updated_at.isoformat(),
+                    int(plan["id"]),
+                    int(plan["refresh_revision"]),
+                ),
+            )
+        return revision if cursor.rowcount == 1 else None
+
     def refresh_reservation_draft_items(
             self,
             platform: str,
@@ -1449,7 +1517,7 @@ class MemoryStore:
             connection.execute("BEGIN IMMEDIATE")
             plan = connection.execute(
                 """
-                SELECT id FROM reservation_plans
+                SELECT id, refresh_revision FROM reservation_plans
                 WHERE platform = ?
                   AND group_id = ?
                   AND creator_id = ?
@@ -1463,6 +1531,46 @@ class MemoryStore:
             for update in updates:
                 visit_date = update["visit_date"]
                 booking_date = update["booking_date"]
+                refresh_revision = int(update["refresh_revision"])
+                if refresh_revision > int(plan["refresh_revision"]):
+                    raise ValueError("refresh revision was not claimed")
+                visit_date_text = (
+                    visit_date.isoformat() if visit_date else None
+                )
+                booking_date_text = (
+                    booking_date.isoformat() if booking_date else None
+                )
+                date_candidates_json = json.dumps([
+                    value.isoformat()
+                    for value in update["date_candidates"]
+                ])
+                current = connection.execute(
+                    """
+                    SELECT id, visit_date, booking_date,
+                           date_candidates_json, status
+                    FROM reservation_items
+                    WHERE plan_id = ?
+                      AND item_index = ?
+                      AND requires_reservation = 1
+                      AND visit_date IS NULL
+                      AND status IN ('needs_input', 'not_scheduled')
+                      AND refresh_revision < ?
+                    """,
+                    (
+                        int(plan["id"]),
+                        int(update["item_index"]),
+                        refresh_revision,
+                    ),
+                ).fetchone()
+                if current is None:
+                    continue
+                row_changed = (
+                    current["visit_date"] != visit_date_text
+                    or current["booking_date"] != booking_date_text
+                    or current["date_candidates_json"]
+                    != date_candidates_json
+                    or current["status"] != update["status"]
+                )
                 cursor = connection.execute(
                     """
                     UPDATE reservation_items
@@ -1470,27 +1578,29 @@ class MemoryStore:
                         booking_date = ?,
                         date_candidates_json = ?,
                         status = ?,
+                        refresh_revision = ?,
                         updated_at = ?
                     WHERE plan_id = ?
-                      AND item_index = ?
+                      AND id = ?
                       AND requires_reservation = 1
                       AND visit_date IS NULL
                       AND status IN ('needs_input', 'not_scheduled')
+                      AND refresh_revision < ?
                     """,
                     (
-                        visit_date.isoformat() if visit_date else None,
-                        booking_date.isoformat() if booking_date else None,
-                        json.dumps([
-                            value.isoformat()
-                            for value in update["date_candidates"]
-                        ]),
+                        visit_date_text,
+                        booking_date_text,
+                        date_candidates_json,
                         update["status"],
+                        refresh_revision,
                         updated_at.isoformat(),
                         int(plan["id"]),
-                        int(update["item_index"]),
+                        int(current["id"]),
+                        refresh_revision,
                     ),
                 )
-                changed += cursor.rowcount
+                if row_changed:
+                    changed += cursor.rowcount
         return changed
 
     def append_reservation_draft_item(

@@ -1,8 +1,11 @@
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from commands import parse_command
 from memory_store import MemoryStore, StoredDocumentContent
@@ -579,6 +582,177 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(result.updated_count, 1)
         self.assertEqual(result.plan.items[0].status, "ready")
         self.assertEqual(result.plan.items[0].visit_date, date(2026, 8, 21))
+
+    def test_newer_noop_refresh_blocks_older_overwrite(self):
+        class FixedDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                value = cls(2030, 1, 1, tzinfo=timezone.utc)
+                return value if tz is None else value.astimezone(tz)
+
+        slow_started = Event()
+        release_slow = Event()
+
+        class BlockingResolver:
+            def resolve(self, documents, attraction_names):
+                slow_started.set()
+                if not release_slow.wait(timeout=2):
+                    raise TimeoutError("slow refresh was not released")
+                return {
+                    name: VisitDateResolution(
+                        (date(2026, 8, 17), date(2026, 8, 18)),
+                        "ambiguous",
+                    )
+                    for name in attraction_names
+                }
+
+        current_resolution = {
+            "lake": VisitDateResolution(
+                (date(2026, 8, 20), date(2026, 8, 21)),
+                "ambiguous",
+            )
+        }
+        draft_service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver(current_resolution),
+        )
+        plan = draft_service.create_draft(
+            self.image,
+            (self.item("lake", True, 1, "day"),),
+        )
+        slow_service = ReservationService(
+            self.store,
+            itinerary_resolver=BlockingResolver(),
+        )
+        fast_service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver(current_resolution),
+        )
+
+        with patch("memory_store.datetime", FixedDatetime):
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                slow_future = executor.submit(
+                    slow_service.refresh_plan,
+                    "qq_official",
+                    "group-a",
+                    "member-a",
+                    plan.plan_code,
+                )
+                self.assertTrue(slow_started.wait(timeout=2))
+                try:
+                    fast_result = fast_service.refresh_plan(
+                        "qq_official",
+                        "group-a",
+                        "member-a",
+                        plan.plan_code,
+                    )
+                finally:
+                    release_slow.set()
+                slow_result = slow_future.result(timeout=2)
+
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertEqual(fast_result.updated_count, 0)
+        self.assertEqual(slow_result.updated_count, 0)
+        self.assertEqual(
+            loaded.items[0].date_candidates,
+            (date(2026, 8, 20), date(2026, 8, 21)),
+        )
+
+    def test_newer_refresh_revision_wins_after_older_commit(self):
+        older_started = Event()
+        release_older = Event()
+        newer_started = Event()
+        release_newer = Event()
+
+        class InitiallyBlockingResolver:
+            def __init__(self, dates, started, release):
+                self.dates = dates
+                self.started = started
+                self.release = release
+                self.calls = 0
+
+            def resolve(self, documents, attraction_names):
+                self.calls += 1
+                if self.calls == 1:
+                    self.started.set()
+                    if not self.release.wait(timeout=2):
+                        raise TimeoutError("refresh was not released")
+                return {
+                    name: VisitDateResolution(
+                        self.dates,
+                        "ambiguous",
+                    )
+                    for name in attraction_names
+                }
+
+        draft_service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({
+                "lake": VisitDateResolution(
+                    (date(2026, 8, 20), date(2026, 8, 21)),
+                    "ambiguous",
+                )
+            }),
+        )
+        plan = draft_service.create_draft(
+            self.image,
+            (self.item("lake", True, 1, "day"),),
+        )
+        older_resolver = InitiallyBlockingResolver(
+            (date(2026, 8, 17), date(2026, 8, 18)),
+            older_started,
+            release_older,
+        )
+        newer_resolver = InitiallyBlockingResolver(
+            (date(2026, 8, 20), date(2026, 8, 21)),
+            newer_started,
+            release_newer,
+        )
+        newer_service = ReservationService(
+            self.store,
+            itinerary_resolver=newer_resolver,
+        )
+        older_service = ReservationService(
+            self.store,
+            itinerary_resolver=older_resolver,
+        )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            older_future = executor.submit(
+                older_service.refresh_plan,
+                "qq_official",
+                "group-a",
+                "member-a",
+                plan.plan_code,
+            )
+            self.assertTrue(older_started.wait(timeout=2))
+            newer_future = executor.submit(
+                newer_service.refresh_plan,
+                "qq_official",
+                "group-a",
+                "member-a",
+                plan.plan_code,
+            )
+            self.assertTrue(newer_started.wait(timeout=2))
+            try:
+                release_older.set()
+                older_result = older_future.result(timeout=2)
+            finally:
+                release_newer.set()
+            newer_result = newer_future.result(timeout=2)
+
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertEqual(older_result.updated_count, 1)
+        self.assertEqual(newer_result.updated_count, 1)
+        self.assertEqual(newer_resolver.calls, 1)
+        self.assertEqual(
+            loaded.items[0].date_candidates,
+            (date(2026, 8, 20), date(2026, 8, 21)),
+        )
 
     def test_refresh_plan_rejects_another_creator(self):
         service = ReservationService(
