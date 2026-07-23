@@ -62,6 +62,7 @@ class UploadBindingServiceTests(unittest.TestCase):
         self.assertIn("QG-ABC234", reply)
         self.assertIn("10 分钟", reply)
         self.assertIn("私聊", reply)
+        self.assertIn(".xlsx", reply)
 
     def test_private_code_redeems_target_group(self):
         self.service.issue_binding("group-a", "member-a")
@@ -73,6 +74,7 @@ class UploadBindingServiceTests(unittest.TestCase):
         )
 
         self.assertIn("绑定成功", result.reply)
+        self.assertIn(".xlsx", result.reply)
         self.assertEqual(result.group_openid, "group-a")
 
     def test_private_upload_without_binding_is_rejected(self):
@@ -129,6 +131,23 @@ class UploadBindingServiceTests(unittest.TestCase):
                 now=self.now,
             )
         )
+
+    def test_legacy_xls_private_upload_requests_xlsx_conversion(self):
+        self.documents.prepared = ()
+        self.service.issue_binding("group-a", "member-a")
+        self.service.handle_private_message(
+            "private-user",
+            "QG-ABC234",
+            [],
+        )
+
+        result = self.handle_attachment(
+            "private-event-old-xls",
+            [SimpleNamespace(filename="old-plan.xls")],
+        )
+
+        self.assertIn("另存为 .xlsx", result.reply)
+        self.assertIn("本次绑定已失效", result.reply)
 
     def test_supported_attachment_keeps_binding_until_commit(self):
         class InspectingDocumentService(FakeDocumentService):

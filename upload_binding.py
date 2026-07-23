@@ -5,6 +5,7 @@ import re
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Callable
 
 from chat_transport import storage_scope_id
@@ -51,7 +52,7 @@ class UploadBindingService:
         return (
             f"一次性绑定码：{code}\n"
             "请在 10 分钟内私聊机器人，先发送该绑定码，再发送一个 "
-            ".docx、.txt 或 .md 文件。收到一次附件消息后绑定即失效。"
+            ".docx、.txt、.md 或 .xlsx 文件。收到一次附件消息后绑定即失效。"
         )
 
     def handle_private_message(
@@ -106,7 +107,8 @@ class UploadBindingService:
             if not attachments:
                 return PrivateUploadResult(
                     reply=(
-                        "绑定成功。现在请直接发送一个 .docx、.txt 或 .md 文件；"
+                        "绑定成功。现在请直接发送一个 "
+                        ".docx、.txt、.md 或 .xlsx 文件；"
                         "不需要附加文字。"
                     ),
                     group_openid=redemption.binding.group_openid,
@@ -152,10 +154,22 @@ class UploadBindingService:
             list(attachments)
         )
         if not prepared:
-            reply = (
-                "该附件格式暂不支持。请发送 .docx、.txt 或 .md 文件，"
-                "本次绑定已失效，请回到目标群重新申请。"
+            legacy_excel = any(
+                Path(str(getattr(item, "filename", "") or "")).suffix.lower()
+                == ".xls"
+                for item in attachments
             )
+            if legacy_excel:
+                reply = (
+                    "暂不支持旧版 Excel，请另存为 .xlsx 后重新上传。"
+                    "本次绑定已失效，请回到目标群重新申请。"
+                )
+            else:
+                reply = (
+                    "该附件格式暂不支持。请发送 "
+                    ".docx、.txt、.md 或 .xlsx 文件，"
+                    "本次绑定已失效，请回到目标群重新申请。"
+                )
             outbox_id = self._commit_binding_reply(
                 binding_id=pending.binding_id,
                 reply=reply,
