@@ -1,15 +1,36 @@
+import io
 import json
 import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
+from openpyxl import Workbook
+
+from document_service import DocumentService
 from memory_store import MemoryStore
 from reservation_service import (
     ReservationService,
     calculate_booking_date,
     normalize_extraction_item,
 )
+
+
+def make_acceptance_xlsx():
+    buffer = io.BytesIO()
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "每日行程"
+    worksheet.append(["日期", "行程"])
+    worksheet.append([
+        date(2026, 8, 17),
+        "西宁 → 青海湖 → 茶卡盐湖 → 都兰",
+    ])
+    workbook.save(buffer)
+    workbook.close()
+    return buffer.getvalue()
 
 
 class ReservationAcceptanceTests(unittest.TestCase):
@@ -105,6 +126,64 @@ class ReservationAcceptanceTests(unittest.TestCase):
             self.assertEqual(
                 mogao.booking_date,
                 calculate_booking_date(mogao.visit_date, 1, "month"),
+            )
+
+    def test_xlsx_upload_is_queryable_and_drives_reservation_dates(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(Path(temp_dir) / "xlsx-acceptance.db")
+            documents = DocumentService(store)
+            attachment = SimpleNamespace(
+                filename="青甘行程.xlsx",
+                url="https://example.test/青甘行程.xlsx",
+                size=100,
+            )
+            with patch.object(
+                    documents,
+                    "_download_attachment",
+                    return_value=make_acceptance_xlsx()):
+                ingest = documents.ingest_attachments(
+                    "group-xlsx",
+                    "member-a",
+                    [attachment],
+                )
+
+            self.assertTrue(ingest.handled)
+            self.assertIn(
+                "茶卡盐湖",
+                store.build_document_context("group-xlsx", "茶卡盐湖"),
+            )
+
+            image, unused = store.create_reservation_image(
+                storage_scope_id="group-xlsx",
+                platform="qq_official",
+                group_id="group-xlsx",
+                uploader_id="member-a",
+                sha256="e" * 64,
+                file_path="data/images/ee/xlsx.jpg",
+                content_type="image/jpeg",
+                byte_size=100,
+                model_id="fake-model",
+            )
+            items = tuple(
+                normalize_extraction_item({
+                    "attraction_name": name,
+                    "requires_reservation": True,
+                    "advance_value": 1,
+                    "advance_unit": "day",
+                    "confidence": 0.99,
+                })
+                for name in ("青海湖", "茶卡盐湖")
+            )
+
+            draft = ReservationService(store).create_draft(image, items)
+
+            self.assertEqual(
+                tuple(item.visit_date for item in draft.items),
+                (date(2026, 8, 17), date(2026, 8, 17)),
+            )
+            self.assertEqual(
+                tuple(item.booking_date for item in draft.items),
+                (date(2026, 8, 16), date(2026, 8, 16)),
             )
 
 
