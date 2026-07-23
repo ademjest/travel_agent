@@ -265,6 +265,68 @@ class ReservationItineraryResolverTests(unittest.TestCase):
 
         self.assertEqual(resolution, VisitDateResolution((), "not_found"))
 
+    def test_selects_highest_coverage_document_without_cross_filling(self):
+        newer = StoredDocumentContent(
+            document_id=2,
+            filename="newer.md",
+            chunks=(
+                "2026-08-19｜前往翡翠湖。",
+            ),
+        )
+        older = StoredDocumentContent(
+            document_id=1,
+            filename="older.md",
+            chunks=(
+                "2026-08-17｜游览青海湖。\n"
+                "2026-08-20｜参观莫高窟。",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (newer, older),
+            ("青海湖", "莫高窟", "翡翠湖"),
+        )
+
+        self.assertEqual(resolutions["青海湖"].dates, (date(2026, 8, 17),))
+        self.assertEqual(resolutions["莫高窟"].dates, (date(2026, 8, 20),))
+        self.assertEqual(resolutions["翡翠湖"].reason, "not_found")
+
+    def test_equal_coverage_prefers_newest_document(self):
+        newer = StoredDocumentContent(
+            document_id=2,
+            filename="newer.md",
+            chunks=("2026-08-19｜前往翡翠湖。",),
+        )
+        older = StoredDocumentContent(
+            document_id=1,
+            filename="older.md",
+            chunks=("2026-08-17｜游览青海湖。",),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (newer, older),
+            ("青海湖", "翡翠湖"),
+        )
+
+        self.assertEqual(resolutions["翡翠湖"].dates, (date(2026, 8, 19),))
+        self.assertEqual(resolutions["青海湖"].reason, "not_found")
+
+    def test_all_zero_scores_select_no_document(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="pass-by.md",
+            chunks=(
+                "2026-08-21｜嘉峪关外围经过，但不进入关城。",
+            ),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("嘉峪关",),
+        )["嘉峪关"]
+
+        self.assertEqual(resolution, VisitDateResolution((), "not_found"))
+
 
 class ReservationDraftTests(unittest.TestCase):
     def setUp(self):

@@ -466,12 +466,24 @@ class ReservationItineraryResolver:
             for name in attraction_names
             if str(name).strip()
         ))
-        if not documents:
-            return {
-                name: VisitDateResolution((), "not_found")
-                for name in names
-            }
-        return self._resolve_document(documents[0], names)
+        empty = {
+            name: VisitDateResolution((), "not_found")
+            for name in names
+        }
+        best_score = 0
+        best_resolutions = None
+        for document in documents:
+            resolutions = self._resolve_document(document, names)
+            score = sum(
+                1
+                for resolution in resolutions.values()
+                if resolution.dates
+            )
+            if score > best_score:
+                best_score = score
+                best_resolutions = resolutions
+
+        return best_resolutions if best_resolutions is not None else empty
 
 
 class VisitDateExtractor(Protocol):
