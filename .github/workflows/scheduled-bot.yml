@@ -60,21 +60,21 @@ jobs:
             rm -f /tmp/travel-data.tar.gz
           fi
 
-      - name: Diagnose QQ connectivity
-        shell: bash
-        run: |
-          python -m pip show qq-botpy aiohttp aiohappyeyeballs
-          getent ahosts bots.qq.com || true
+      # - name: Diagnose QQ connectivity
+      #   shell: bash
+      #   run: |
+      #     python -m pip show qq-botpy aiohttp aiohappyeyeballs
+      #     getent ahosts bots.qq.com || true
       
-          curl -4 -I \
-            --connect-timeout 10 \
-            --max-time 20 \
-            https://bots.qq.com/app/getAppAccessToken || true
+      #     curl -4 -I \
+      #       --connect-timeout 10 \
+      #       --max-time 20 \
+      #       https://bots.qq.com/app/getAppAccessToken || true
       
-          curl -6 -I \
-            --connect-timeout 10 \
-            --max-time 20 \
-            https://bots.qq.com/app/getAppAccessToken || true
+      #     curl -6 -I \
+      #       --connect-timeout 10 \
+      #       --max-time 20 \
+      #       https://bots.qq.com/app/getAppAccessToken || true
 
       - name: Run QQ Bot
         id: run_bot
