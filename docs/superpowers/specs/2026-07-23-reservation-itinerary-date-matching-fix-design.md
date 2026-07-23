@@ -1,7 +1,10 @@
 # Reservation Itinerary Date Matching and Excel Upload Design
 
 Date: 2026-07-23  
-Branch: `feature/image-reservation-reminders`
+Branch: `feature/reservation-draft-auto-refresh`
+
+Revision: 2026-07-24 adds route-position disambiguation for itinerary
+rows where an attraction is repeated as the next day's departure point.
 
 ## Background
 
@@ -163,6 +166,38 @@ An occurrence is excluded when the local statement describes the attraction with
 
 An attraction mentioned only in a general attraction list, booking policy, document overview, summary, or undated introduction is not considered scheduled.
 
+### Route-position disambiguation
+
+Dated itinerary rows often describe a route such as:
+
+```text
+2026-08-16 | 西宁 → 青海湖
+2026-08-17 | 青海湖 → 茶卡盐湖
+```
+
+The same attraction can therefore appear as one day's destination and the
+next day's departure point. Treating every route occurrence as a visit creates
+false consecutive-date candidates.
+
+For route fields separated by `→` or `->`, the resolver applies these rules:
+
+- Explicit non-visit wording remains authoritative and produces negative
+  evidence.
+- Explicit activity wording such as `游览`, `参观`, `进入`, `打卡`, `观看`,
+  `上午`, `下午`, or `傍晚` produces positive evidence regardless of route
+  position.
+- After removing the leading date or table date cell, the first route location
+  is the departure point and does not count as a visit from its name alone.
+- Every later route location counts as a scheduled stop for that date.
+- A dated non-route line containing an attraction continues to count when it
+  is the daily heading or contains explicit activity wording.
+- Route separators are not themselves activity markers; they are interpreted
+  only by the route-position rules above.
+
+With these rules, `青海湖` in the example resolves only to `2026-08-16`, while
+`茶卡盐湖` resolves to `2026-08-17`. A genuinely optional statement such as
+`8月20日或8月21日参观莫高窟` remains ambiguous and is not guessed.
+
 ### Selecting one source document
 
 For each document, count the distinct reservation-required attractions that have at least one positive dated match. Negative and undated mentions do not count.
@@ -231,6 +266,11 @@ Implementation follows strict test-driven development: add failing tests, confir
 - Cover all defined non-visit phrases.
 - Assert that undated lists and overviews do not schedule attractions.
 - Assert that an absent attraction produces no date evidence.
+- Reproduce consecutive route rows where a destination becomes the next day's
+  origin and assert that only the destination date is retained.
+- Cover both `→` and `->` route separators and normalized `|` table rows.
+- Assert that explicit activity wording can schedule the first route location.
+- Preserve genuine multi-date activity wording as ambiguous.
 
 ### Document selection tests
 
@@ -282,4 +322,7 @@ No database migration, global retrieval rewrite, or unrelated refactor is includ
 - A structured `.xlsx` itinerary can be uploaded, saved, queried, and used for reservation dates.
 - Multiple itinerary versions never contribute dates to the same draft.
 - Existing Word documents do not need re-uploading.
+- A route destination repeated as the next day's departure point produces one
+  visit date rather than two consecutive candidates.
+- Explicit activity and non-visit wording override route position.
 - The complete automated test suite passes.
