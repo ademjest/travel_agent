@@ -104,8 +104,8 @@ class FakeUploadBindingService:
         self.issue_calls = []
         self.private_calls = []
 
-    def issue_binding(self, group_openid, member_openid):
-        self.issue_calls.append((group_openid, member_openid))
+    def issue_binding(self, group_openid, member_openid, **kwargs):
+        self.issue_calls.append((group_openid, member_openid, kwargs))
         return "一次性绑定码：QG-ABC234"
 
     def handle_private_message(
@@ -300,8 +300,8 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_group_at_message_create(message)
 
         self.assertEqual(
-            self.bot.upload_binding_service.issue_calls,
-            [("group-a", "member-a")],
+            self.bot.upload_binding_service.issue_calls[0][:2],
+            ("group-a", "member-a"),
         )
         self.assertIn("QG-ABC234", api.group_messages[0]["content"])
         self.assertEqual(api.group_messages[0]["msg_type"], 0)

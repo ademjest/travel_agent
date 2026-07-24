@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from settings import Settings
+from agent_tools import AgentToolContext
 from travel_agent import TravelAgent
 from context_builder import AgentContext
 from memory_store import ConversationTurn
@@ -99,6 +100,124 @@ class TravelAgentTests(unittest.TestCase):
 
         self.assertEqual(result.reply, "请告诉我驾车起点和终点。")
         self.assertEqual(result.traces, ())
+
+    def test_system_prompt_requires_reservation_tools_for_writes(self):
+        client = FakeClient([
+            completion(assistant_message(tool_calls=[
+                tool_call(
+                    "call-list",
+                    "list_reservation_plans",
+                    "{}",
+                )
+            ])),
+            completion(assistant_message(content="当前没有可确认的预约计划。")),
+        ])
+        agent = TravelAgent(
+            self.settings,
+            lambda name, arguments: "not used",
+            client=client,
+        )
+
+        agent.run("查看预约提醒")
+
+        system_prompt = client.completions.requests[0]["messages"][0]["content"]
+        self.assertIn("必须调用本轮提供的预约工具", system_prompt)
+        self.assertIn("不得猜测计划编号", system_prompt)
+
+    def test_agent_can_call_weather_and_traffic_in_one_step(self):
+        client = FakeClient([
+            completion(assistant_message(tool_calls=[
+                tool_call(
+                    "call-traffic",
+                    "get_route_traffic",
+                    '{"origin":"西宁","destination":"青海湖"}',
+                ),
+                tool_call(
+                    "call-forecast",
+                    "get_weather_forecast",
+                    '{"location":"青海湖"}',
+                ),
+            ])),
+            completion(assistant_message(content="明天有雨且部分路段拥堵。")),
+        ])
+        calls = []
+        agent = TravelAgent(
+            self.settings,
+            lambda name, arguments: calls.append((name, arguments)) or name,
+            client=client,
+        )
+
+        result = agent.run("明天从西宁到青海湖，天气和路况怎么样？")
+
+        self.assertEqual(result.reply, "明天有雨且部分路段拥堵。")
+        self.assertEqual(
+            {name for name, unused in calls},
+            {"get_route_traffic", "get_weather_forecast"},
+        )
+        exposed = {
+            tool["function"]["name"]
+            for tool in client.completions.requests[0]["tools"]
+        }
+        self.assertEqual(
+            exposed,
+            {"get_route_traffic", "get_weather_forecast"},
+        )
+
+    def test_reservation_tool_receives_current_event_context(self):
+        client = FakeClient([
+            completion(assistant_message(tool_calls=[
+                tool_call(
+                    "call-confirm",
+                    "confirm_reservation_plan",
+                    '{"plan_code":"R-20260722-001"}',
+                )
+            ])),
+            completion(assistant_message(content="预约计划已经确认。")),
+        ])
+        calls = []
+
+        def execute(name, arguments, context):
+            calls.append((name, arguments, context))
+            return "预约计划 R-20260722-001 已确认。"
+
+        context = AgentToolContext(
+            platform="onebot",
+            group_id="12345",
+            creator_id="67890",
+            event_id="onebot:group:12345:100",
+        )
+        agent = TravelAgent(self.settings, execute, client=client)
+
+        result = agent.run(
+            "帮我确认预约 R-20260722-001",
+            tool_context=context,
+        )
+
+        self.assertEqual(result.reply, "预约计划已经确认。")
+        self.assertEqual(calls[0][2], context)
+
+    def test_live_answer_is_rejected_until_required_tool_is_called(self):
+        client = FakeClient([
+            completion(assistant_message(content="明天晴。")),
+            completion(assistant_message(tool_calls=[
+                tool_call(
+                    "call-forecast",
+                    "get_weather_forecast",
+                    '{"location":"青海湖"}',
+                )
+            ])),
+            completion(assistant_message(content="明天晴，预报发布时间 10:00。")),
+        ])
+        agent = TravelAgent(
+            self.settings,
+            lambda name, arguments: "预报结果",
+            client=client,
+        )
+
+        result = agent.run("明天青海湖天气怎么样？")
+
+        self.assertEqual(result.reply, "明天晴，预报发布时间 10:00。")
+        self.assertEqual(len(client.completions.requests), 3)
 
     def test_client_uses_longer_timeout_and_one_retry(self):
         with patch("travel_agent.OpenAI") as openai:

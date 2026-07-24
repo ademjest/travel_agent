@@ -6,7 +6,7 @@ from pathlib import Path
 
 from chat_transport import OutgoingMessage
 from memory_store import MemoryStore
-from outbox_worker import OutboxWorker, retry_delay
+from outbox_worker import MAX_OUTBOX_ATTEMPTS, OutboxWorker, retry_delay
 
 
 class FakeTransport:
@@ -102,6 +102,30 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
             ),
             "processing",
         )
+
+    async def test_poison_message_moves_to_dead_letter_and_stops_retrying(self):
+        self.enqueue()
+        transport = FakeTransport(failures=MAX_OUTBOX_ATTEMPTS + 1)
+        worker = OutboxWorker("qq_official", self.store, transport)
+        current = self.now
+
+        for attempt in range(MAX_OUTBOX_ATTEMPTS):
+            await worker.dispatch_due_once(now=current)
+            current += retry_delay(attempt + 1)
+
+        self.assertEqual(len(transport.messages), MAX_OUTBOX_ATTEMPTS)
+        self.assertEqual(
+            self.store.get_event_status(
+                "qq_official:group:group-a:message-1"
+            ),
+            "dead_letter",
+        )
+        self.assertEqual(
+            self.store.list_due_outbox("qq_official", now=current),
+            (),
+        )
+        await worker.dispatch_due_once(now=current + timedelta(days=1))
+        self.assertEqual(len(transport.messages), MAX_OUTBOX_ATTEMPTS)
 
     async def test_startup_recovery_sends_row_after_lease_expiry(self):
         outbox_id = self.enqueue()

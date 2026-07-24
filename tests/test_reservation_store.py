@@ -1,6 +1,8 @@
+import sqlite3
 import tempfile
 import unittest
-from datetime import date, datetime, timezone
+from contextlib import closing
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from memory_store import MemoryStore
@@ -15,6 +17,73 @@ class ReservationStoreTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    def create_refreshable_plan(self):
+        image, unused = self.store.create_reservation_image(
+            storage_scope_id="group-a",
+            platform="qq_official",
+            group_id="group-a",
+            uploader_id="member-a",
+            sha256="f" * 64,
+            file_path="data/images/ff/image.jpg",
+            content_type="image/jpeg",
+            byte_size=10,
+            model_id="vision-model",
+        )
+        extraction = ReservationExtractionItem(
+            attraction_name="青海湖",
+            price_text="",
+            opening_hours="",
+            requires_reservation=True,
+            advance_value=1,
+            advance_unit="day",
+            booking_channel="",
+            source_text="青海湖提前一天预约",
+            confidence=0.99,
+        )
+        return self.store.create_reservation_draft(
+            image_id=image.image_id,
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            items=({
+                "extraction": extraction,
+                "visit_date": None,
+                "booking_date": None,
+                "date_candidates": (),
+                "custom_reminder_times": (),
+                "reminder_policy": "default",
+                "status": "needs_input",
+            },),
+        )
+
+    def test_legacy_reservation_tables_gain_refresh_revision_columns(self):
+        database_path = Path(self.temp_dir.name) / "legacy-reservations.db"
+        MemoryStore(database_path)
+        with closing(sqlite3.connect(database_path)) as connection:
+            for table in ("reservation_plans", "reservation_items"):
+                columns = {
+                    row[1]
+                    for row in connection.execute(
+                        f"PRAGMA table_info({table})"
+                    ).fetchall()
+                }
+                if "refresh_revision" in columns:
+                    connection.execute(
+                        f"ALTER TABLE {table} DROP COLUMN refresh_revision"
+                    )
+
+        MemoryStore(database_path)
+
+        with closing(sqlite3.connect(database_path)) as connection:
+            for table in ("reservation_plans", "reservation_items"):
+                columns = {
+                    row[1]
+                    for row in connection.execute(
+                        f"PRAGMA table_info({table})"
+                    ).fetchall()
+                }
+                self.assertIn("refresh_revision", columns)
 
     def test_image_deduplication_is_scoped_to_group_storage(self):
         first, first_is_new = self.store.create_reservation_image(
@@ -55,6 +124,39 @@ class ReservationStoreTests(unittest.TestCase):
         self.assertTrue(isolated_is_new)
         self.assertEqual(first.image_id, duplicate.image_id)
         self.assertNotEqual(first.image_id, isolated.image_id)
+
+    def test_reservation_workflow_is_scoped_expires_and_can_be_cleared(self):
+        now = datetime(2026, 7, 24, 8, 0, tzinfo=timezone.utc)
+        self.store.start_reservation_workflow(
+            "qq_official",
+            "group-a",
+            "member-a",
+            now=now,
+            duration=timedelta(minutes=30),
+        )
+
+        self.assertTrue(self.store.reservation_workflow_is_active(
+            "qq_official", "group-a", "member-a", now=now
+        ))
+        self.assertFalse(self.store.reservation_workflow_is_active(
+            "qq_official", "group-a", "member-b", now=now
+        ))
+        self.assertFalse(self.store.reservation_workflow_is_active(
+            "qq_official",
+            "group-a",
+            "member-a",
+            now=now + timedelta(minutes=31),
+        ))
+
+        self.store.start_reservation_workflow(
+            "qq_official", "group-a", "member-a", now=now
+        )
+        self.assertTrue(self.store.clear_reservation_workflow(
+            "qq_official", "group-a", "member-a"
+        ))
+        self.assertFalse(self.store.reservation_workflow_is_active(
+            "qq_official", "group-a", "member-a", now=now
+        ))
 
     def test_draft_persists_date_candidates_and_custom_times(self):
         image, unused = self.store.create_reservation_image(
@@ -147,6 +249,87 @@ class ReservationStoreTests(unittest.TestCase):
                 plan.plan_code,
             )
         )
+
+    def test_refresh_draft_items_updates_only_owned_unresolved_items(self):
+        plan = self.create_refreshable_plan()
+        revision = self.store.claim_reservation_refresh(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        changed = self.store.refresh_reservation_draft_items(
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            plan_code=plan.plan_code,
+            updates=({
+                "item_index": 1,
+                "visit_date": date(2026, 8, 17),
+                "booking_date": date(2026, 8, 16),
+                "date_candidates": (date(2026, 8, 17),),
+                "status": "ready",
+                "refresh_revision": revision,
+            },),
+        )
+
+        self.assertEqual(changed, 1)
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertEqual(loaded.items[0].visit_date, date(2026, 8, 17))
+        self.assertEqual(loaded.items[0].booking_date, date(2026, 8, 16))
+        self.assertEqual(loaded.items[0].status, "ready")
+
+        wrong_owner = self.store.refresh_reservation_draft_items(
+            "qq_official",
+            "group-a",
+            "member-b",
+            plan.plan_code,
+            ({
+                "item_index": 1,
+                "visit_date": date(2026, 8, 18),
+                "booking_date": date(2026, 8, 17),
+                "date_candidates": (date(2026, 8, 18),),
+                "status": "ready",
+                "refresh_revision": revision,
+            },),
+        )
+        self.assertEqual(wrong_owner, 0)
+
+    def test_refresh_draft_items_does_not_overwrite_ready_item(self):
+        plan = self.create_refreshable_plan()
+        self.store.update_reservation_draft_item_date(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+            1,
+            date(2026, 8, 20),
+            date(2026, 8, 19),
+        )
+        revision = self.store.claim_reservation_refresh(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        changed = self.store.refresh_reservation_draft_items(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+            ({
+                "item_index": 1,
+                "visit_date": date(2026, 8, 17),
+                "booking_date": date(2026, 8, 16),
+                "date_candidates": (date(2026, 8, 17),),
+                "status": "ready",
+                "refresh_revision": revision,
+            },),
+        )
+
+        self.assertEqual(changed, 0)
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertEqual(loaded.items[0].visit_date, date(2026, 8, 20))
 
 
 if __name__ == "__main__":

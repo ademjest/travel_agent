@@ -8,7 +8,6 @@ import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
 
 import requests
 from openai import OpenAI
@@ -18,11 +17,14 @@ from reservation_service import (
     ReservationExtractionItem,
     normalize_extraction_item,
 )
+from secure_download import download_https, resolve_host
 
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 IMAGE_TIMEOUT = (10, 20)
-DOWNLOAD_CHUNK_BYTES = 64 * 1024
+MAX_VISION_RESPONSE_CHARS = 100_000
+MAX_VISION_RAW_TEXT_CHARS = 20_000
+MAX_VISION_ITEMS = 50
 CONTENT_TYPE_EXTENSIONS = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -140,6 +142,8 @@ class ImageVisionExtractor:
 
     @staticmethod
     def _parse(raw: str) -> VisionExtraction:
+        if len(raw) > MAX_VISION_RESPONSE_CHARS:
+            raise ValueError("vision response is too large")
         cleaned = raw.strip()
         fence = chr(96) * 3
         if cleaned.startswith(fence):
@@ -149,9 +153,13 @@ class ImageVisionExtractor:
         if not isinstance(payload, dict):
             raise ValueError("vision response must be a JSON object")
         raw_text = str(payload.get("raw_text") or "").strip()
+        if len(raw_text) > MAX_VISION_RAW_TEXT_CHARS:
+            raise ValueError("vision raw_text is too large")
         raw_items = payload.get("items")
         if not isinstance(raw_items, list):
             raise ValueError("vision response items must be a JSON array")
+        if len(raw_items) > MAX_VISION_ITEMS:
+            raise ValueError("vision response contains too many items")
         items = tuple(
             normalize_extraction_item(item)
             for item in raw_items
@@ -168,7 +176,8 @@ class ReservationImageService:
             store: MemoryStore,
             extractor: ImageVisionExtractor | None,
             image_root: str | Path | None = None,
-            session: object = None):
+            session: object = None,
+            resolver=resolve_host):
         self.store = store
         self.extractor = extractor
         self.image_root = Path(
@@ -176,6 +185,9 @@ class ReservationImageService:
             or Path(__file__).resolve().parent / "data" / "images"
         )
         self.session = session or requests.Session()
+        if session is None:
+            self.session.trust_env = False
+        self.resolver = resolver
 
     @staticmethod
     def is_supported_attachment(attachment: object) -> bool:
@@ -292,36 +304,15 @@ class ReservationImageService:
 
     def _download(self, attachment: object) -> tuple[bytes, str]:
         url = str(getattr(attachment, "url", "") or "")
-        parsed = urlparse(url)
-        if parsed.scheme != "https" or not parsed.netloc:
-            raise ValueError("图片下载地址必须是有效 HTTPS URL")
-
         declared_size = int(getattr(attachment, "size", 0) or 0)
-        if declared_size > MAX_IMAGE_BYTES:
-            raise ValueError("图片超过 5 MB 限制")
-
-        response = self.session.get(
+        return download_https(
+            self.session,
             url,
-            stream=True,
             timeout=IMAGE_TIMEOUT,
+            max_bytes=MAX_IMAGE_BYTES,
+            declared_size=declared_size,
+            resolver=self.resolver,
+            allowed_content_types=set(CONTENT_TYPE_EXTENSIONS),
+            size_error="图片超过 5 MB 限制",
+            type_error="图片格式必须是 JPEG、PNG 或 WebP",
         )
-        response.raise_for_status()
-        header_length = int(response.headers.get("Content-Length") or 0)
-        if header_length > MAX_IMAGE_BYTES:
-            raise ValueError("图片超过 5 MB 限制")
-        content_type = str(
-            response.headers.get("Content-Type") or ""
-        ).split(";", 1)[0].strip().lower()
-        if content_type not in CONTENT_TYPE_EXTENSIONS:
-            raise ValueError("图片格式必须是 JPEG、PNG 或 WebP")
-
-        chunks = []
-        total = 0
-        for chunk in response.iter_content(DOWNLOAD_CHUNK_BYTES):
-            if not chunk:
-                continue
-            total += len(chunk)
-            if total > MAX_IMAGE_BYTES:
-                raise ValueError("图片超过 5 MB 限制")
-            chunks.append(chunk)
-        return b"".join(chunks), content_type

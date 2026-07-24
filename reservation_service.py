@@ -7,10 +7,14 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal, Mapping, Protocol, Sequence
 from zoneinfo import ZoneInfo
 
+from chat_transport import storage_scope_id
+from event_idempotency import event_operation_key
+
 
 AdvanceUnit = Literal["day", "month", "none"]
 BEIJING_TZ = ZoneInfo("Asia/Shanghai")
 ABSOLUTE_TIME_FORMAT = "%Y-%m-%d %H:%M"
+RESERVATION_WORKFLOW_TTL = timedelta(minutes=30)
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,12 @@ class ReservationExtractionItem:
 class ReminderOccurrence:
     scheduled_at_utc: datetime
     is_custom: bool
+
+
+@dataclass(frozen=True)
+class ReservationRefreshResult:
+    plan: object
+    updated_count: int
 
 
 ResolutionReason = Literal[
@@ -100,8 +110,6 @@ _NEGATIVE_VISIT_MARKERS = (
     "不参观",
 )
 _POSITIVE_ACTIVITY_MARKERS = (
-    "→",
-    "->",
     "游览",
     "参观",
     "前往",
@@ -123,10 +131,24 @@ def _required_text(payload: Mapping[str, object], key: str) -> str:
     return value
 
 
+def _bounded_text(
+        payload: Mapping[str, object],
+        key: str,
+        max_chars: int) -> str:
+    value = str(payload.get(key) or "").strip()
+    if len(value) > max_chars:
+        raise ValueError(f"{key} is too long")
+    return value
+
+
 def normalize_extraction_item(
         payload: Mapping[str, object]) -> ReservationExtractionItem:
     attraction_name = _required_text(payload, "attraction_name")
-    requires_reservation = bool(payload.get("requires_reservation"))
+    if len(attraction_name) > 200:
+        raise ValueError("attraction_name is too long")
+    requires_reservation = payload.get("requires_reservation")
+    if not isinstance(requires_reservation, bool):
+        raise ValueError("requires_reservation must be a boolean")
     advance_unit = str(payload.get("advance_unit") or "").strip().lower()
     if advance_unit not in {"day", "month", "none"}:
         raise ValueError("advance_unit must be day, month, or none")
@@ -153,13 +175,13 @@ def normalize_extraction_item(
 
     return ReservationExtractionItem(
         attraction_name=attraction_name,
-        price_text=str(payload.get("price_text") or "").strip(),
-        opening_hours=str(payload.get("opening_hours") or "").strip(),
+        price_text=_bounded_text(payload, "price_text", 500),
+        opening_hours=_bounded_text(payload, "opening_hours", 500),
         requires_reservation=requires_reservation,
         advance_value=advance_value,
         advance_unit=advance_unit,
-        booking_channel=str(payload.get("booking_channel") or "").strip(),
-        source_text=str(payload.get("source_text") or "").strip(),
+        booking_channel=_bounded_text(payload, "booking_channel", 500),
+        source_text=_bounded_text(payload, "source_text", 2_000),
         confidence=confidence,
     )
 
@@ -407,19 +429,70 @@ class ReservationItineraryResolver:
         ]
         if not matching:
             return ""
-        if any(
-                any(marker in line for marker in _NEGATIVE_VISIT_MARKERS)
-                for unused, line in matching):
-            return "negative"
-        if any(
-                index == 0
-                or any(
-                    marker in line
-                    for marker in _POSITIVE_ACTIVITY_MARKERS
+        positive_seen = False
+        for index, line in matching:
+            cells = re.split(r"\s*\|\s*", line)
+            has_route = any(
+                len(re.split(r"(?:→|->)", cell)) > 1
+                for cell in cells
+            )
+            for cell in cells:
+                if attraction_name not in cell:
+                    continue
+                route_parts = re.split(r"(?:→|->)", cell)
+                if len(route_parts) > 1:
+                    matching_parts = [
+                        (position, part)
+                        for position, part in enumerate(route_parts)
+                        if attraction_name in part
+                    ]
+                    if any(
+                            any(
+                                marker in part
+                                for marker in _NEGATIVE_VISIT_MARKERS
+                            )
+                            for unused, part in matching_parts):
+                        return "negative"
+                    if any(
+                            position > 0
+                            or any(
+                                marker in part
+                                for marker in _POSITIVE_ACTIVITY_MARKERS
+                            )
+                            for position, part in matching_parts):
+                        positive_seen = True
+                    continue
+                statements = [
+                    statement
+                    for statement in re.split(
+                        r"(?:[，,；;。！？!?]+|但是|但|不过|然而|而)",
+                        cell,
+                    )
+                    if attraction_name in statement
+                ]
+                if any(
+                        any(
+                            marker in statement
+                            for marker in _NEGATIVE_VISIT_MARKERS
+                        )
+                        for statement in statements):
+                    return "negative"
+                if any(
+                        any(
+                            marker in statement
+                            for marker in _POSITIVE_ACTIVITY_MARKERS
+                        )
+                        for statement in statements):
+                    positive_seen = True
+            if not has_route and index == 0:
+                heading_cell = (
+                    line
+                    if len(cells) == 1
+                    else next((cell for cell in cells[1:] if cell), "")
                 )
-                for index, line in matching):
-            return "positive"
-        return ""
+                if attraction_name in heading_cell:
+                    positive_seen = True
+        return "positive" if positive_seen else ""
 
     @classmethod
     def _resolve_document(
@@ -495,11 +568,46 @@ class ReservationService:
             itinerary_resolver or ReservationItineraryResolver()
         )
 
+    def start_workflow(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> None:
+        self.store.start_reservation_workflow(
+            platform,
+            group_id,
+            creator_id,
+            duration=RESERVATION_WORKFLOW_TTL,
+        )
+
+    def workflow_is_active(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> bool:
+        return self.store.reservation_workflow_is_active(
+            platform,
+            group_id,
+            creator_id,
+        )
+
+    def finish_workflow(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> bool:
+        return self.store.clear_reservation_workflow(
+            platform,
+            group_id,
+            creator_id,
+        )
+
     def create_draft(
             self,
             image: object,
             extraction_items: Sequence[ReservationExtractionItem],
-            now: datetime | None = None):
+            now: datetime | None = None,
+            source_event_id: str = ""):
         required_names = tuple(dict.fromkeys(
             extraction.attraction_name
             for extraction in extraction_items
@@ -564,7 +672,97 @@ class ReservationService:
             creator_id=image.uploader_id,
             items=tuple(draft_items),
             now=now,
+            source_event_id=source_event_id,
         )
+
+    def refresh_plan(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str) -> ReservationRefreshResult:
+        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
+        if plan is None:
+            raise ValueError("预约计划不存在")
+        if plan.creator_id != creator_id:
+            raise PermissionError("只有创建者可以刷新预约计划")
+        if plan.status != "draft":
+            return ReservationRefreshResult(plan, 0)
+
+        refresh_revision = self.store.claim_reservation_refresh(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+        )
+        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
+        if plan is None:
+            raise RuntimeError("reservation draft disappeared during refresh")
+        if refresh_revision is None or plan.status != "draft":
+            return ReservationRefreshResult(plan, 0)
+
+        items = tuple(
+            item
+            for item in plan.items
+            if item.requires_reservation
+            and item.visit_date is None
+            and item.status in {"needs_input", "not_scheduled"}
+        )
+        if not items:
+            return ReservationRefreshResult(plan, 0)
+
+        documents = self.store.list_document_contents(
+            storage_scope_id(platform, group_id)
+        )
+        resolutions = self.itinerary_resolver.resolve(
+            documents,
+            tuple(item.attraction_name for item in items),
+        )
+        updates = []
+        for item in items:
+            resolution = resolutions.get(
+                item.attraction_name,
+                VisitDateResolution((), "not_found"),
+            )
+            visit_date = (
+                resolution.dates[0]
+                if len(resolution.dates) == 1
+                else None
+            )
+            booking_date = (
+                calculate_booking_date(
+                    visit_date,
+                    item.advance_value,
+                    item.advance_unit,
+                )
+                if visit_date is not None
+                else None
+            )
+            status = "ready" if visit_date is not None else "needs_input"
+            if resolution.reason == "not_scheduled":
+                status = "not_scheduled"
+            updates.append({
+                "item_index": item.item_index,
+                "visit_date": visit_date,
+                "booking_date": booking_date,
+                "date_candidates": resolution.dates,
+                "status": status,
+                "refresh_revision": refresh_revision,
+            })
+
+        changed = self.store.refresh_reservation_draft_items(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+            tuple(updates),
+        )
+        refreshed = self.store.get_reservation_plan(
+            platform, group_id, plan_code
+        )
+        if refreshed is None:
+            raise RuntimeError("reservation draft disappeared during refresh")
+        return ReservationRefreshResult(refreshed, changed)
 
     def format_draft(self, plan: object) -> str:
         lines = [f"预约计划 {plan.plan_code}", ""]
@@ -673,7 +871,8 @@ class ReservationService:
             visit_date: date,
             advance_value: int,
             advance_unit: AdvanceUnit,
-            requires_reservation: bool):
+            requires_reservation: bool,
+            operation_key: str = ""):
         extraction = ReservationExtractionItem(
             attraction_name=attraction_name.strip(),
             price_text="",
@@ -704,6 +903,7 @@ class ReservationService:
             booking_date,
             "default" if requires_reservation else "none",
             "ready",
+            source_operation_key=operation_key,
         )
         if not changed:
             raise ValueError("未找到可修改的预约计划")
@@ -737,11 +937,12 @@ class ReservationService:
             group_id: str,
             creator_id: str,
             plan_code: str):
-        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
-        if plan is None:
-            raise ValueError("预约计划不存在")
-        if plan.creator_id != creator_id:
-            raise PermissionError("只有创建者可以确认预约计划")
+        plan = self.refresh_plan(
+            platform,
+            group_id,
+            creator_id,
+            plan_code,
+        ).plan
         reminders = {}
         for item in plan.items:
             if item.requires_reservation:
@@ -776,7 +977,17 @@ class ReservationService:
                     group_id,
                 )):
             raise PermissionError("只有创建者可以查看预约提醒")
-        return plans
+        refreshed = []
+        for plan in plans:
+            if plan.status == "draft":
+                plan = self.refresh_plan(
+                    platform,
+                    group_id,
+                    creator_id,
+                    plan.plan_code,
+                ).plan
+            refreshed.append(plan)
+        return tuple(refreshed)
 
     def format_plan_list(self, plans: Sequence[object]) -> str:
         if not plans:
@@ -927,12 +1138,55 @@ class ReservationService:
         return message
 
     def handle_command(self, command: object, event: object) -> str:
+        event_id = str(getattr(event, "event_key", "") or "")
+        if not event_id:
+            return self._handle_command_uncached(command, event)
+        arguments = {
+            "args": list(command.args),
+        }
+        operation_key = event_operation_key(
+            event_id,
+            command.name,
+            arguments,
+        )
+        cached = self.store.get_event_tool_result(operation_key)
+        if cached is not None:
+            return cached
+        result = self._handle_command_uncached(
+            command,
+            event,
+            operation_key=operation_key,
+        )
+        return self.store.save_event_tool_result(
+            operation_key,
+            event_id,
+            command.name,
+            arguments,
+            result,
+        )
+
+    def _handle_command_uncached(
+            self,
+            command: object,
+            event: object,
+            operation_key: str = "") -> str:
         name = command.name
         args = command.args
         platform = event.platform
         group_id = event.scope_id
         creator_id = event.sender_id
 
+        if name == "reservation_start":
+            self.start_workflow(platform, group_id, creator_id)
+            return (
+                "已进入预约制定模式。请在 30 分钟内发送一张预约攻略图片，"
+                "机器人会识别景点是否需要预约及提前时间。"
+                "发送“退出制定预约”可以取消。"
+            )
+        if name == "reservation_stop":
+            if self.finish_workflow(platform, group_id, creator_id):
+                return "已退出预约制定模式。"
+            return "当前没有正在进行的预约制定流程。"
         if name == "reservation_list":
             return self.format_plan_list(
                 self.list_plans(platform, group_id, creator_id)
@@ -958,6 +1212,7 @@ class ReservationService:
                 advance_value=int(args[3]),
                 advance_unit=args[4],
                 requires_reservation=args[5] == "1",
+                operation_key=operation_key,
             )
             return self.format_draft(plan)
         if name == "reservation_set_times":
@@ -970,6 +1225,25 @@ class ReservationService:
                 parse_beijing_datetime_list(args[2]),
             )
             return self.format_draft(plan)
+        if name == "reservation_refresh":
+            result = self.refresh_plan(
+                platform,
+                group_id,
+                creator_id,
+                args[0],
+            )
+            if result.plan.status != "draft":
+                raise ValueError("只有未确认的预约草稿可以刷新")
+            if result.updated_count:
+                prefix = f"已按最新行程刷新 {result.updated_count} 个项目。\n"
+            else:
+                prefix = "未找到可自动补齐的新日期。\n"
+            return prefix + self.format_draft(result.plan)
+        if name == "reservation_confirm_help":
+            return (
+                "请先发送“查看预约提醒”获取计划编号，"
+                "再发送“确认预约 R-YYYYMMDD-NNN”。"
+            )
         if name == "reservation_confirm":
             plan = self.confirm_plan(
                 platform,

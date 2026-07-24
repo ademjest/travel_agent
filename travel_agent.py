@@ -1,12 +1,15 @@
 import json
+import inspect
 import logging
 import time
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 from typing import Any, Callable, Sequence
+from zoneinfo import ZoneInfo
 
 from openai import OpenAI
 
+from agent_tools import AgentToolContext, TOOLS_BY_NAME
 from context_builder import AgentContext, render_untrusted_context
 from settings import Settings
 from travel_decision import TravelDecision, decide_travel_action
@@ -17,96 +20,10 @@ MAX_TOOL_CALLS = 6
 LLM_TIMEOUT_SECONDS = 90.0
 MAX_HISTORY_CHARS = 3000
 MAX_DOCUMENT_SUMMARY_INPUT_CHARS = 20000
+MAX_USER_MESSAGE_CHARS = 8000
 
 
 logger = logging.getLogger(__name__)
-
-
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_current_weather",
-            "description": "查询一个中国地点当前的行政区级实时天气。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "完整地点名称，例如西宁或青海湖二郎剑景区。",
-                    }
-                },
-                "required": ["location"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_weather_forecast",
-            "description": "查询一个中国地点未来数天的行政区级天气预报。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "完整地点名称，例如青海湖或茶卡盐湖。",
-                    }
-                },
-                "required": ["location"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_driving_route",
-            "description": "查询两地之间的高德推荐驾车路线、距离、预计耗时和收费。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "驾车起点。",
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "驾车终点。",
-                    },
-                },
-                "required": ["origin", "destination"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_route_traffic",
-            "description": (
-                "查询两地之间的实时交通感知预计耗时、分段路况和拥堵风险。"
-                "该工具已经包含路线距离和耗时，一般不需要再调用驾车路线工具。"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "驾车起点。",
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "驾车终点。",
-                    },
-                },
-                "required": ["origin", "destination"],
-                "additionalProperties": False,
-            },
-        },
-    },
-]
 
 
 @dataclass(frozen=True)
@@ -123,7 +40,9 @@ class AgentResult:
 
 def _system_prompt(decision: TravelDecision) -> str:
     allowed_tools = "、".join(decision.allowed_tools) or "无"
-    return f"""你是青甘自驾旅行风险助手。当前日期是 {date.today().isoformat()}。
+    current_date = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    intents = "、".join(decision.intents)
+    return f"""你是青甘自驾旅行风险助手。当前北京时间日期是 {current_date}。
 
 工作方式：
 1. 涉及当前天气、天气预报、路线、耗时或实时路况时，必须调用工具，禁止凭常识编造。
@@ -135,8 +54,10 @@ def _system_prompt(decision: TravelDecision) -> str:
 7. 不要声称道路一定安全、一定开放或一定封闭；当前尚未接入交警封路公告和权威灾害预警。
 8. 最终回答使用中文，先给结论，再列依据、建议、数据时间和局限。保持简洁。
 9. 不展示内部思维链，只输出对用户有用的结论和可核验依据。
+10. 预约计划和提醒的查看、刷新、确认、修改与取消必须调用本轮提供的预约工具。工具已经绑定当前平台、群和发送者权限；不得猜测计划编号或项目编号，不得在没有成功工具结果时声称操作完成。
+11. 用户同时询问多个互不依赖的问题时，应在同一轮并行调用所有必要工具，再综合回答。
 
-本次请求的确定性策略：intent={decision.intent}；允许工具={allowed_tools}；
+本次请求的确定性策略：intents={intents}；允许工具={allowed_tools}；
 回答详细度={decision.response_detail}。不得调用允许列表之外的工具。"""
 
 
@@ -151,6 +72,11 @@ class TravelAgent:
 
         self.model = settings.llm_model_id
         self.tool_executor = tool_executor
+        try:
+            parameters = inspect.signature(tool_executor).parameters
+            self._tool_executor_accepts_context = len(parameters) >= 3
+        except (TypeError, ValueError):
+            self._tool_executor_accepts_context = False
         self.client = client or OpenAI(
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
@@ -162,7 +88,13 @@ class TravelAgent:
             self,
             user_message: str,
             history: Sequence[Any] | AgentContext = (),
-            knowledge_context: str = "") -> AgentResult:
+            knowledge_context: str = "",
+            tool_context: AgentToolContext | None = None) -> AgentResult:
+        if len(user_message) > MAX_USER_MESSAGE_CHARS:
+            return AgentResult(
+                reply="消息正文超过 8000 字符限制，请精简后重试。",
+                traces=(),
+            )
         structured_context = (
             history if isinstance(history, AgentContext) else None
         )
@@ -231,10 +163,11 @@ class TravelAgent:
         tool_cache: dict[tuple[str, str], str] = {}
         allowed_tools = set(decision.allowed_tools)
         tool_definitions = [
-            tool
-            for tool in TOOLS
-            if tool["function"]["name"] in allowed_tools
+            TOOLS_BY_NAME[name]
+            for name in decision.allowed_tools
+            if name in TOOLS_BY_NAME
         ]
+        executed_tools: set[str] = set()
 
         for step_index in range(1, MAX_AGENT_STEPS + 1):
             started_at = time.monotonic()
@@ -273,6 +206,28 @@ class TravelAgent:
             tool_calls = list(assistant.tool_calls or [])
 
             if not tool_calls:
+                missing_groups = [
+                    group
+                    for group in decision.required_tool_groups
+                    if not executed_tools.intersection(group)
+                ]
+                if missing_groups and step_index < MAX_AGENT_STEPS:
+                    missing_names = "、".join(
+                        "/".join(group) for group in missing_groups
+                    )
+                    messages.append({
+                        "role": "system",
+                        "content": (
+                            "当前回答仍缺少必须调用的工具："
+                            f"{missing_names}。请先调用工具，再给出结论。"
+                        ),
+                    })
+                    continue
+                if missing_groups:
+                    return AgentResult(
+                        reply="需要的实时或预约工具未完成，请补充信息后重试。",
+                        traces=tuple(traces),
+                    )
                 reply = (assistant.content or "").strip()
                 if not reply:
                     reply = "暂时无法生成回答，请换一种问法重试。"
@@ -308,8 +263,10 @@ class TravelAgent:
                 if name not in allowed_tools:
                     result = "当前请求的工具策略不允许调用该工具。"
                 elif error:
+                    executed_tools.add(name)
                     result = error
                 else:
+                    executed_tools.add(name)
                     cache_key = (
                         name,
                         json.dumps(
@@ -321,7 +278,14 @@ class TravelAgent:
                     if cache_key in tool_cache:
                         result = tool_cache[cache_key]
                     else:
-                        result = self.tool_executor(name, arguments)
+                        if self._tool_executor_accepts_context:
+                            result = self.tool_executor(
+                                name,
+                                arguments,
+                                tool_context,
+                            )
+                        else:
+                            result = self.tool_executor(name, arguments)
                         tool_cache[cache_key] = result
 
                 messages.append({

@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from zipfile import ZipFile
 
 from docx import Document
 from openpyxl import Workbook
@@ -96,7 +97,10 @@ class DocumentServiceTests(unittest.TestCase):
             worksheets=[worksheet],
             close=Mock(),
         )
-        with patch(
+        with patch.object(
+                DocumentService,
+                "_validate_office_archive",
+                return_value=None), patch(
                 "document_service.load_workbook",
                 return_value=workbook) as load:
             text = self.service._extract_text("plan.xlsx", b"xlsx")
@@ -109,6 +113,17 @@ class DocumentServiceTests(unittest.TestCase):
     def test_corrupt_xlsx_is_rejected_without_partial_text(self):
         with self.assertRaisesRegex(ValueError, "Excel 文件.*无法读取"):
             self.service._extract_text("broken.xlsx", b"not-a-workbook")
+
+    def test_office_archive_uncompressed_limit_is_enforced(self):
+        buffer = io.BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            archive.writestr("word/document.xml", b"x" * 20)
+
+        with patch(
+                "document_service.MAX_ARCHIVE_UNCOMPRESSED_BYTES",
+                10):
+            with self.assertRaisesRegex(ValueError, "解压后"):
+                self.service._extract_text("large.docx", buffer.getvalue())
 
     def test_ingests_docx_attachment(self):
         attachment = SimpleNamespace(

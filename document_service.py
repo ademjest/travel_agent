@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
-from urllib.parse import urlparse
-from zipfile import BadZipFile
+from zipfile import BadZipFile, ZipFile
 
 import requests
 from docx import Document
@@ -16,12 +15,18 @@ from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
 
 from memory_store import MemoryStore
+from secure_download import download_https, resolve_host
 
 
 MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
 DOCUMENT_TIMEOUT = 20
 CHUNK_SIZE = 1800
 CHUNK_OVERLAP = 200
+MAX_ARCHIVE_MEMBERS = 2_000
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+MAX_DOCUMENT_TEXT_CHARS = 500_000
+MAX_SPREADSHEET_ROWS = 10_000
+MAX_SPREADSHEET_CELLS = 100_000
 SUPPORTED_EXTENSIONS = {".docx", ".txt", ".md", ".xlsx"}
 LEGACY_EXCEL_EXTENSION = ".xls"
 
@@ -46,9 +51,22 @@ class DocumentService:
     def __init__(
             self,
             memory_store: MemoryStore,
-            summarizer: Callable[[str, str], str] | None = None):
+            summarizer: Callable[[str, str], str] | None = None,
+            session: object = None,
+            resolver=resolve_host):
         self.memory_store = memory_store
         self.summarizer = summarizer
+        self.session = session or requests.Session()
+        if session is None:
+            self.session.trust_env = False
+        self.resolver = resolver
+
+    @staticmethod
+    def is_document_attachment(attachment: object) -> bool:
+        filename = str(getattr(attachment, "filename", "") or "")
+        return Path(filename).suffix.lower() in (
+            SUPPORTED_EXTENSIONS | {".doc", LEGACY_EXCEL_EXTENSION}
+        )
 
     def prepare_attachments(
             self,
@@ -162,23 +180,34 @@ class DocumentService:
             memory_content="上传旅行文档：" + "、".join(memory_names),
         )
 
-    @staticmethod
-    def _download_attachment(attachment) -> bytes:
+    def _download_attachment(self, attachment) -> bytes:
         url = str(getattr(attachment, "url", "") or "")
-        parsed = urlparse(url)
-        if parsed.scheme != "https" or not parsed.netloc:
-            raise ValueError("附件下载地址不是有效的 HTTPS URL")
-
         declared_size = int(getattr(attachment, "size", 0) or 0)
-        if declared_size > MAX_DOCUMENT_BYTES:
-            raise ValueError("文件超过 5 MB 限制")
-
-        response = requests.get(url, timeout=DOCUMENT_TIMEOUT)
-        response.raise_for_status()
-        data = response.content
-        if len(data) > MAX_DOCUMENT_BYTES:
-            raise ValueError("文件超过 5 MB 限制")
+        data, unused_content_type = download_https(
+            self.session,
+            url,
+            max_bytes=MAX_DOCUMENT_BYTES,
+            timeout=DOCUMENT_TIMEOUT,
+            declared_size=declared_size,
+            resolver=self.resolver,
+            size_error="文件超过 5 MB 限制",
+        )
         return data
+
+    @staticmethod
+    def _validate_office_archive(data: bytes) -> None:
+        try:
+            with ZipFile(io.BytesIO(data)) as archive:
+                members = archive.infolist()
+                if len(members) > MAX_ARCHIVE_MEMBERS:
+                    raise ValueError("Office 文件包含过多内部条目")
+                total_size = sum(member.file_size for member in members)
+                if total_size > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+                    raise ValueError("Office 文件解压后超过 50 MB 限制")
+                if any(member.flag_bits & 0x1 for member in members):
+                    raise ValueError("Office 文件已加密，无法读取")
+        except BadZipFile as exc:
+            raise ValueError("Office 文件损坏、加密或无法读取") from exc
 
     @staticmethod
     def _excel_value(value: object) -> str:
@@ -202,6 +231,12 @@ class DocumentService:
     @staticmethod
     def _extract_xlsx_text(data: bytes) -> str:
         try:
+            DocumentService._validate_office_archive(data)
+        except ValueError as exc:
+            if str(exc).startswith("Office 文件损坏"):
+                raise ValueError("Excel 文件损坏、加密或无法读取") from exc
+            raise
+        try:
             workbook = load_workbook(
                 io.BytesIO(data),
                 read_only=True,
@@ -209,11 +244,20 @@ class DocumentService:
             )
             try:
                 parts = []
+                row_count = 0
+                cell_count = 0
+                text_length = 0
                 for worksheet in workbook.worksheets:
                     if worksheet.sheet_state != "visible":
                         continue
                     rows = []
                     for raw_row in worksheet.iter_rows(values_only=True):
+                        row_count += 1
+                        cell_count += len(raw_row)
+                        if (
+                                row_count > MAX_SPREADSHEET_ROWS
+                                or cell_count > MAX_SPREADSHEET_CELLS):
+                            raise ValueError("Excel 文件有效数据范围过大")
                         values = [
                             DocumentService._excel_value(value)
                             for value in raw_row
@@ -221,7 +265,11 @@ class DocumentService:
                         while values and not values[-1]:
                             values.pop()
                         if any(values):
-                            rows.append(" | ".join(values))
+                            rendered = " | ".join(values)
+                            text_length += len(rendered)
+                            if text_length > MAX_DOCUMENT_TEXT_CHARS:
+                                raise ValueError("文档文本超过 50 万字符限制")
+                            rows.append(rendered)
                     if rows:
                         parts.append(f"[工作表：{worksheet.title}]")
                         parts.extend(rows)
@@ -241,7 +289,11 @@ class DocumentService:
     def _extract_text(filename: str, data: bytes) -> str:
         extension = Path(filename).suffix.lower()
         if extension == ".docx":
-            document = Document(io.BytesIO(data))
+            DocumentService._validate_office_archive(data)
+            try:
+                document = Document(io.BytesIO(data))
+            except (BadZipFile, KeyError, OSError, ValueError) as exc:
+                raise ValueError("Word 文件损坏、加密或无法读取") from exc
             parts = [
                 paragraph.text.strip()
                 for paragraph in document.paragraphs
@@ -261,6 +313,8 @@ class DocumentService:
         text = text.replace("\x00", "")
         text = re.sub(r"[ \t]+", " ", text)
         text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        if len(text) > MAX_DOCUMENT_TEXT_CHARS:
+            raise ValueError("文档文本超过 50 万字符限制")
         if len(text) < 10:
             raise ValueError("文档中没有提取到足够的文本")
         return text

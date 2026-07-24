@@ -9,6 +9,7 @@ from memory_store import MemoryStore
 
 
 RETRY_SECONDS = (5, 15, 60, 300, 900)
+MAX_OUTBOX_ATTEMPTS = 8
 
 
 def retry_delay(attempt_count: int) -> timedelta:
@@ -22,11 +23,13 @@ class OutboxWorker:
             platform: str,
             store: MemoryStore,
             transport: MessageTransport,
-            clock: Callable[[], datetime] | None = None):
+            clock: Callable[[], datetime] | None = None,
+            max_attempts: int = MAX_OUTBOX_ATTEMPTS):
         self.platform = platform
         self.store = store
         self.transport = transport
         self.clock = clock or (lambda: datetime.now(timezone.utc))
+        self.max_attempts = max_attempts
 
     async def dispatch_due_once(self, now: datetime | None = None) -> int:
         listing_time = now or self.clock()
@@ -61,6 +64,7 @@ class OutboxWorker:
                     token,
                     type(exc).__name__,
                     retry_at,
+                    self.max_attempts,
                 )
             else:
                 sent_at = now or self.clock()

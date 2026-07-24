@@ -12,6 +12,7 @@ HELP_TEXT = """🚙 青甘自驾助手
 - 查询路线 西宁 -> 青海湖：规划驾车路线
 - 查询路况 青海湖 -> 茶卡盐湖：查看实时拥堵路段
 - 上传文档：获取私聊上传绑定码
+- 制定预约：进入预约攻略图片识别流程
 - ping：检查机器人是否在线
 
 可以从群输入框的“/”指令面板选择，也可以在群里 @机器人 后输入。
@@ -39,6 +40,7 @@ ADD_ITEM_RE = re.compile(
 SET_TIMES_RE = re.compile(
     rf"^设置提醒\s+({PLAN_CODE})\s+(\d+)\s+(.+)$"
 )
+REFRESH_PLAN_RE = re.compile(rf"^刷新预约\s+({PLAN_CODE})$")
 CONFIRM_PLAN_RE = re.compile(rf"^确认预约\s+({PLAN_CODE})$")
 CANCEL_PLAN_RE = re.compile(rf"^取消预约\s+({PLAN_CODE})$")
 MODIFY_DATE_RE = re.compile(
@@ -92,8 +94,21 @@ def parse_command(content: str) -> Command:
     if command in {"上传文档", "文档上传", "导入文档"}:
         return Command(name="upload_document")
 
+    if command in {"制定预约", "开始制定预约"}:
+        return Command(name="reservation_start")
+
+    if command in {"退出制定预约", "取消制定预约"}:
+        return Command(name="reservation_stop")
+
     if command == "查看预约提醒":
         return Command(name="reservation_list")
+
+    if command == "确认创建预约提醒":
+        return Command(name="reservation_confirm_help")
+
+    match = REFRESH_PLAN_RE.fullmatch(command)
+    if match:
+        return Command(name="reservation_refresh", args=match.groups())
 
     match = COMPLETE_DATE_RE.fullmatch(command)
     if match:
