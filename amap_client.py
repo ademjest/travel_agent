@@ -143,7 +143,9 @@ class AmapClient:
             response.raise_for_status()
             data = response.json()
         except requests.RequestException as exc:
-            raise AmapError(f"高德接口请求失败：{exc}") from exc
+            raise AmapError(
+                f"高德接口请求失败：{type(exc).__name__}"
+            ) from exc
         except ValueError as exc:
             raise AmapError("高德接口返回了无法解析的数据") from exc
 

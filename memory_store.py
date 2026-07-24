@@ -277,7 +277,8 @@ class MemoryStore:
                     created_at TEXT NOT NULL,
                     expires_at TEXT NOT NULL,
                     redeemed_at TEXT,
-                    consumed_at TEXT
+                    consumed_at TEXT,
+                    source_event_id TEXT UNIQUE
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_upload_bindings_private_user
@@ -295,6 +296,20 @@ class MemoryStore:
                     prepared_reply TEXT,
                     prepared_memory_content TEXT
                 );
+
+                CREATE TABLE IF NOT EXISTS event_tool_results (
+                    operation_key TEXT PRIMARY KEY,
+                    event_id TEXT NOT NULL,
+                    tool_name TEXT NOT NULL,
+                    arguments_json TEXT NOT NULL,
+                    result_text TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(event_id) REFERENCES processed_events(event_id)
+                        ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_event_tool_results_event
+                ON event_tool_results(event_id);
 
                 CREATE TABLE IF NOT EXISTS outbox_messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -346,6 +361,7 @@ class MemoryStore:
                     platform TEXT NOT NULL,
                     group_id TEXT NOT NULL,
                     creator_id TEXT NOT NULL,
+                    source_event_id TEXT,
                     status TEXT NOT NULL,
                     refresh_revision INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
@@ -376,6 +392,7 @@ class MemoryStore:
                     reminder_policy TEXT NOT NULL,
                     status TEXT NOT NULL,
                     refresh_revision INTEGER NOT NULL DEFAULT 0,
+                    source_operation_key TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY(plan_id) REFERENCES reservation_plans(id)
@@ -492,6 +509,16 @@ class MemoryStore:
                     "ALTER TABLE reservation_plans ADD COLUMN "
                     "refresh_revision INTEGER NOT NULL DEFAULT 0"
                 )
+            if "source_event_id" not in reservation_plan_columns:
+                connection.execute(
+                    "ALTER TABLE reservation_plans ADD COLUMN source_event_id TEXT"
+                )
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "idx_reservation_plan_source_event "
+                "ON reservation_plans(source_event_id) "
+                "WHERE source_event_id IS NOT NULL AND source_event_id != ''"
+            )
 
             reservation_item_columns = {
                 row["name"]
@@ -504,6 +531,35 @@ class MemoryStore:
                     "ALTER TABLE reservation_items ADD COLUMN "
                     "refresh_revision INTEGER NOT NULL DEFAULT 0"
                 )
+            if "source_operation_key" not in reservation_item_columns:
+                connection.execute(
+                    "ALTER TABLE reservation_items ADD COLUMN "
+                    "source_operation_key TEXT"
+                )
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "idx_reservation_item_source_operation "
+                "ON reservation_items(source_operation_key) "
+                "WHERE source_operation_key IS NOT NULL "
+                "AND source_operation_key != ''"
+            )
+
+            upload_binding_columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(upload_bindings)"
+                ).fetchall()
+            }
+            if "source_event_id" not in upload_binding_columns:
+                connection.execute(
+                    "ALTER TABLE upload_bindings ADD COLUMN source_event_id TEXT"
+                )
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "idx_upload_binding_source_event "
+                "ON upload_bindings(source_event_id) "
+                "WHERE source_event_id IS NOT NULL AND source_event_id != ''"
+            )
 
             connection.execute(
                 """
@@ -644,6 +700,80 @@ class MemoryStore:
             prepared_reply=row["prepared_reply"],
             prepared_memory_content=row["prepared_memory_content"],
         )
+
+    def renew_event(
+            self,
+            event_id: str,
+            claim_token: str,
+            now: datetime | None = None,
+            lease_duration: timedelta = EVENT_PROCESSING_LEASE) -> bool:
+        renewed_at = now or datetime.now(timezone.utc)
+        lease_expires_at = renewed_at + lease_duration
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE processed_events
+                SET updated_at = ?, lease_expires_at = ?
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (
+                    renewed_at.isoformat(),
+                    lease_expires_at.isoformat(),
+                    event_id,
+                    claim_token,
+                ),
+            )
+        return cursor.rowcount == 1
+
+    def get_event_tool_result(self, operation_key: str) -> str | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT result_text FROM event_tool_results "
+                "WHERE operation_key = ?",
+                (operation_key,),
+            ).fetchone()
+        return str(row["result_text"]) if row is not None else None
+
+    def save_event_tool_result(
+            self,
+            operation_key: str,
+            event_id: str,
+            tool_name: str,
+            arguments: dict[str, object],
+            result_text: str,
+            now: datetime | None = None) -> str:
+        created_at = now or datetime.now(timezone.utc)
+        arguments_json = json.dumps(
+            arguments,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO event_tool_results (
+                    operation_key, event_id, tool_name, arguments_json,
+                    result_text, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    operation_key,
+                    event_id,
+                    tool_name,
+                    arguments_json,
+                    result_text,
+                    created_at.isoformat(),
+                ),
+            )
+            row = connection.execute(
+                "SELECT result_text FROM event_tool_results "
+                "WHERE operation_key = ?",
+                (operation_key,),
+            ).fetchone()
+        return str(row["result_text"])
 
     def claim_event(
             self,
@@ -907,13 +1037,15 @@ class MemoryStore:
             outbox_id: int,
             claim_token: str,
             error: str,
-            next_attempt_at: datetime) -> bool:
+            next_attempt_at: datetime,
+            max_attempts: int = 8) -> bool:
         error_text = str(error)[:MAX_EVENT_ERROR_CHARS]
         with self._connect() as connection:
             row = connection.execute(
                 """
                 SELECT
                     o.event_id,
+                    o.attempt_count,
                     r.status AS reminder_status
                 FROM outbox_messages o
                 LEFT JOIN reservation_reminders r
@@ -926,11 +1058,31 @@ class MemoryStore:
             ).fetchone()
             if row is None:
                 return False
-            if row["reminder_status"] == "cancelled":
+
+            cancelled_delivery = row["reminder_status"] == "cancelled"
+            terminal = (
+                int(row["attempt_count"]) >= max_attempts
+                and not cancelled_delivery
+            )
+            if cancelled_delivery:
                 cursor = connection.execute(
                     """
                     UPDATE outbox_messages
                     SET status = 'cancelled',
+                        lease_expires_at = NULL,
+                        claim_token = NULL,
+                        last_error = ?
+                    WHERE id = ?
+                      AND status = 'sending'
+                      AND claim_token = ?
+                    """,
+                    (error_text, outbox_id, claim_token),
+                )
+            elif terminal:
+                cursor = connection.execute(
+                    """
+                    UPDATE outbox_messages
+                    SET status = 'dead_letter',
                         lease_expires_at = NULL,
                         claim_token = NULL,
                         last_error = ?
@@ -965,11 +1117,46 @@ class MemoryStore:
             connection.execute(
                 """
                 UPDATE reservation_reminders
-                SET last_error = ?
+                SET status = CASE WHEN ? THEN 'failed' ELSE status END,
+                    last_error = ?
                 WHERE outbox_event_id = ?
                 """,
-                (error_text, row["event_id"]),
+                (terminal, error_text, row["event_id"]),
             )
+            if terminal:
+                connection.execute(
+                    """
+                    UPDATE processed_events
+                    SET status = 'dead_letter',
+                        updated_at = ?,
+                        lease_expires_at = NULL,
+                        claim_token = NULL,
+                        last_error = ?,
+                        prepared_reply = NULL,
+                        prepared_memory_content = NULL
+                    WHERE event_id = ?
+                    """,
+                    (
+                        next_attempt_at.isoformat(),
+                        error_text,
+                        row["event_id"],
+                    ),
+                )
+            elif cancelled_delivery:
+                connection.execute(
+                    """
+                    UPDATE processed_events
+                    SET status = 'completed',
+                        updated_at = ?,
+                        lease_expires_at = NULL,
+                        claim_token = NULL,
+                        last_error = NULL,
+                        prepared_reply = NULL,
+                        prepared_memory_content = NULL
+                    WHERE event_id = ?
+                    """,
+                    (next_attempt_at.isoformat(), row["event_id"]),
+                )
         return True
 
     def mark_outbox_sent(
@@ -1129,6 +1316,55 @@ class MemoryStore:
             ).fetchone()
         return row["status"] if row else None
 
+    def runtime_health(
+            self,
+            platform: str,
+            now: datetime | None = None) -> dict[str, object]:
+        current = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            outbox_rows = connection.execute(
+                """
+                SELECT status, COUNT(*) AS count
+                FROM outbox_messages
+                WHERE platform = ?
+                GROUP BY status
+                """,
+                (platform,),
+            ).fetchall()
+            reminder_rows = connection.execute(
+                """
+                SELECT status, COUNT(*) AS count
+                FROM reservation_reminders
+                WHERE platform = ?
+                GROUP BY status
+                """,
+                (platform,),
+            ).fetchall()
+            stale_events = connection.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM processed_events
+                WHERE status = 'processing'
+                  AND lease_expires_at IS NOT NULL
+                  AND julianday(lease_expires_at) <= julianday(?)
+                """,
+                (current.isoformat(),),
+            ).fetchone()
+        outbox = {
+            str(row["status"]): int(row["count"])
+            for row in outbox_rows
+        }
+        reminders = {
+            str(row["status"]): int(row["count"])
+            for row in reminder_rows
+        }
+        return {
+            "outbox": outbox,
+            "reminders": reminders,
+            "dead_letters": int(outbox.get("dead_letter", 0)),
+            "stale_processing_events": int(stale_events["count"]),
+        }
+
     def create_reservation_image(
             self,
             storage_scope_id: str,
@@ -1272,101 +1508,115 @@ class MemoryStore:
             group_id: str,
             creator_id: str,
             items: tuple[dict[str, object], ...],
-            now: datetime | None = None) -> ReservationPlanRecord:
+            now: datetime | None = None,
+            source_event_id: str = "") -> ReservationPlanRecord:
         created_at = now or datetime.now(timezone.utc)
         local_day = created_at.astimezone(
             ZoneInfo("Asia/Shanghai")
         ).strftime("%Y%m%d")
         prefix = f"R-{local_day}-"
+        existing_code = ""
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            row = connection.execute(
-                """
-                SELECT MAX(
-                    CAST(substr(plan_code, 12) AS INTEGER)
-                ) AS sequence
-                FROM reservation_plans
-                WHERE plan_code LIKE ?
-                """,
-                (f"{prefix}%",),
-            ).fetchone()
-            sequence = int(row["sequence"] or 0) + 1
-            plan_code = f"{prefix}{sequence:03d}"
-            cursor = connection.execute(
-                """
-                INSERT INTO reservation_plans (
-                    plan_code, image_id, platform, group_id, creator_id,
-                    status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)
-                """,
-                (
-                    plan_code,
-                    image_id,
-                    platform,
-                    group_id,
-                    creator_id,
-                    created_at.isoformat(),
-                    created_at.isoformat(),
-                ),
-            )
-            plan_id = int(cursor.lastrowid)
-            for item_index, item in enumerate(items, start=1):
-                extraction = item["extraction"]
-                visit_date = item["visit_date"]
-                booking_date = item["booking_date"]
-                item_cursor = connection.execute(
+            if source_event_id:
+                existing = connection.execute(
+                    "SELECT plan_code FROM reservation_plans "
+                    "WHERE source_event_id = ?",
+                    (source_event_id,),
+                ).fetchone()
+                if existing is not None:
+                    existing_code = str(existing["plan_code"])
+            if existing_code:
+                plan_code = existing_code
+            else:
+                row = connection.execute(
                     """
-                    INSERT INTO reservation_items (
-                        plan_id, item_index, attraction_name, price_text,
-                        opening_hours, booking_channel, source_text,
-                        confidence, requires_reservation, advance_value,
-                        advance_unit, visit_date, booking_date,
-                        date_candidates_json,
-                        custom_reminder_times_json,
-                        reminder_policy, status, created_at, updated_at
-                    ) VALUES (
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                        ?, ?, ?, ?
-                    )
+                    SELECT MAX(
+                        CAST(substr(plan_code, 12) AS INTEGER)
+                    ) AS sequence
+                    FROM reservation_plans
+                    WHERE plan_code LIKE ?
+                    """,
+                    (f"{prefix}%",),
+                ).fetchone()
+                sequence = int(row["sequence"] or 0) + 1
+                plan_code = f"{prefix}{sequence:03d}"
+                cursor = connection.execute(
+                    """
+                    INSERT INTO reservation_plans (
+                        plan_code, image_id, platform, group_id, creator_id,
+                        source_event_id, status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?)
                     """,
                     (
-                        plan_id,
-                        item_index,
-                        extraction.attraction_name,
-                        extraction.price_text,
-                        extraction.opening_hours,
-                        extraction.booking_channel,
-                        extraction.source_text,
-                        extraction.confidence,
-                        int(extraction.requires_reservation),
-                        extraction.advance_value,
-                        extraction.advance_unit,
-                        visit_date.isoformat() if visit_date else None,
-                        booking_date.isoformat() if booking_date else None,
-                        json.dumps([
-                            value.isoformat()
-                            for value in item["date_candidates"]
-                        ]),
-                        json.dumps([
-                            value.astimezone(
-                                ZoneInfo("Asia/Shanghai")
-                            ).isoformat()
-                            for value in item["custom_reminder_times"]
-                        ]),
-                        item["reminder_policy"],
-                        item["status"],
+                        plan_code,
+                        image_id,
+                        platform,
+                        group_id,
+                        creator_id,
+                        source_event_id or None,
                         created_at.isoformat(),
                         created_at.isoformat(),
                     ),
                 )
-                item_id = int(item_cursor.lastrowid)
-                connection.execute(
-                    """
-                    UPDATE reservation_items
-                    SET public_code = ? WHERE id = ?
-                    """,
-                    (f"A-{item_id:06d}", item_id),
-                )
+                plan_id = int(cursor.lastrowid)
+                for item_index, item in enumerate(items, start=1):
+                    extraction = item["extraction"]
+                    visit_date = item["visit_date"]
+                    booking_date = item["booking_date"]
+                    item_cursor = connection.execute(
+                        """
+                        INSERT INTO reservation_items (
+                            plan_id, item_index, attraction_name, price_text,
+                            opening_hours, booking_channel, source_text,
+                            confidence, requires_reservation, advance_value,
+                            advance_unit, visit_date, booking_date,
+                            date_candidates_json,
+                            custom_reminder_times_json,
+                            reminder_policy, status, created_at, updated_at
+                        ) VALUES (
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            ?, ?, ?, ?
+                        )
+                        """,
+                        (
+                            plan_id,
+                            item_index,
+                            extraction.attraction_name,
+                            extraction.price_text,
+                            extraction.opening_hours,
+                            extraction.booking_channel,
+                            extraction.source_text,
+                            extraction.confidence,
+                            int(extraction.requires_reservation),
+                            extraction.advance_value,
+                            extraction.advance_unit,
+                            visit_date.isoformat() if visit_date else None,
+                            booking_date.isoformat() if booking_date else None,
+                            json.dumps([
+                                value.isoformat()
+                                for value in item["date_candidates"]
+                            ]),
+                            json.dumps([
+                                value.astimezone(
+                                    ZoneInfo("Asia/Shanghai")
+                                ).isoformat()
+                                for value in item["custom_reminder_times"]
+                            ]),
+                            item["reminder_policy"],
+                            item["status"],
+                            created_at.isoformat(),
+                            created_at.isoformat(),
+                        ),
+                    )
+                    item_id = int(item_cursor.lastrowid)
+                    connection.execute(
+                        """
+                        UPDATE reservation_items
+                        SET public_code = ? WHERE id = ?
+                        """,
+                        (f"A-{item_id:06d}", item_id),
+                    )
         loaded = self.get_reservation_plan(
             platform,
             group_id,
@@ -1614,7 +1864,8 @@ class MemoryStore:
             booking_date: date | None,
             reminder_policy: str,
             status: str,
-            now: datetime | None = None) -> bool:
+            now: datetime | None = None,
+            source_operation_key: str = "") -> bool:
         created_at = now or datetime.now(timezone.utc)
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -1631,6 +1882,14 @@ class MemoryStore:
             ).fetchone()
             if plan is None:
                 return False
+            if source_operation_key:
+                existing = connection.execute(
+                    "SELECT 1 FROM reservation_items "
+                    "WHERE source_operation_key = ?",
+                    (source_operation_key,),
+                ).fetchone()
+                if existing is not None:
+                    return True
             index_row = connection.execute(
                 """
                 SELECT COALESCE(MAX(item_index), 0) + 1 AS next_index
@@ -1646,10 +1905,10 @@ class MemoryStore:
                     requires_reservation, advance_value, advance_unit,
                     visit_date, booking_date, date_candidates_json,
                     custom_reminder_times_json, reminder_policy, status,
-                    created_at, updated_at
+                    source_operation_key, created_at, updated_at
                 ) VALUES (
                     ?, ?, ?, '', '', '', ?, 1.0, ?, ?, ?, ?, ?, ?, '[]',
-                    ?, ?, ?, ?
+                    ?, ?, ?, ?, ?
                 )
                 """,
                 (
@@ -1667,6 +1926,7 @@ class MemoryStore:
                     ),
                     reminder_policy,
                     status,
+                    source_operation_key or None,
                     created_at.isoformat(),
                     created_at.isoformat(),
                 ),
@@ -1877,7 +2137,7 @@ class MemoryStore:
                   AND p.creator_id = ?
                   AND p.status = 'confirmed'
                   AND i.public_code = ?
-                  AND i.status = 'confirmed'
+                  AND i.status IN ('confirmed', 'cancelled')
                 """,
                 (platform, group_id, creator_id, public_code),
             ).fetchone()
@@ -2110,6 +2370,28 @@ class MemoryStore:
         ).fetchone() is not None
         connection.execute(
             """
+            UPDATE processed_events
+            SET status = 'completed',
+                lease_expires_at = NULL,
+                claim_token = NULL,
+                last_error = NULL,
+                prepared_reply = NULL,
+                prepared_memory_content = NULL
+            WHERE event_id IN (
+                SELECT outbox_event_id
+                FROM reservation_reminders
+                WHERE reservation_item_id = ?
+            )
+              AND event_id IN (
+                SELECT event_id
+                FROM outbox_messages
+                WHERE status IN ('pending', 'failed')
+            )
+            """,
+            (item_id,),
+        )
+        connection.execute(
+            """
             UPDATE outbox_messages
             SET status = 'cancelled',
                 lease_expires_at = NULL,
@@ -2250,13 +2532,18 @@ class MemoryStore:
                   AND p.creator_id = ?
                   AND p.status = 'confirmed'
                   AND i.public_code = ?
-                  AND i.status = 'confirmed'
+                  AND i.status IN ('confirmed', 'cancelled')
                 """,
                 (platform, group_id, creator_id, public_code),
             ).fetchone()
             if row is None:
                 return None
             item_id = int(row["id"])
+            if row["status"] == "cancelled":
+                return ReservationMutationResult(
+                    self._reservation_item(row),
+                    False,
+                )
             sending_warning = self._cancel_item_delivery_rows(
                 connection,
                 item_id,
@@ -2290,17 +2577,19 @@ class MemoryStore:
             connection.execute("BEGIN IMMEDIATE")
             plan = connection.execute(
                 """
-                SELECT id FROM reservation_plans
+                SELECT id, status FROM reservation_plans
                 WHERE platform = ?
                   AND group_id = ?
                   AND creator_id = ?
                   AND plan_code = ?
-                  AND status IN ('draft', 'confirmed')
+                  AND status IN ('draft', 'confirmed', 'cancelled')
                 """,
                 (platform, group_id, creator_id, plan_code),
             ).fetchone()
             if plan is None:
                 return None
+            if plan["status"] == "cancelled":
+                return False
             item_rows = connection.execute(
                 "SELECT id FROM reservation_items WHERE plan_id = ?",
                 (plan["id"],),
@@ -2452,6 +2741,84 @@ class MemoryStore:
                 ),
             )
         return int(cursor.lastrowid)
+
+    def create_upload_binding_for_event(
+            self,
+            code_hash: str,
+            group_openid: str,
+            issuer_openid: str,
+            expires_at: datetime,
+            event_id: str,
+            claim_token: str,
+            reply: str,
+            now: datetime | None = None) -> str:
+        created_at = now or datetime.now(timezone.utc)
+        lease_expires_at = created_at + EVENT_PROCESSING_LEASE
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            event = connection.execute(
+                """
+                SELECT status, claim_token, prepared_reply
+                FROM processed_events
+                WHERE event_id = ?
+                """,
+                (event_id,),
+            ).fetchone()
+            if (
+                    event is None
+                    or event["status"] != "processing"
+                    or event["claim_token"] != claim_token):
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+
+            existing = connection.execute(
+                "SELECT id FROM upload_bindings WHERE source_event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if existing is not None:
+                prepared_reply = str(event["prepared_reply"] or "")
+                if not prepared_reply:
+                    raise RuntimeError("Upload binding reply is unavailable")
+                return prepared_reply
+
+            connection.execute(
+                """
+                INSERT INTO upload_bindings (
+                    code_hash, group_openid, issuer_openid, created_at,
+                    expires_at, source_event_id
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    code_hash,
+                    group_openid,
+                    issuer_openid,
+                    created_at.isoformat(),
+                    expires_at.isoformat(),
+                    event_id,
+                ),
+            )
+            updated = connection.execute(
+                """
+                UPDATE processed_events
+                SET prepared_reply = ?,
+                    prepared_memory_content = ?,
+                    updated_at = ?,
+                    lease_expires_at = ?
+                WHERE event_id = ?
+                  AND status = 'processing'
+                  AND claim_token = ?
+                """,
+                (
+                    reply,
+                    "申请私聊上传文档绑定码",
+                    created_at.isoformat(),
+                    lease_expires_at.isoformat(),
+                    event_id,
+                    claim_token,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError(f"Lost event processing lease: {event_id}")
+        return reply
 
     def redeem_upload_binding(
             self,
@@ -3083,6 +3450,119 @@ class MemoryStore:
                 (cutoff.isoformat(),),
             )
         return cursor.rowcount
+
+    def purge_retained_data(
+            self,
+            *,
+            chat_cutoff: datetime,
+            event_cutoff: datetime,
+            binding_cutoff: datetime,
+            reservation_cutoff: datetime,
+            image_cutoff: datetime,
+            document_cutoff: datetime | None = None) -> dict[str, object]:
+        counts: dict[str, object] = {}
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            counts["chat_messages"] = connection.execute(
+                "DELETE FROM chat_messages WHERE julianday(created_at) < "
+                "julianday(?)",
+                (chat_cutoff.isoformat(),),
+            ).rowcount
+            counts["conversation_turns"] = connection.execute(
+                "DELETE FROM conversation_turns WHERE julianday(created_at) < "
+                "julianday(?)",
+                (chat_cutoff.isoformat(),),
+            ).rowcount
+            counts["upload_bindings"] = connection.execute(
+                """
+                DELETE FROM upload_bindings
+                WHERE (
+                    consumed_at IS NOT NULL
+                    AND julianday(consumed_at) < julianday(?)
+                ) OR (
+                    julianday(expires_at) < julianday(?)
+                    AND julianday(created_at) < julianday(?)
+                )
+                """,
+                (
+                    binding_cutoff.isoformat(),
+                    binding_cutoff.isoformat(),
+                    binding_cutoff.isoformat(),
+                ),
+            ).rowcount
+            counts["reservation_reminders"] = connection.execute(
+                """
+                DELETE FROM reservation_reminders
+                WHERE status IN (
+                    'sent', 'expired', 'blocked', 'failed', 'cancelled'
+                )
+                  AND julianday(
+                        COALESCE(sent_at, queued_at, created_at)
+                      ) < julianday(?)
+                """,
+                (reservation_cutoff.isoformat(),),
+            ).rowcount
+            counts["reservation_plans"] = connection.execute(
+                """
+                DELETE FROM reservation_plans
+                WHERE status = 'cancelled'
+                  AND julianday(updated_at) < julianday(?)
+                """,
+                (reservation_cutoff.isoformat(),),
+            ).rowcount
+
+            orphan_rows = connection.execute(
+                """
+                SELECT id, file_path
+                FROM reservation_images
+                WHERE julianday(updated_at) < julianday(?)
+                  AND NOT EXISTS (
+                    SELECT 1 FROM reservation_plans
+                    WHERE reservation_plans.image_id = reservation_images.id
+                  )
+                """,
+                (image_cutoff.isoformat(),),
+            ).fetchall()
+            if orphan_rows:
+                connection.executemany(
+                    "DELETE FROM reservation_images WHERE id = ?",
+                    [(int(row["id"]),) for row in orphan_rows],
+                )
+            counts["reservation_images"] = len(orphan_rows)
+            counts["image_paths"] = tuple(
+                str(row["file_path"]) for row in orphan_rows
+            )
+
+            if document_cutoff is not None:
+                counts["documents"] = connection.execute(
+                    "DELETE FROM documents WHERE julianday(created_at) < "
+                    "julianday(?)",
+                    (document_cutoff.isoformat(),),
+                ).rowcount
+            else:
+                counts["documents"] = 0
+
+            counts["outbox_messages"] = connection.execute(
+                """
+                DELETE FROM outbox_messages
+                WHERE status IN ('sent', 'dead_letter', 'cancelled')
+                  AND julianday(COALESCE(sent_at, created_at)) < julianday(?)
+                """,
+                (event_cutoff.isoformat(),),
+            ).rowcount
+            counts["processed_events"] = connection.execute(
+                """
+                DELETE FROM processed_events
+                WHERE status IN ('completed', 'dead_letter')
+                  AND julianday(updated_at) < julianday(?)
+                  AND NOT EXISTS (
+                    SELECT 1 FROM outbox_messages
+                    WHERE outbox_messages.event_id = processed_events.event_id
+                  )
+                """,
+                (event_cutoff.isoformat(),),
+            ).rowcount
+        return counts
 
     @staticmethod
     def _chat_message(row: sqlite3.Row) -> ChatMessage:

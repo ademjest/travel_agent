@@ -110,6 +110,16 @@ class ReservationRuleTests(unittest.TestCase):
                 "confidence": 0.9,
             })
 
+    def test_string_false_is_rejected_as_non_boolean(self):
+        with self.assertRaisesRegex(ValueError, "boolean"):
+            normalize_extraction_item({
+                "attraction_name": "黑独山",
+                "requires_reservation": "false",
+                "advance_value": 0,
+                "advance_unit": "none",
+                "confidence": 1,
+            })
+
     def test_custom_time_requires_complete_absolute_beijing_time(self):
         with self.assertRaisesRegex(ValueError, "YYYY-MM-DD HH:MM"):
             parse_beijing_datetime_list("明早七点")
@@ -181,6 +191,200 @@ class ReservationItineraryResolverTests(unittest.TestCase):
                 for resolution in resolutions.values()
                 for candidate in resolution.dates
             ),
+        )
+
+    def test_route_origin_is_not_counted_as_a_second_visit_date(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.md",
+            chunks=(
+                "2026-08-16 | 西宁 → 青海湖\n"
+                "2026-08-17 | 青海湖 → 茶卡盐湖\n"
+                "2026-08-18 | 茶卡盐湖 -> 翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 16),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_route_position_ignores_activity_text_for_a_later_stop(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.xlsx",
+            chunks=(
+                "2026-08-16 | 行程 | 西宁 → 青海湖 | 下午游览青海湖\n"
+                "2026-08-17 | 行程 | 青海湖 → 茶卡盐湖 | "
+                "下午游览茶卡盐湖\n"
+                "2026-08-18 | 行程 | 茶卡盐湖 -> 翡翠湖 | "
+                "上午游览翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 16),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_route_matching_ignores_lodging_and_notes_cells(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.xlsx",
+            chunks=(
+                "2026-08-16 | 行程 | 西宁 -> 青海湖 | "
+                "住宿 | 茶卡盐湖酒店\n"
+                "2026-08-17 | 行程 | 青海湖 -> 茶卡盐湖 | "
+                "住宿 | 都兰",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 16),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
+        )
+
+    def test_negative_activity_only_applies_to_its_attraction(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.xlsx",
+            chunks=(
+                "2026-08-17 | 行程 | 西宁 -> 青海湖 -> 茶卡盐湖 | "
+                "下午不游览茶卡盐湖\n"
+                "2026-08-18 | 行程 | 茶卡盐湖 -> 翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].reason,
+            "not_scheduled",
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_non_route_lodging_cell_is_not_a_daily_heading(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="lodging.xlsx",
+            chunks=("2026-08-17 | 住宿 | 青海湖酒店",),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖",),
+        )["青海湖"]
+
+        self.assertEqual(resolution, VisitDateResolution((), "not_found"))
+
+    def test_first_non_route_schedule_cell_remains_a_daily_heading(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="schedule.xlsx",
+            chunks=("2026-08-17 | 青海湖 | 都兰",),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖",),
+        )["青海湖"]
+
+        self.assertEqual(resolution.dates, (date(2026, 8, 17),))
+
+    def test_conjunction_separates_positive_and_negative_activities(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="activities.xlsx",
+            chunks=(
+                "2026-08-17 | 下午游览青海湖但不游览茶卡盐湖\n"
+                "2026-08-18 | 上午游览翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].reason,
+            "not_scheduled",
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_explicit_activity_schedules_the_first_route_location(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="activity.md",
+            chunks=(
+                "2026-08-17 | 下午游览青海湖 → 茶卡盐湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
         )
 
     def test_keeps_multiple_positive_dates_for_manual_confirmation(self):
@@ -432,6 +636,28 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(plan.items, ())
         reply = service.format_draft(plan)
         self.assertIn("新增预约", reply)
+
+    def test_replayed_image_event_reuses_original_draft(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        first = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+            source_event_id="qq_official:group:group-a:image-event",
+        )
+        second = service.create_draft(
+            self.image,
+            (self.item("莫高窟", True, 1, "month"),),
+            source_event_id="qq_official:group:group-a:image-event",
+        )
+
+        self.assertEqual(second.plan_id, first.plan_id)
+        self.assertEqual(
+            tuple(item.attraction_name for item in second.items),
+            ("青海湖",),
+        )
 
     def test_manual_add_and_date_completion_recalculate_booking_date(self):
         service = ReservationService(
@@ -1094,6 +1320,23 @@ class ReservationManagementTests(ReservationDraftTests):
             (),
         )
 
+    def test_repeated_item_cancellation_is_idempotent(self):
+        service, plan = self.ready_plan()
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        item_code = confirmed.items[0].public_code
+
+        first = service.cancel_item(
+            "qq_official", "group-a", "member-a", item_code
+        )
+        second = service.cancel_item(
+            "qq_official", "group-a", "member-a", item_code
+        )
+
+        self.assertEqual(first.item.item_id, second.item.item_id)
+        self.assertEqual(second.item.status, "cancelled")
+
     def test_cancel_plan_cancels_every_item_and_reminder(self):
         service, plan = self.ready_plan()
         service.confirm_plan(
@@ -1113,6 +1356,19 @@ class ReservationManagementTests(ReservationDraftTests):
         self.assertTrue(
             all(item.status == "cancelled" for item in cancelled.items)
         )
+
+    def test_repeated_plan_cancellation_is_idempotent(self):
+        service, plan = self.ready_plan()
+
+        first = service.cancel_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        second = service.cancel_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertFalse(first)
+        self.assertFalse(second)
 
 
 if __name__ == "__main__":

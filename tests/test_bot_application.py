@@ -1,4 +1,6 @@
+import asyncio
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -56,8 +58,8 @@ class FakeUploadBindingService:
         self.issue_calls = []
         self.private_calls = []
 
-    def issue_binding(self, group_id, sender_id):
-        self.issue_calls.append((group_id, sender_id))
+    def issue_binding(self, group_id, sender_id, **kwargs):
+        self.issue_calls.append((group_id, sender_id, kwargs))
         return "binding-code"
 
     def handle_private_message(
@@ -100,8 +102,8 @@ class FakeReservationService:
         self.created = []
         self.commands = []
 
-    def create_draft(self, image, items):
-        self.created.append((image, items))
+    def create_draft(self, image, items, source_event_id=""):
+        self.created.append((image, items, source_event_id))
         return SimpleNamespace(plan_code="R-20260722-001", items=())
 
     def format_draft(self, plan):
@@ -180,6 +182,14 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             "agent:帮我评估明天的行程",
         )
 
+    async def test_oversized_message_is_rejected_before_agent(self):
+        event = self.group_event("oversized", "x" * 8001)
+
+        await self.application.handle(event)
+
+        self.assertEqual(self.travel_agent.calls, [])
+        self.assertIn("8000", str(self.transport.messages[0].payload))
+
     async def test_document_context_is_passed_to_agent(self):
         self.store.add_document(
             "group-a",
@@ -221,6 +231,37 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.travel_service.calls, ["查询天气 西宁"])
         self.assertEqual(len(self.transport.messages), 1)
 
+    async def test_long_running_event_renews_processing_lease(self):
+        class SlowTravelService(FakeTravelService):
+            def handle(inner_self, content):
+                time.sleep(0.05)
+                return super().handle(content)
+
+        renewals = []
+        original_renew = self.store.renew_event
+
+        def record_renewal(*args, **kwargs):
+            renewals.append(args)
+            return original_renew(*args, **kwargs)
+
+        self.store.renew_event = record_renewal
+        application = TravelBotApplication(
+            store=self.store,
+            travel_service=SlowTravelService(),
+            travel_agent=None,
+            document_service=self.document_service,
+            upload_binding_service=self.upload_service,
+            outbox_worker=self.worker,
+            reply_renderer=FakeRenderer(),
+            reminder_scheduler=object(),
+            group_allowed=lambda group_id: True,
+            event_lease_renew_seconds=0.01,
+        )
+
+        await application.handle(self.group_event("slow-event", "查询天气 西宁"))
+
+        self.assertGreaterEqual(len(renewals), 1)
+
     async def test_group_event_is_persisted_as_normalized_observation(self):
         event = self.group_event("message-observed", "明早八点集合")
 
@@ -253,6 +294,10 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         await self.application.handle(event)
         self.assertEqual(len(self.reservation_image_service.calls), 1)
         self.assertEqual(len(self.reservation_service.created), 1)
+        self.assertEqual(
+            self.reservation_service.created[0][2],
+            event.event_key,
+        )
         self.assertEqual(self.document_service.calls, [])
         self.assertEqual(self.travel_agent.calls, [])
 
@@ -278,6 +323,37 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.reservation_image_service.calls, [])
         sent = self.transport.messages[0].payload
         self.assertIn("逐张发送", str(sent))
+
+    async def test_mixed_image_and_document_attachments_are_rejected(self):
+        event = ChatEvent(
+            platform="qq_official",
+            channel="group",
+            event_id="mixed-attachments",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+                ChatAttachment(
+                    filename="trip.docx",
+                    url="https://example.test/trip.docx",
+                    content_type=(
+                        "application/vnd.openxmlformats-officedocument."
+                        "wordprocessingml.document"
+                    ),
+                ),
+            ),
+        )
+
+        await self.application.handle(event)
+
+        self.assertEqual(self.reservation_image_service.calls, [])
+        self.assertEqual(self.document_service.calls, [])
+        self.assertIn("混合发送", str(self.transport.messages[0].payload))
 
     async def test_image_download_failure_creates_no_plan(self):
         self.reservation_image_service.error = ValueError(

@@ -39,9 +39,33 @@ class UploadBindingService:
         self.code_factory = code_factory or self._generate_code
         self.now_provider = now_provider or (lambda: datetime.now(timezone.utc))
 
-    def issue_binding(self, group_openid: str, issuer_openid: str) -> str:
+    def issue_binding(
+            self,
+            group_openid: str,
+            issuer_openid: str,
+            *,
+            event_id: str = "",
+            claim_token: str = "") -> str:
         code = self.code_factory().upper()
         now = self.now_provider()
+        reply = (
+            f"一次性绑定码：{code}\n"
+            "请在 10 分钟内私聊机器人，先发送该绑定码，再发送一个 "
+            ".docx、.txt、.md 或 .xlsx 文件。收到一次附件消息后绑定即失效。"
+        )
+        if event_id:
+            if not claim_token:
+                raise ValueError("Issuing a binding for an event requires a claim")
+            return self.memory_store.create_upload_binding_for_event(
+                code_hash=self._hash_code(code),
+                group_openid=group_openid,
+                issuer_openid=issuer_openid,
+                expires_at=now + UPLOAD_BINDING_TTL,
+                event_id=event_id,
+                claim_token=claim_token,
+                reply=reply,
+                now=now,
+            )
         self.memory_store.create_upload_binding(
             code_hash=self._hash_code(code),
             group_openid=group_openid,
@@ -49,11 +73,7 @@ class UploadBindingService:
             expires_at=now + UPLOAD_BINDING_TTL,
             now=now,
         )
-        return (
-            f"一次性绑定码：{code}\n"
-            "请在 10 分钟内私聊机器人，先发送该绑定码，再发送一个 "
-            ".docx、.txt、.md 或 .xlsx 文件。收到一次附件消息后绑定即失效。"
-        )
+        return reply
 
     def handle_private_message(
             self,
@@ -120,6 +140,32 @@ class UploadBindingService:
                     "请先在目标群中发送“@机器人 上传文档”获取一次性绑定码，"
                     "再私聊发送绑定码和文件。"
                 )
+                )
+
+        if len(attachments) > 1:
+            pending = self.memory_store.get_pending_upload_binding(
+                c2c_user_openid,
+                now=self.now_provider(),
+            )
+            reply = (
+                "一次只能上传一个旅行文档。请回到目标群重新申请绑定码，"
+                "再逐个发送文件。"
+            )
+            if pending is None:
+                return PrivateUploadResult(reply=reply)
+            outbox_id = self._commit_binding_reply(
+                binding_id=pending.binding_id,
+                reply=reply,
+                c2c_user_openid=c2c_user_openid,
+                event_id=event_id,
+                claim_token=claim_token,
+                platform=platform,
+                reply_to_id=reply_to_id,
+            )
+            return PrivateUploadResult(
+                reply=reply,
+                group_openid=pending.group_openid,
+                outbox_id=outbox_id,
             )
 
         pending = self.memory_store.get_pending_upload_binding(

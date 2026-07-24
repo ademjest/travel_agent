@@ -5,25 +5,20 @@ import os
 import re
 import secrets
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 
+from background_supervisor import BackgroundSupervisor
 from bot_application import TravelBotApplication
 from chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
-from document_service import DocumentService
+from maintenance import MaintenanceService
 from memory_store import MemoryStore
-from outbox_worker import OutboxWorker
-from reminder_scheduler import ReminderScheduler
-from reservation_service import ReservationService
+from runtime_factory import build_runtime
 from settings import OneBotSettings, Settings
-from travel_agent import TravelAgent
-from travel_service import TravelService
-from upload_binding import UploadBindingService
-from vision_service import ImageVisionExtractor, ReservationImageService
 
 
 class OneBotTransport:
@@ -115,16 +110,37 @@ class OneBotAdapter:
             return {"status": "ignored"}
         message_type = str(payload.get("message_type") or "")
         if message_type == "group":
+            self._required_id(payload, "message_id")
+            self._required_id(payload, "group_id")
+            self._required_id(payload, "user_id")
+            self._required_id(payload, "self_id")
             return await self._handle_group(payload)
         if message_type == "private":
+            self._required_id(payload, "message_id")
+            self._required_id(payload, "user_id")
             await self.application.handle(self._private_event(payload))
             return {"status": "handled"}
         return {"status": "ignored"}
 
+    @staticmethod
+    def _required_id(payload: dict[str, Any], name: str) -> str:
+        value = str(payload.get(name) or "").strip()
+        if not value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"missing required field: {name}",
+            )
+        if len(value) > 128:
+            raise HTTPException(
+                status_code=400,
+                detail=f"invalid field: {name}",
+            )
+        return value
+
     async def _handle_group(
             self,
             payload: dict[str, Any]) -> dict[str, str]:
-        group_id = str(payload.get("group_id") or "")
+        group_id = self._required_id(payload, "group_id")
         if not self.settings.allows_group(group_id):
             raise HTTPException(status_code=403, detail="group not allowed")
         event, triggered = self._group_event(payload)
@@ -162,7 +178,7 @@ class OneBotAdapter:
             self,
             payload: dict[str, Any]) -> tuple[ChatEvent, bool]:
         segments = self._segments(payload)
-        self_id = str(payload.get("self_id") or "")
+        self_id = self._required_id(payload, "self_id")
         mentioned = any(
             segment.get("type") == "at"
             and str(segment.get("data", {}).get("qq") or "") == self_id
@@ -186,9 +202,9 @@ class OneBotAdapter:
         return ChatEvent(
             platform="onebot",
             channel="group",
-            event_id=str(payload.get("message_id") or ""),
-            scope_id=str(payload.get("group_id") or ""),
-            sender_id=str(payload.get("user_id") or "unknown"),
+            event_id=self._required_id(payload, "message_id"),
+            scope_id=self._required_id(payload, "group_id"),
+            sender_id=self._required_id(payload, "user_id"),
             content=self._text_content(payload, segments),
             reply_to_id=reply_to_id,
             attachments=self._attachments(segments),
@@ -196,11 +212,11 @@ class OneBotAdapter:
 
     def _private_event(self, payload: dict[str, Any]) -> ChatEvent:
         segments = self._segments(payload)
-        user_id = str(payload.get("user_id") or "")
+        user_id = self._required_id(payload, "user_id")
         return ChatEvent(
             platform="onebot",
             channel="private",
-            event_id=str(payload.get("message_id") or ""),
+            event_id=self._required_id(payload, "message_id"),
             scope_id=user_id,
             sender_id=user_id,
             content=self._text_content(payload, segments),
@@ -250,35 +266,35 @@ class OneBotAdapter:
 def create_onebot_app(
         settings: OneBotSettings,
         application: TravelBotApplication,
-        store: MemoryStore) -> FastAPI:
+        store: MemoryStore,
+        maintenance_service: MaintenanceService | None = None,
+        supervisor: BackgroundSupervisor | None = None) -> FastAPI:
     adapter = OneBotAdapter(settings, application, store)
+    maintenance = maintenance_service or MaintenanceService(
+        store,
+        Path(__file__).resolve().parent / "data" / "images",
+    )
+    task_supervisor = supervisor or BackgroundSupervisor()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        await asyncio.to_thread(
-            store.delete_chat_messages_before,
-            datetime.now(timezone.utc) - timedelta(days=30),
-        )
+        await asyncio.to_thread(maintenance.run_once)
         await application.reminder_scheduler.scan_once()
         await application.outbox_worker.dispatch_due_once()
-        outbox_task = asyncio.create_task(
-            application.outbox_worker.run(),
-            name="onebot-outbox",
+        task_supervisor.start(
+            "onebot-outbox",
+            application.outbox_worker.run,
         )
-        reminder_task = asyncio.create_task(
-            application.reminder_scheduler.run(),
-            name="onebot-reservation-reminders",
+        task_supervisor.start(
+            "onebot-reservation-reminders",
+            application.reminder_scheduler.run,
         )
+        task_supervisor.start("onebot-maintenance", maintenance.run)
+        app.state.background_supervisor = task_supervisor
         try:
             yield
         finally:
-            outbox_task.cancel()
-            reminder_task.cancel()
-            await asyncio.gather(
-                outbox_task,
-                reminder_task,
-                return_exceptions=True,
-            )
+            await task_supervisor.stop()
             close_transport = getattr(
                 application.outbox_worker.transport,
                 "aclose",
@@ -305,6 +321,43 @@ def create_onebot_app(
             raise HTTPException(status_code=400, detail="invalid event")
         return await adapter.handle(payload)
 
+    @app.get("/health")
+    async def health_endpoint():
+        storage = await asyncio.to_thread(
+            store.runtime_health,
+            "onebot",
+        )
+        tasks = task_supervisor.snapshot()
+        for name in (
+                "onebot-outbox",
+                "onebot-reservation-reminders",
+                "onebot-maintenance"):
+            tasks.setdefault(name, {
+                "running": False,
+                "restart_count": 0,
+                "last_error": "",
+                "last_failure_at": "",
+            })
+        degraded = (
+            int(storage["dead_letters"]) > 0
+            or int(storage["stale_processing_events"]) > 0
+            or any(not bool(item["running"]) for item in tasks.values())
+            or bool(maintenance.last_error)
+        )
+        return {
+            "status": "degraded" if degraded else "ok",
+            "tasks": tasks,
+            "storage": storage,
+            "maintenance": {
+                "last_run_at": (
+                    maintenance.last_run_at.isoformat()
+                    if maintenance.last_run_at
+                    else ""
+                ),
+                "last_error": maintenance.last_error,
+            },
+        }
+
     return app
 
 
@@ -320,61 +373,22 @@ def create_runtime_app() -> FastAPI:
         llm_base_url=os.getenv("LLM_BASE_URL", "").strip(),
         llm_model_id=os.getenv("LLM_MODEL_ID", "").strip(),
     )
-    store = MemoryStore()
-    travel_service = TravelService(travel_settings)
-    travel_agent = (
-        TravelAgent(travel_settings, travel_service.execute_tool)
-        if travel_settings.llm_configured
-        else None
-    )
-    document_service = DocumentService(
-        store,
-        summarizer=(
-            travel_agent.summarize_document if travel_agent else None
-        ),
-    )
-    upload_service = UploadBindingService(
-        store,
-        document_service,
-        group_allowed=onebot_settings.allows_group,
-    )
-    image_extractor = (
-        ImageVisionExtractor(
-            model_id=travel_settings.llm_model_id,
-            api_key=travel_settings.llm_api_key,
-            base_url=travel_settings.llm_base_url,
-        )
-        if travel_settings.llm_configured
-        else None
-    )
-    reservation_image_service = ReservationImageService(
-        store,
-        image_extractor,
-    )
-    reservation_service = ReservationService(store)
     transport = OneBotTransport(
         onebot_settings.http_url,
         onebot_settings.access_token,
     )
-    worker = OutboxWorker("onebot", store, transport)
     reply_renderer = OneBotReplyRenderer()
-    reminder_scheduler = ReminderScheduler(
+    runtime = build_runtime(
+        travel_settings,
         platform="onebot",
-        store=store,
-        renderer=reply_renderer,
-        group_allowed=onebot_settings.allows_group,
-    )
-    application = TravelBotApplication(
-        store=store,
-        travel_service=travel_service,
-        travel_agent=travel_agent,
-        document_service=document_service,
-        upload_binding_service=upload_service,
-        outbox_worker=worker,
+        transport=transport,
         reply_renderer=reply_renderer,
-        reminder_scheduler=reminder_scheduler,
-        reservation_image_service=reservation_image_service,
-        reservation_service=reservation_service,
         group_allowed=onebot_settings.allows_group,
     )
-    return create_onebot_app(onebot_settings, application, store)
+    return create_onebot_app(
+        onebot_settings,
+        runtime.application,
+        runtime.store,
+        runtime.maintenance_service,
+        runtime.supervisor,
+    )

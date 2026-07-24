@@ -15,6 +15,7 @@ class Settings:
     llm_api_key: str
     llm_base_url: str
     llm_model_id: str
+    allow_all_groups: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -24,6 +25,9 @@ class Settings:
         llm_api_key = os.getenv("LLM_API_KEY", "").strip()
         llm_base_url = os.getenv("LLM_BASE_URL", "").strip()
         llm_model_id = os.getenv("LLM_MODEL_ID", "").strip()
+        allow_all_groups = os.getenv(
+            "QQ_BOT_ALLOW_ALL_GROUPS", ""
+        ).strip().lower() in {"1", "true", "yes", "on"}
         allowed_groups = frozenset(
             value.strip()
             for value in os.getenv("QQ_BOT_ALLOWED_GROUPS", "").split(",")
@@ -47,11 +51,12 @@ class Settings:
             llm_api_key=llm_api_key,
             llm_base_url=llm_base_url,
             llm_model_id=llm_model_id,
+            allow_all_groups=allow_all_groups,
         )
 
     def allows_group(self, group_openid: str) -> bool:
         return (
-            not self.allowed_group_openids
+            self.allow_all_groups
             or group_openid in self.allowed_group_openids
         )
 

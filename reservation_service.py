@@ -8,6 +8,7 @@ from typing import Literal, Mapping, Protocol, Sequence
 from zoneinfo import ZoneInfo
 
 from chat_transport import storage_scope_id
+from event_idempotency import event_operation_key
 
 
 AdvanceUnit = Literal["day", "month", "none"]
@@ -108,8 +109,6 @@ _NEGATIVE_VISIT_MARKERS = (
     "不参观",
 )
 _POSITIVE_ACTIVITY_MARKERS = (
-    "→",
-    "->",
     "游览",
     "参观",
     "前往",
@@ -131,10 +130,24 @@ def _required_text(payload: Mapping[str, object], key: str) -> str:
     return value
 
 
+def _bounded_text(
+        payload: Mapping[str, object],
+        key: str,
+        max_chars: int) -> str:
+    value = str(payload.get(key) or "").strip()
+    if len(value) > max_chars:
+        raise ValueError(f"{key} is too long")
+    return value
+
+
 def normalize_extraction_item(
         payload: Mapping[str, object]) -> ReservationExtractionItem:
     attraction_name = _required_text(payload, "attraction_name")
-    requires_reservation = bool(payload.get("requires_reservation"))
+    if len(attraction_name) > 200:
+        raise ValueError("attraction_name is too long")
+    requires_reservation = payload.get("requires_reservation")
+    if not isinstance(requires_reservation, bool):
+        raise ValueError("requires_reservation must be a boolean")
     advance_unit = str(payload.get("advance_unit") or "").strip().lower()
     if advance_unit not in {"day", "month", "none"}:
         raise ValueError("advance_unit must be day, month, or none")
@@ -161,13 +174,13 @@ def normalize_extraction_item(
 
     return ReservationExtractionItem(
         attraction_name=attraction_name,
-        price_text=str(payload.get("price_text") or "").strip(),
-        opening_hours=str(payload.get("opening_hours") or "").strip(),
+        price_text=_bounded_text(payload, "price_text", 500),
+        opening_hours=_bounded_text(payload, "opening_hours", 500),
         requires_reservation=requires_reservation,
         advance_value=advance_value,
         advance_unit=advance_unit,
-        booking_channel=str(payload.get("booking_channel") or "").strip(),
-        source_text=str(payload.get("source_text") or "").strip(),
+        booking_channel=_bounded_text(payload, "booking_channel", 500),
+        source_text=_bounded_text(payload, "source_text", 2_000),
         confidence=confidence,
     )
 
@@ -415,19 +428,70 @@ class ReservationItineraryResolver:
         ]
         if not matching:
             return ""
-        if any(
-                any(marker in line for marker in _NEGATIVE_VISIT_MARKERS)
-                for unused, line in matching):
-            return "negative"
-        if any(
-                index == 0
-                or any(
-                    marker in line
-                    for marker in _POSITIVE_ACTIVITY_MARKERS
+        positive_seen = False
+        for index, line in matching:
+            cells = re.split(r"\s*\|\s*", line)
+            has_route = any(
+                len(re.split(r"(?:→|->)", cell)) > 1
+                for cell in cells
+            )
+            for cell in cells:
+                if attraction_name not in cell:
+                    continue
+                route_parts = re.split(r"(?:→|->)", cell)
+                if len(route_parts) > 1:
+                    matching_parts = [
+                        (position, part)
+                        for position, part in enumerate(route_parts)
+                        if attraction_name in part
+                    ]
+                    if any(
+                            any(
+                                marker in part
+                                for marker in _NEGATIVE_VISIT_MARKERS
+                            )
+                            for unused, part in matching_parts):
+                        return "negative"
+                    if any(
+                            position > 0
+                            or any(
+                                marker in part
+                                for marker in _POSITIVE_ACTIVITY_MARKERS
+                            )
+                            for position, part in matching_parts):
+                        positive_seen = True
+                    continue
+                statements = [
+                    statement
+                    for statement in re.split(
+                        r"(?:[，,；;。！？!?]+|但是|但|不过|然而|而)",
+                        cell,
+                    )
+                    if attraction_name in statement
+                ]
+                if any(
+                        any(
+                            marker in statement
+                            for marker in _NEGATIVE_VISIT_MARKERS
+                        )
+                        for statement in statements):
+                    return "negative"
+                if any(
+                        any(
+                            marker in statement
+                            for marker in _POSITIVE_ACTIVITY_MARKERS
+                        )
+                        for statement in statements):
+                    positive_seen = True
+            if not has_route and index == 0:
+                heading_cell = (
+                    line
+                    if len(cells) == 1
+                    else next((cell for cell in cells[1:] if cell), "")
                 )
-                for index, line in matching):
-            return "positive"
-        return ""
+                if attraction_name in heading_cell:
+                    positive_seen = True
+        return "positive" if positive_seen else ""
 
     @classmethod
     def _resolve_document(
@@ -507,7 +571,8 @@ class ReservationService:
             self,
             image: object,
             extraction_items: Sequence[ReservationExtractionItem],
-            now: datetime | None = None):
+            now: datetime | None = None,
+            source_event_id: str = ""):
         required_names = tuple(dict.fromkeys(
             extraction.attraction_name
             for extraction in extraction_items
@@ -572,6 +637,7 @@ class ReservationService:
             creator_id=image.uploader_id,
             items=tuple(draft_items),
             now=now,
+            source_event_id=source_event_id,
         )
 
     def refresh_plan(
@@ -770,7 +836,8 @@ class ReservationService:
             visit_date: date,
             advance_value: int,
             advance_unit: AdvanceUnit,
-            requires_reservation: bool):
+            requires_reservation: bool,
+            operation_key: str = ""):
         extraction = ReservationExtractionItem(
             attraction_name=attraction_name.strip(),
             price_text="",
@@ -801,6 +868,7 @@ class ReservationService:
             booking_date,
             "default" if requires_reservation else "none",
             "ready",
+            source_operation_key=operation_key,
         )
         if not changed:
             raise ValueError("未找到可修改的预约计划")
@@ -1035,6 +1103,38 @@ class ReservationService:
         return message
 
     def handle_command(self, command: object, event: object) -> str:
+        event_id = str(getattr(event, "event_key", "") or "")
+        if not event_id:
+            return self._handle_command_uncached(command, event)
+        arguments = {
+            "args": list(command.args),
+        }
+        operation_key = event_operation_key(
+            event_id,
+            command.name,
+            arguments,
+        )
+        cached = self.store.get_event_tool_result(operation_key)
+        if cached is not None:
+            return cached
+        result = self._handle_command_uncached(
+            command,
+            event,
+            operation_key=operation_key,
+        )
+        return self.store.save_event_tool_result(
+            operation_key,
+            event_id,
+            command.name,
+            arguments,
+            result,
+        )
+
+    def _handle_command_uncached(
+            self,
+            command: object,
+            event: object,
+            operation_key: str = "") -> str:
         name = command.name
         args = command.args
         platform = event.platform
@@ -1066,6 +1166,7 @@ class ReservationService:
                 advance_value=int(args[3]),
                 advance_unit=args[4],
                 requires_reservation=args[5] == "1",
+                operation_key=operation_key,
             )
             return self.format_draft(plan)
         if name == "reservation_set_times":

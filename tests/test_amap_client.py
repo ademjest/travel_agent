@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import Mock
 
+import requests
+
 from amap_client import AmapClient, AmapError
 
 
@@ -42,6 +44,30 @@ class AmapClientTests(unittest.TestCase):
 
         self.assertEqual(weather.temperature, "20")
         self.assertEqual(weather.location.adcode, "630100")
+
+    def test_request_error_does_not_expose_api_key_or_signed_url(self):
+        secret = "secret-amap-key"
+
+        def failing_get(*args, **kwargs):
+            request = requests.Request(
+                "GET",
+                args[0],
+                params=kwargs["params"],
+            ).prepare()
+            raise requests.ConnectionError(
+                "failed",
+                request=request,
+            )
+
+        client = AmapClient(secret, http_get=failing_get)
+
+        with self.assertRaises(AmapError) as raised:
+            client._get("/v3/weather/weatherInfo", {"city": "630100"})
+
+        message = str(raised.exception)
+        self.assertNotIn(secret, message)
+        self.assertNotIn("https://", message)
+        self.assertIn("ConnectionError", message)
 
     def test_driving_route_aggregates_traffic(self):
         self.client._get.side_effect = [

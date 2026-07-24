@@ -32,3 +32,23 @@ class TravelDecisionTests(unittest.TestCase):
         self.assertEqual(decision.intent, "document")
         self.assertFalse(decision.require_live_data)
         self.assertEqual(decision.allowed_tools, ())
+
+    def test_weather_and_traffic_can_be_selected_together(self):
+        decision = decide_travel_action(
+            "明天从西宁到青海湖，天气和路况怎么样？"
+        )
+
+        self.assertEqual(decision.intents, ("traffic", "forecast"))
+        self.assertEqual(
+            decision.allowed_tools,
+            ("get_route_traffic", "get_weather_forecast"),
+        )
+        self.assertFalse(decision.needs_clarification)
+
+    def test_natural_reservation_action_exposes_reservation_tools(self):
+        decision = decide_travel_action("帮我确认预约 R-20260722-001")
+
+        self.assertEqual(decision.intent, "reservation")
+        self.assertIn("list_reservation_plans", decision.allowed_tools)
+        self.assertIn("confirm_reservation_plan", decision.allowed_tools)
+        self.assertTrue(decision.required_tool_groups)

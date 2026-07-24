@@ -64,6 +64,47 @@ class UploadBindingServiceTests(unittest.TestCase):
         self.assertIn("私聊", reply)
         self.assertIn(".xlsx", reply)
 
+    def test_event_replay_reuses_original_binding_code(self):
+        codes = iter(("QG-ABC234", "QG-DEF567"))
+        service = UploadBindingService(
+            self.store,
+            self.documents,
+            code_factory=lambda: next(codes),
+            now_provider=lambda: self.now,
+        )
+        first_claim = self.store.begin_event("binding-event", now=self.now)
+        first = service.issue_binding(
+            "group-a",
+            "member-a",
+            event_id=first_claim.event_id,
+            claim_token=first_claim.claim_token,
+        )
+        self.store.fail_event(
+            first_claim.event_id,
+            first_claim.claim_token,
+            "simulated crash",
+            now=self.now,
+        )
+        second_claim = self.store.begin_event("binding-event", now=self.now)
+
+        second = service.issue_binding(
+            "group-a",
+            "member-a",
+            event_id=second_claim.event_id,
+            claim_token=second_claim.claim_token,
+        )
+
+        self.assertEqual(second, first)
+        self.assertIn("QG-ABC234", second)
+        self.assertNotIn("QG-DEF567", second)
+        with self.store._connect() as connection:
+            count = connection.execute(
+                "SELECT COUNT(*) FROM upload_bindings "
+                "WHERE source_event_id = ?",
+                ("binding-event",),
+            ).fetchone()[0]
+        self.assertEqual(count, 1)
+
     def test_private_code_redeems_target_group(self):
         self.service.issue_binding("group-a", "member-a")
 
@@ -131,6 +172,23 @@ class UploadBindingServiceTests(unittest.TestCase):
                 now=self.now,
             )
         )
+
+    def test_multiple_private_attachments_are_rejected_before_download(self):
+        self.service.issue_binding("group-a", "member-a")
+        self.service.handle_private_message(
+            "private-user", "QG-ABC234", []
+        )
+
+        result = self.handle_attachment(
+            "private-event-multiple",
+            [
+                SimpleNamespace(filename="one.docx"),
+                SimpleNamespace(filename="two.docx"),
+            ],
+        )
+
+        self.assertIn("一次只能上传一个", result.reply)
+        self.assertEqual(self.documents.calls, [])
 
     def test_legacy_xls_private_upload_requests_xlsx_conversion(self):
         self.documents.prepared = ()

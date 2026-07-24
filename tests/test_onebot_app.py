@@ -51,7 +51,7 @@ class FakeDocumentService:
 
 
 class FakeUploadService:
-    def issue_binding(self, group_id, sender_id):
+    def issue_binding(self, group_id, sender_id, **kwargs):
         return "binding"
 
     def handle_private_message(self, *args, **kwargs):
@@ -140,6 +140,34 @@ class OneBotAppTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_missing_required_message_id_is_rejected(self):
+        payload = self.payload(
+            1,
+            [{"type": "text", "data": {"text": "普通消息"}}],
+        )
+        payload.pop("message_id")
+
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=payload,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("message_id", response.json()["detail"])
+
+    def test_health_reports_tasks_and_storage_without_tokens(self):
+        response = self.client.get("/health")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn(payload["status"], {"ok", "degraded"})
+        self.assertIn("onebot-outbox", payload["tasks"])
+        self.assertIn("outbox", payload["storage"])
+        rendered = str(payload)
+        self.assertNotIn("outbound-token", rendered)
+        self.assertNotIn("inbound-token", rendered)
 
     def test_non_at_message_is_stored_without_invoking_agent(self):
         response = self.client.post(
