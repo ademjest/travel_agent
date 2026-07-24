@@ -104,6 +104,10 @@ class CommandTests(unittest.TestCase):
 
     def test_reservation_management_commands(self):
         cases = {
+            "制定预约": ("reservation_start", ()),
+            "开始制定预约": ("reservation_start", ()),
+            "退出制定预约": ("reservation_stop", ()),
+            "取消制定预约": ("reservation_stop", ()),
             "查看预约提醒": ("reservation_list", ()),
             "修改预约提醒 A-000123 游览日期 2026-08-21": (
                 "reservation_modify_date",

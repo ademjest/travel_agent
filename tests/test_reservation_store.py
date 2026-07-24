@@ -2,7 +2,7 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from memory_store import MemoryStore
@@ -124,6 +124,39 @@ class ReservationStoreTests(unittest.TestCase):
         self.assertTrue(isolated_is_new)
         self.assertEqual(first.image_id, duplicate.image_id)
         self.assertNotEqual(first.image_id, isolated.image_id)
+
+    def test_reservation_workflow_is_scoped_expires_and_can_be_cleared(self):
+        now = datetime(2026, 7, 24, 8, 0, tzinfo=timezone.utc)
+        self.store.start_reservation_workflow(
+            "qq_official",
+            "group-a",
+            "member-a",
+            now=now,
+            duration=timedelta(minutes=30),
+        )
+
+        self.assertTrue(self.store.reservation_workflow_is_active(
+            "qq_official", "group-a", "member-a", now=now
+        ))
+        self.assertFalse(self.store.reservation_workflow_is_active(
+            "qq_official", "group-a", "member-b", now=now
+        ))
+        self.assertFalse(self.store.reservation_workflow_is_active(
+            "qq_official",
+            "group-a",
+            "member-a",
+            now=now + timedelta(minutes=31),
+        ))
+
+        self.store.start_reservation_workflow(
+            "qq_official", "group-a", "member-a", now=now
+        )
+        self.assertTrue(self.store.clear_reservation_workflow(
+            "qq_official", "group-a", "member-a"
+        ))
+        self.assertFalse(self.store.reservation_workflow_is_active(
+            "qq_official", "group-a", "member-a", now=now
+        ))
 
     def test_draft_persists_date_candidates_and_custom_times(self):
         image, unused = self.store.create_reservation_image(

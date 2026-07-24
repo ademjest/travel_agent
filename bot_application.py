@@ -159,6 +159,17 @@ class TravelBotApplication:
             memory_content: str,
             claim: EventClaim) -> tuple[str, str]:
         try:
+            command = parse_command(event.content)
+            if (
+                    command.name == "reservation_stop"
+                    and self.reservation_service is not None):
+                reply = await asyncio.to_thread(
+                    self.reservation_service.handle_command,
+                    command,
+                    event,
+                )
+                return reply, memory_content
+
             image_attachments = (
                 [
                     attachment
@@ -173,6 +184,34 @@ class TravelBotApplication:
                 )
                 else []
             )
+            reservation_workflow_active = False
+            if self.reservation_service is not None:
+                if (
+                        image_attachments
+                        and command.name == "reservation_start"):
+                    await asyncio.to_thread(
+                        self.reservation_service.start_workflow,
+                        event.platform,
+                        event.scope_id,
+                        event.sender_id,
+                    )
+                reservation_workflow_active = (
+                    command.name == "reservation_start"
+                    or await asyncio.to_thread(
+                        self.reservation_service.workflow_is_active,
+                        event.platform,
+                        event.scope_id,
+                        event.sender_id,
+                    )
+                )
+
+            if image_attachments and not reservation_workflow_active:
+                return (
+                    "图片不会自动创建预约计划。"
+                    "如果这是预约攻略，请先发送“制定预约”，"
+                    "或在图片消息中填写“制定预约”。",
+                    memory_content or "发送普通图片",
+                )
             if len(image_attachments) > 1:
                 return (
                     "一次只能识别一张预约图片，请逐张发送。",
@@ -229,6 +268,12 @@ class TravelBotApplication:
                         "已转为全手动草稿。\n"
                         + reply
                     )
+                await asyncio.to_thread(
+                    self.reservation_service.finish_workflow,
+                    event.platform,
+                    event.scope_id,
+                    event.sender_id,
+                )
                 return reply, "上传景点预约图片"
 
             document_result = await asyncio.to_thread(
@@ -245,7 +290,6 @@ class TravelBotApplication:
                     or "上传旅行文档"
                 )
             else:
-                command = parse_command(event.content)
                 if (
                         command.name.startswith("reservation_")
                         and self.reservation_service is not None):
@@ -261,6 +305,13 @@ class TravelBotApplication:
                         event.sender_id,
                         event_id=event.event_key,
                         claim_token=claim.claim_token,
+                    )
+                elif (
+                        reservation_workflow_active
+                        and command.name == "unknown"):
+                    reply = (
+                        "当前正在制定预约。请发送一张预约攻略图片，"
+                        "或发送“退出制定预约”结束当前流程。"
                     )
                 elif command.name != "unknown" or not self.travel_agent:
                     reply = await asyncio.to_thread(

@@ -27,6 +27,7 @@ class QQGroupUiTests(unittest.TestCase):
                 self.assertTrue(action["data"])
                 self.assertTrue(action["unsupport_tips"])
         self.assertIn("查看预约提醒", commands)
+        self.assertIn("制定预约", commands)
         self.assertIn("刷新预约 ", commands)
 
     def test_help_and_menu_use_markdown_with_keyboard(self):
@@ -37,6 +38,10 @@ class QQGroupUiTests(unittest.TestCase):
                 self.assertIn("青甘自驾助手", payload["markdown"]["content"])
                 self.assertIn(
                     "确认前不会发送提醒",
+                    payload["markdown"]["content"],
+                )
+                self.assertIn(
+                    "制定预约",
                     payload["markdown"]["content"],
                 )
                 self.assertIn(

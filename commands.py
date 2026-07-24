@@ -12,6 +12,7 @@ HELP_TEXT = """🚙 青甘自驾助手
 - 查询路线 西宁 -> 青海湖：规划驾车路线
 - 查询路况 青海湖 -> 茶卡盐湖：查看实时拥堵路段
 - 上传文档：获取私聊上传绑定码
+- 制定预约：进入预约攻略图片识别流程
 - ping：检查机器人是否在线
 
 可以从群输入框的“/”指令面板选择，也可以在群里 @机器人 后输入。
@@ -92,6 +93,12 @@ def parse_command(content: str) -> Command:
         return Command(name="status")
     if command in {"上传文档", "文档上传", "导入文档"}:
         return Command(name="upload_document")
+
+    if command in {"制定预约", "开始制定预约"}:
+        return Command(name="reservation_start")
+
+    if command in {"退出制定预约", "取消制定预约"}:
+        return Command(name="reservation_stop")
 
     if command == "查看预约提醒":
         return Command(name="reservation_list")

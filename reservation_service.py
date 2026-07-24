@@ -14,6 +14,7 @@ from event_idempotency import event_operation_key
 AdvanceUnit = Literal["day", "month", "none"]
 BEIJING_TZ = ZoneInfo("Asia/Shanghai")
 ABSOLUTE_TIME_FORMAT = "%Y-%m-%d %H:%M"
+RESERVATION_WORKFLOW_TTL = timedelta(minutes=30)
 
 
 @dataclass(frozen=True)
@@ -565,6 +566,40 @@ class ReservationService:
         self.store = store
         self.itinerary_resolver = (
             itinerary_resolver or ReservationItineraryResolver()
+        )
+
+    def start_workflow(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> None:
+        self.store.start_reservation_workflow(
+            platform,
+            group_id,
+            creator_id,
+            duration=RESERVATION_WORKFLOW_TTL,
+        )
+
+    def workflow_is_active(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> bool:
+        return self.store.reservation_workflow_is_active(
+            platform,
+            group_id,
+            creator_id,
+        )
+
+    def finish_workflow(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> bool:
+        return self.store.clear_reservation_workflow(
+            platform,
+            group_id,
+            creator_id,
         )
 
     def create_draft(
@@ -1141,6 +1176,17 @@ class ReservationService:
         group_id = event.scope_id
         creator_id = event.sender_id
 
+        if name == "reservation_start":
+            self.start_workflow(platform, group_id, creator_id)
+            return (
+                "已进入预约制定模式。请在 30 分钟内发送一张预约攻略图片，"
+                "机器人会识别景点是否需要预约及提前时间。"
+                "发送“退出制定预约”可以取消。"
+            )
+        if name == "reservation_stop":
+            if self.finish_workflow(platform, group_id, creator_id):
+                return "已退出预约制定模式。"
+            return "当前没有正在进行的预约制定流程。"
         if name == "reservation_list":
             return self.format_plan_list(
                 self.list_plans(platform, group_id, creator_id)

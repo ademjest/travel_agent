@@ -334,6 +334,15 @@ class MemoryStore:
                 CREATE INDEX IF NOT EXISTS idx_outbox_due
                 ON outbox_messages(status, next_attempt_at, lease_expires_at);
 
+                CREATE TABLE IF NOT EXISTS reservation_workflows (
+                    platform TEXT NOT NULL,
+                    group_id TEXT NOT NULL,
+                    creator_id TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    PRIMARY KEY(platform, group_id, creator_id)
+                );
+
                 CREATE TABLE IF NOT EXISTS reservation_images (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     storage_scope_id TEXT NOT NULL,
@@ -1364,6 +1373,83 @@ class MemoryStore:
             "dead_letters": int(outbox.get("dead_letter", 0)),
             "stale_processing_events": int(stale_events["count"]),
         }
+
+    def start_reservation_workflow(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            now: datetime | None = None,
+            duration: timedelta = timedelta(minutes=30)) -> datetime:
+        started_at = now or datetime.now(timezone.utc)
+        expires_at = started_at + duration
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO reservation_workflows (
+                    platform, group_id, creator_id, started_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(platform, group_id, creator_id) DO UPDATE SET
+                    started_at = excluded.started_at,
+                    expires_at = excluded.expires_at
+                """,
+                (
+                    platform,
+                    group_id,
+                    creator_id,
+                    started_at.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+        return expires_at
+
+    def reservation_workflow_is_active(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            now: datetime | None = None) -> bool:
+        current = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1 FROM reservation_workflows
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                  AND julianday(expires_at) > julianday(?)
+                """,
+                (platform, group_id, creator_id, current.isoformat()),
+            ).fetchone()
+            if row is not None:
+                return True
+            connection.execute(
+                """
+                DELETE FROM reservation_workflows
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                """,
+                (platform, group_id, creator_id),
+            )
+        return False
+
+    def clear_reservation_workflow(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM reservation_workflows
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                """,
+                (platform, group_id, creator_id),
+            )
+        return cursor.rowcount == 1
 
     def create_reservation_image(
             self,

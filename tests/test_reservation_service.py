@@ -1242,6 +1242,31 @@ class ReservationManagementTests(ReservationDraftTests):
         self.assertIn("查看预约提醒", reply)
         self.assertIn("确认预约 R-YYYYMMDD-NNN", reply)
 
+    def test_reservation_workflow_commands_start_and_stop_image_collection(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        event = SimpleNamespace(
+            platform="qq_official",
+            scope_id="group-a",
+            sender_id="member-a",
+        )
+
+        started = service.handle_command(parse_command("制定预约"), event)
+
+        self.assertIn("预约攻略图片", started)
+        self.assertTrue(service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
+
+        stopped = service.handle_command(parse_command("退出制定预约"), event)
+
+        self.assertIn("已退出", stopped)
+        self.assertFalse(service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
+
     def test_non_creator_cannot_view_modify_or_cancel(self):
         service, plan = self.ready_plan()
         confirmed = service.confirm_plan(
