@@ -25,8 +25,13 @@ def make_acceptance_xlsx():
     worksheet.title = "每日行程"
     worksheet.append(["日期", "行程"])
     worksheet.append([
-        date(2026, 8, 17),
-        "西宁 → 青海湖 → 茶卡盐湖 → 都兰",
+        46251,
+        (
+            "11:30到青海湖二郎剑景区\n"
+            "12:30从青海湖二郎剑景区出发\n"
+            "15:30到茶卡盐湖天空壹号停车场\n"
+            "16:30从茶卡盐湖天空壹号停车场出发"
+        ),
     ])
     workbook.save(buffer)
     workbook.close()

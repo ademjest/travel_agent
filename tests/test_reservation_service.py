@@ -193,6 +193,61 @@ class ReservationItineraryResolverTests(unittest.TestCase):
             ),
         )
 
+    def test_resolves_timeline_arrivals_from_realistic_xlsx_text(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="青甘大环线自驾行程安排.xlsx",
+            chunks=((
+                "[工作表：Sheet1]\n"
+                "日期 | 行程\n"
+                "2026-08-17 | 7:00起床\n"
+                "9:30到日月山景区北门\n"
+                "10:30从日月山景区南门出发\n"
+                "11:30到青海湖二郎剑景区\n"
+                "12:30从青海湖二郎剑景区出发\n"
+                "15:30到茶卡盐湖天空壹号停车场\n"
+                "16:30从茶卡盐湖天空壹号停车场出发\n"
+                "2026-08-18 | 11:30到察尔汗盐湖游客中心停车场\n"
+                "15:00从察尔汗盐湖游客中心出发\n"
+                "2026-08-19 | 8:20到大柴旦翡翠湖停车场\n"
+                "9:00从大柴旦翡翠湖出发\n"
+                "12:00到黑独山胭脂山景区地上停车场\n"
+                "16:00从黑独山胭脂山出发\n"
+                "2026-08-20 | 8:20到莫高窟景区停车场\n"
+                "18:00从莫高窟景区出发\n"
+                "18:20到鸣沙山月牙泉东门游客中心\n"
+                "20:30返回敦煌市区\n"
+                "2026-08-21 | 13:00到嘉峪关城楼外围，远观不进景区\n"
+                "14:00从嘉峪关出发"
+            ),),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            (
+                "青海湖",
+                "翡翠湖",
+                "莫高窟",
+                "鸣沙山",
+                "嘉峪关",
+                "察尔汗盐湖",
+                "茶卡盐湖",
+                "水上雅丹",
+            ),
+        )
+
+        self.assertEqual(resolutions["青海湖"].dates, (date(2026, 8, 17),))
+        self.assertEqual(resolutions["茶卡盐湖"].dates, (date(2026, 8, 17),))
+        self.assertEqual(
+            resolutions["察尔汗盐湖"].dates,
+            (date(2026, 8, 18),),
+        )
+        self.assertEqual(resolutions["翡翠湖"].dates, (date(2026, 8, 19),))
+        self.assertEqual(resolutions["莫高窟"].dates, (date(2026, 8, 20),))
+        self.assertEqual(resolutions["鸣沙山"].dates, (date(2026, 8, 20),))
+        self.assertEqual(resolutions["嘉峪关"].reason, "not_scheduled")
+        self.assertEqual(resolutions["水上雅丹"].reason, "not_found")
+
     def test_route_origin_is_not_counted_as_a_second_visit_date(self):
         document = StoredDocumentContent(
             document_id=1,

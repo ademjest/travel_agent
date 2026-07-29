@@ -13,6 +13,7 @@ import requests
 from docx import Document
 from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
+from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
 
 from memory_store import MemoryStore
 from secure_download import download_https, resolve_host
@@ -210,6 +211,25 @@ class DocumentService:
             raise ValueError("Office 文件损坏、加密或无法读取") from exc
 
     @staticmethod
+    def _is_date_header(value: object) -> bool:
+        if not isinstance(value, str):
+            return False
+        normalized = re.sub(r"\s+", "", value).lower()
+        return normalized == "date" or normalized.endswith("日期")
+
+    @staticmethod
+    def _excel_date_serial(value: object, epoch: datetime) -> object:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return value
+        try:
+            converted = from_excel(value, epoch)
+        except (OverflowError, TypeError, ValueError):
+            return value
+        if isinstance(converted, datetime) and 1900 <= converted.year <= 2200:
+            return converted
+        return value
+
+    @staticmethod
     def _excel_value(value: object) -> str:
         if value is None:
             return ""
@@ -251,6 +271,8 @@ class DocumentService:
                     if worksheet.sheet_state != "visible":
                         continue
                     rows = []
+                    date_columns = set()
+                    epoch = getattr(workbook, "epoch", WINDOWS_EPOCH)
                     for raw_row in worksheet.iter_rows(values_only=True):
                         row_count += 1
                         cell_count += len(raw_row)
@@ -258,9 +280,21 @@ class DocumentService:
                                 row_count > MAX_SPREADSHEET_ROWS
                                 or cell_count > MAX_SPREADSHEET_CELLS):
                             raise ValueError("Excel 文件有效数据范围过大")
+                        date_columns.update(
+                            index
+                            for index, value in enumerate(raw_row)
+                            if DocumentService._is_date_header(value)
+                        )
                         values = [
-                            DocumentService._excel_value(value)
-                            for value in raw_row
+                            DocumentService._excel_value(
+                                DocumentService._excel_date_serial(
+                                    value,
+                                    epoch,
+                                )
+                                if index in date_columns
+                                else value
+                            )
+                            for index, value in enumerate(raw_row)
                         ]
                         while values and not values[-1]:
                             values.pop()

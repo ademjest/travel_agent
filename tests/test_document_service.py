@@ -39,6 +39,7 @@ def make_xlsx_bytes():
         True,
         datetime(2026, 8, 17, 7, 30),
     ])
+    itinerary.append([46250, "原始 Excel 日期序列号"])
     itinerary.merge_cells("A4:B4")
     itinerary["A4"] = "集合地点：西宁"
 
@@ -77,6 +78,8 @@ class DocumentServiceTests(unittest.TestCase):
         self.assertIn("[工作表：每日行程]", text)
         self.assertIn("日期 | 行程 | 人数 | 确认 | 出发时间", text)
         self.assertIn("2026-08-17", text)
+        self.assertIn("2026-08-16 | 原始 Excel 日期序列号", text)
+        self.assertNotIn("46250", text)
         self.assertIn("2026-08-17 07:30", text)
         self.assertIn("西宁 → 青海湖 → 茶卡盐湖 → 都兰", text)
         self.assertIn("4 | TRUE", text)

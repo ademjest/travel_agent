@@ -122,6 +122,12 @@ _POSITIVE_ACTIVITY_MARKERS = (
     "傍晚",
     "重点安排",
 )
+_TIMELINE_EVENT_RE = re.compile(
+    r"^\s*\d{1,2}:\d{2}\s*(?P<detail>.+)$"
+)
+_TIMELINE_ARRIVAL_RE = re.compile(
+    r"(?:到达|抵达|到|前往)[^，,；;。！？!?]{0,40}$"
+)
 
 
 def _required_text(payload: Mapping[str, object], key: str) -> str:
@@ -419,6 +425,23 @@ class ReservationItineraryResolver:
         return tuple(segments)
 
     @staticmethod
+    def _timeline_event_match(text: str, attraction_name: str) -> str:
+        match = _TIMELINE_EVENT_RE.match(text)
+        if match is None:
+            return ""
+        detail = match.group("detail")
+        attraction_position = detail.find(attraction_name)
+        if attraction_position < 0:
+            return ""
+        if any(marker in detail for marker in _NEGATIVE_VISIT_MARKERS):
+            return "negative"
+        if _TIMELINE_ARRIVAL_RE.search(detail[:attraction_position]):
+            return "positive"
+        if any(marker in detail for marker in _POSITIVE_ACTIVITY_MARKERS):
+            return "positive"
+        return ""
+
+    @staticmethod
     def _segment_match(
             segment: _DatedItinerarySegment,
             attraction_name: str) -> str:
@@ -439,6 +462,16 @@ class ReservationItineraryResolver:
             for cell in cells:
                 if attraction_name not in cell:
                     continue
+                timeline_match = (
+                    ReservationItineraryResolver._timeline_event_match(
+                        cell,
+                        attraction_name,
+                    )
+                )
+                if timeline_match == "negative":
+                    return "negative"
+                if timeline_match == "positive":
+                    positive_seen = True
                 route_parts = re.split(r"(?:→|->)", cell)
                 if len(route_parts) > 1:
                     matching_parts = [
