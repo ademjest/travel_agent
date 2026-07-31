@@ -6,11 +6,11 @@ from botpy import logging
 from botpy.message import C2CMessage, GroupMessage
 from dotenv import load_dotenv
 
-from background_supervisor import BackgroundSupervisor
-from chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
-from qq_ui import build_group_message_payload
-from runtime_factory import build_runtime
-from settings import Settings, SettingsError
+from adapters.qq_ui import build_group_message_payload
+from app.runtime_factory import build_runtime
+from core.background_supervisor import BackgroundSupervisor
+from core.chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
+from core.settings import Settings, SettingsError
 
 
 logger = logging.get_logger()

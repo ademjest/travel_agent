@@ -1,6 +1,9 @@
 import unittest
 
-from secure_download import download_https, validate_public_https_url
+from infrastructure.secure_download import (
+    download_https,
+    validate_public_https_url,
+)
 
 
 class FakeResponse:

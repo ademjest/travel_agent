@@ -8,9 +8,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from chat_transport import storage_scope_id
-from document_service import DocumentService
-from memory_store import MemoryStore, UploadBindingRedemption
+from core.chat_transport import storage_scope_id
+from infrastructure.memory_store import MemoryStore, UploadBindingRedemption
+from services.document_service import DocumentService
 
 
 UPLOAD_BINDING_TTL = timedelta(minutes=10)

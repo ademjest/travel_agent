@@ -4,9 +4,12 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from chat_transport import ChatAttachment
-from memory_store import MemoryStore
-from vision_service import ImageVisionExtractor, ReservationImageService
+from core.chat_transport import ChatAttachment
+from infrastructure.memory_store import MemoryStore
+from services.vision_service import (
+    ImageVisionExtractor,
+    ReservationImageService,
+)
 
 
 class FakeResponse:
@@ -255,7 +258,8 @@ class VisionServiceTests(unittest.TestCase):
             FakeResponse(b"image", "image/webp"),
             ["not json", "still not json"],
         )
-        with self.assertLogs("vision_service", level="WARNING"):
+        with self.assertLogs(
+                "services.vision_service", level="WARNING"):
             result = service.process_attachment(
                 "group-a",
                 "qq_official",
@@ -274,7 +278,8 @@ class VisionServiceTests(unittest.TestCase):
             FakeResponse(b"image", "image/jpeg"),
             [TimeoutError("model timeout")],
         )
-        with self.assertLogs("vision_service", level="WARNING"):
+        with self.assertLogs(
+                "services.vision_service", level="WARNING"):
             result = service.process_attachment(
                 "group-a",
                 "qq_official",

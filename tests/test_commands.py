@@ -1,6 +1,6 @@
 import unittest
 
-from commands import build_reply, normalize_command, parse_command
+from core.commands import build_reply, normalize_command, parse_command
 
 
 class CommandTests(unittest.TestCase):

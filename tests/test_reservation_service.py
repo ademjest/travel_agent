@@ -7,9 +7,9 @@ from threading import Event
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from commands import parse_command
-from memory_store import MemoryStore, StoredDocumentContent
-from reservation_service import (
+from core.commands import parse_command
+from infrastructure.memory_store import MemoryStore, StoredDocumentContent
+from services.reservation_service import (
     ReservationExtractionItem,
     ReservationItineraryResolver,
     ReservationService,
@@ -910,7 +910,7 @@ class ReservationDraftTests(unittest.TestCase):
             itinerary_resolver=FakeItineraryResolver(current_resolution),
         )
 
-        with patch("memory_store.datetime", FixedDatetime):
+        with patch("infrastructure.memory_store.datetime", FixedDatetime):
             with ThreadPoolExecutor(max_workers=1) as executor:
                 slow_future = executor.submit(
                     slow_service.refresh_plan,

@@ -1,9 +1,18 @@
 import unittest
 from unittest.mock import Mock
 
-from amap_client import AmapError, Location, RouteSummary, TrafficSegment
-from settings import Settings
-from travel_service import TravelService, _format_duration, _format_traffic
+from core.settings import Settings
+from infrastructure.amap_client import (
+    AmapError,
+    Location,
+    RouteSummary,
+    TrafficSegment,
+)
+from services.travel_service import (
+    TravelService,
+    _format_duration,
+    _format_traffic,
+)
 
 
 class TravelServiceTests(unittest.TestCase):

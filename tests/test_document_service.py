@@ -10,8 +10,8 @@ from zipfile import ZipFile
 from docx import Document
 from openpyxl import Workbook
 
-from document_service import DocumentService
-from memory_store import MemoryStore
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentService
 
 
 def make_docx_bytes():
@@ -104,7 +104,7 @@ class DocumentServiceTests(unittest.TestCase):
                 DocumentService,
                 "_validate_office_archive",
                 return_value=None), patch(
-                "document_service.load_workbook",
+                "services.document_service.load_workbook",
                 return_value=workbook) as load:
             text = self.service._extract_text("plan.xlsx", b"xlsx")
 
@@ -123,7 +123,7 @@ class DocumentServiceTests(unittest.TestCase):
             archive.writestr("word/document.xml", b"x" * 20)
 
         with patch(
-                "document_service.MAX_ARCHIVE_UNCOMPRESSED_BYTES",
+                "services.document_service.MAX_ARCHIVE_UNCOMPRESSED_BYTES",
                 10):
             with self.assertRaisesRegex(ValueError, "解压后"):
                 self.service._extract_text("large.docx", buffer.getvalue())

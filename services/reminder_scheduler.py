@@ -4,8 +4,8 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Callable, Protocol
 
-from memory_store import DueReservationReminder, MemoryStore
-from reservation_service import BEIJING_TZ
+from infrastructure.memory_store import DueReservationReminder, MemoryStore
+from services.reservation_service import BEIJING_TZ
 
 
 class ReminderRenderer(Protocol):

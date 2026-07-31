@@ -1,7 +1,7 @@
 import re
 from typing import Any
 
-from commands import parse_command
+from core.commands import parse_command
 
 
 BUTTON_ROWS = (

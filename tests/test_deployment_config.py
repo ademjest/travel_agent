@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from memory_store import MemoryStore
+from infrastructure.memory_store import MemoryStore
 
 
 class DeploymentConfigTests(unittest.TestCase):

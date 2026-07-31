@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from memory_store import MemoryStore
+from infrastructure.memory_store import MemoryStore
 
 
 @dataclass(frozen=True)

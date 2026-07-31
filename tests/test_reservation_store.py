@@ -5,8 +5,8 @@ from contextlib import closing
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from memory_store import MemoryStore
-from reservation_service import ReservationExtractionItem
+from infrastructure.memory_store import MemoryStore
+from services.reservation_service import ReservationExtractionItem
 
 
 class ReservationStoreTests(unittest.TestCase):

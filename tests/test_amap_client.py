@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import requests
 
-from amap_client import AmapClient, AmapError
+from infrastructure.amap_client import AmapClient, AmapError
 
 
 def geocode_response(address, location, adcode):

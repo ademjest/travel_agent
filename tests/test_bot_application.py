@@ -5,12 +5,12 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from bot_application import TravelBotApplication
-from chat_transport import ChatAttachment, ChatEvent
-from document_service import DocumentIngestResult
-from memory_store import MemoryStore
-from outbox_worker import OutboxWorker
-from upload_binding import PrivateUploadResult
+from app.bot_application import TravelBotApplication
+from core.chat_transport import ChatAttachment, ChatEvent
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentIngestResult
+from services.outbox_worker import OutboxWorker
+from services.upload_binding import PrivateUploadResult
 
 
 class FakeTransport:

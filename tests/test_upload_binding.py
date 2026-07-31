@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-from document_service import PreparedDocument
-from memory_store import MemoryStore
-from upload_binding import UploadBindingService
+from infrastructure.memory_store import MemoryStore
+from services.document_service import PreparedDocument
+from services.upload_binding import UploadBindingService
 
 
 class FakeDocumentService:

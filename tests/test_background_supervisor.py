@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from background_supervisor import BackgroundSupervisor
+from core.background_supervisor import BackgroundSupervisor
 
 
 class BackgroundSupervisorTests(unittest.IsolatedAsyncioTestCase):

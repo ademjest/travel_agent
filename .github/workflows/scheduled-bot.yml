@@ -120,7 +120,7 @@ jobs:
 
             status=0
             timeout --signal=INT --kill-after=30s \
-              "${RUN_MINUTES}m" python -u bot.py || status=$?
+              "${RUN_MINUTES}m" python -u run_bot.py || status=$?
 
             kill "$heartbeat_pid" 2>/dev/null || true
             wait "$heartbeat_pid" 2>/dev/null || true

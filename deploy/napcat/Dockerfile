@@ -8,6 +8,12 @@ WORKDIR /app
 COPY requirements.txt requirements-onebot.txt ./
 RUN pip install --no-cache-dir -r requirements-onebot.txt
 
-COPY *.py ./
+COPY adapters ./adapters
+COPY agents ./agents
+COPY app ./app
+COPY core ./core
+COPY infrastructure ./infrastructure
+COPY services ./services
+COPY tools ./tools
 
-CMD ["uvicorn", "onebot_app:create_runtime_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "adapters.onebot_app:create_runtime_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

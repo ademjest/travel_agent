@@ -7,8 +7,8 @@ from contextlib import closing, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from document_service import PreparedDocument
-from memory_store import MemoryStore
+from infrastructure.memory_store import MemoryStore
+from services.document_service import PreparedDocument
 
 
 @contextmanager

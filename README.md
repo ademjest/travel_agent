@@ -42,27 +42,18 @@
 ## 项目结构
 
 ```text
-travel_agent-auto-refresh/
-├── bot.py              # QQ Bot WebSocket 入口
-├── commands.py         # 群聊指令解析
-├── amap_client.py      # 高德 API 客户端和响应解析
-├── travel_service.py   # 指令调度与消息格式化
-├── travel_agent.py     # LLM 工具调用 Agent
-├── agent_tools.py      # 旅行与预约工具 schema
-├── reservation_tools.py # 预约工具权限绑定和确定性执行
-├── runtime_factory.py  # QQ 官方与 OneBot 共用依赖组装
-├── background_supervisor.py # 后台任务监督和自动重启
-├── maintenance.py      # 数据留存和孤儿文件清理
-├── secure_download.py  # HTTPS、重定向、DNS 和流式大小校验
-├── memory_store.py     # SQLite 对话与文档记忆
-├── document_service.py # QQ附件下载和文档解析
-├── upload_binding.py   # 私聊上传绑定码和文档导入工作流
-├── vision_service.py   # 预约图片下载、去重和多模态提取
-├── reservation_service.py # 预约日期计算、草稿确认和管理命令
-├── reminder_scheduler.py  # 到期提醒扫描和 Outbox 入队
-├── settings.py         # 环境变量配置
+travel_agent/
+├── core/               # 配置、消息契约、命令解析和通用机制
+├── agents/             # LLM Agent、意图决策和上下文构建
+├── tools/              # Agent 工具 schema、权限绑定和执行路由
+├── services/           # 旅行、预约、文档、图片和提醒业务服务
+├── infrastructure/     # SQLite、高德客户端和安全下载
+├── app/                # 应用编排与依赖组装
+├── adapters/           # QQ 官方、OneBot 和 QQ UI 接入
+├── run_bot.py          # QQ 官方 Bot 启动入口
 ├── data/               # 本地数据库和预约原图，不提交Git
 ├── tests/              # 不消耗 API 额度的单元测试
+├── deploy/             # OneBot Docker 部署配置
 ├── requirements.txt
 └── .env.example
 ```
@@ -79,7 +70,7 @@ travel_agent-auto-refresh/
 
 ```powershell
 conda activate agent
-cd E:\Agent\travel_agent-auto-refresh
+cd E:\Agent\travel_agent
 pip install -r requirements.txt
 ```
 
@@ -95,7 +86,7 @@ pip install -r requirements.txt
 
 ## 3. 配置环境变量
 
-本项目调用 `load_dotenv()`，从 `E:\Agent\travel_agent-auto-refresh` 启动时会向父目录查找，因此可以继续使用已有的：
+本项目调用 `load_dotenv()`，从 `E:\Agent\travel_agent` 启动时会向父目录查找，因此可以继续使用已有的：
 
 ```text
 E:\Agent\.env
@@ -124,8 +115,8 @@ LLM_MODEL_ID=你的模型ID
 
 ```powershell
 conda activate agent
-cd E:\Agent\travel_agent-auto-refresh
-python bot.py
+cd E:\Agent\travel_agent
+python run_bot.py
 ```
 
 出现以下日志表示 QQ Bot 已连接：
@@ -397,7 +388,7 @@ python -m unittest discover -s tests -v
 
 ### 状态显示未配置 AMAP_API_KEY
 
-确认 Key 已写入 `E:\Agent\.env`，然后完全停止并重新运行 `python bot.py`。
+确认 Key 已写入 `E:\Agent\.env`，然后完全停止并重新运行 `python run_bot.py`。
 
 ### 高德返回 INVALID_USER_KEY
 
@@ -466,7 +457,7 @@ QQ 官方 Bot 只能看到平台实际推送给机器人的消息，因此上下
 手动执行当前留存策略：
 
 ```bash
-python -c "from maintenance import MaintenanceService; from memory_store import MemoryStore; print(MaintenanceService(MemoryStore(), 'data/images').run_once())"
+python -c "from infrastructure.memory_store import MemoryStore; from services.maintenance import MaintenanceService; print(MaintenanceService(MemoryStore(), 'data/images').run_once())"
 ```
 
 ## 12. 可选 NapCat/OneBot 部署

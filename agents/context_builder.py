@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from chat_transport import ChatEvent
-from memory_store import ConversationTurn, MemoryStore
+from core.chat_transport import ChatEvent
+from infrastructure.memory_store import ConversationTurn, MemoryStore
 
 
 MAX_CONTEXT_CHARS = 7000

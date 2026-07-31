@@ -7,16 +7,16 @@ from typing import Callable
 
 from openai import OpenAIError
 
-from agent_tools import AgentToolContext
-from chat_transport import ChatEvent, ReplyRenderer
-from commands import parse_command
-from context_builder import ContextBuilder
-from document_service import DocumentService
-from memory_store import EventClaim, MemoryStore
-from outbox_worker import OutboxWorker
-from travel_agent import TravelAgent
-from travel_service import TravelService
-from upload_binding import UploadBindingService
+from agents.context_builder import ContextBuilder
+from agents.travel_agent import TravelAgent
+from core.chat_transport import ChatEvent, ReplyRenderer
+from core.commands import parse_command
+from infrastructure.memory_store import EventClaim, MemoryStore
+from services.document_service import DocumentService
+from services.outbox_worker import OutboxWorker
+from services.travel_service import TravelService
+from services.upload_binding import UploadBindingService
+from tools.agent_tools import AgentToolContext
 
 
 logger = logging.getLogger(__name__)

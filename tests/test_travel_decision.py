@@ -1,6 +1,6 @@
 import unittest
 
-from travel_decision import decide_travel_action
+from agents.travel_decision import decide_travel_action
 
 
 class TravelDecisionTests(unittest.TestCase):

@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import date
 from typing import Mapping
 
-from agent_tools import AgentToolContext, RESERVATION_TOOL_NAMES
-from event_idempotency import event_operation_key
-from reservation_service import (
+from core.event_idempotency import event_operation_key
+from services.reservation_service import (
     ReservationService,
     parse_beijing_datetime_list,
 )
+from tools.agent_tools import AgentToolContext, RESERVATION_TOOL_NAMES
 
 
 MAX_TOOL_TEXT_CHARS = 500

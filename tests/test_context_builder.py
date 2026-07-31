@@ -3,13 +3,13 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from chat_transport import ChatEvent
-from context_builder import (
+from agents.context_builder import (
     MAX_CONTEXT_CHARS,
     ContextBuilder,
     render_untrusted_context,
 )
-from memory_store import MemoryStore
+from core.chat_transport import ChatEvent
+from infrastructure.memory_store import MemoryStore
 
 
 class ContextBuilderTests(unittest.TestCase):

@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 from openpyxl import Workbook
 
-from document_service import DocumentService
-from memory_store import MemoryStore
-from reservation_service import (
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentService
+from services.reservation_service import (
     ReservationService,
     calculate_booking_date,
     normalize_extraction_item,

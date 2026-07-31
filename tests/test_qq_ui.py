@@ -1,6 +1,6 @@
 import unittest
 
-from qq_ui import build_command_keyboard, build_group_message_payload
+from adapters.qq_ui import build_command_keyboard, build_group_message_payload
 
 
 class QQGroupUiTests(unittest.TestCase):

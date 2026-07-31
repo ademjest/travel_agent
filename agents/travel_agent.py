@@ -9,10 +9,10 @@ from zoneinfo import ZoneInfo
 
 from openai import OpenAI
 
-from agent_tools import AgentToolContext, TOOLS_BY_NAME
-from context_builder import AgentContext, render_untrusted_context
-from settings import Settings
-from travel_decision import TravelDecision, decide_travel_action
+from agents.context_builder import AgentContext, render_untrusted_context
+from agents.travel_decision import TravelDecision, decide_travel_action
+from core.settings import Settings
+from tools.agent_tools import AgentToolContext, TOOLS_BY_NAME
 
 
 MAX_AGENT_STEPS = 4

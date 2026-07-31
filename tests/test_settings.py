@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from settings import Settings
+from core.settings import Settings
 
 
 class SettingsTests(unittest.TestCase):

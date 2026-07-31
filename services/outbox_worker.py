@@ -4,8 +4,8 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from chat_transport import MessageTransport, OutgoingMessage
-from memory_store import MemoryStore
+from core.chat_transport import MessageTransport, OutgoingMessage
+from infrastructure.memory_store import MemoryStore
 
 
 RETRY_SECONDS = (5, 15, 60, 300, 900)

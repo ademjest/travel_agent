@@ -12,12 +12,12 @@ from pathlib import Path
 import requests
 from openai import OpenAI
 
-from memory_store import MemoryStore, ReservationImageRecord
-from reservation_service import (
+from infrastructure.memory_store import MemoryStore, ReservationImageRecord
+from infrastructure.secure_download import download_https, resolve_host
+from services.reservation_service import (
     ReservationExtractionItem,
     normalize_extraction_item,
 )
-from secure_download import download_https, resolve_host
 
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024

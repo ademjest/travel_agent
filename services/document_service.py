@@ -15,8 +15,8 @@ from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
 
-from memory_store import MemoryStore
-from secure_download import download_https, resolve_host
+from infrastructure.memory_store import MemoryStore
+from infrastructure.secure_download import download_https, resolve_host
 
 
 MAX_DOCUMENT_BYTES = 5 * 1024 * 1024

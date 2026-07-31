@@ -12,13 +12,13 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 
-from background_supervisor import BackgroundSupervisor
-from bot_application import TravelBotApplication
-from chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
-from maintenance import MaintenanceService
-from memory_store import MemoryStore
-from runtime_factory import build_runtime
-from settings import OneBotSettings, Settings
+from app.bot_application import TravelBotApplication
+from app.runtime_factory import build_runtime
+from core.background_supervisor import BackgroundSupervisor
+from core.chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
+from core.settings import OneBotSettings, Settings
+from infrastructure.memory_store import MemoryStore
+from services.maintenance import MaintenanceService
 
 
 class OneBotTransport:

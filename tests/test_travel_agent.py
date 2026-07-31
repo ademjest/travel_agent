@@ -2,11 +2,11 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from settings import Settings
-from agent_tools import AgentToolContext
-from travel_agent import TravelAgent
-from context_builder import AgentContext
-from memory_store import ConversationTurn
+from agents.context_builder import AgentContext
+from agents.travel_agent import TravelAgent
+from core.settings import Settings
+from infrastructure.memory_store import ConversationTurn
+from tools.agent_tools import AgentToolContext
 
 
 def tool_call(call_id, name, arguments):
@@ -220,7 +220,7 @@ class TravelAgentTests(unittest.TestCase):
         self.assertEqual(len(client.completions.requests), 3)
 
     def test_client_uses_longer_timeout_and_one_retry(self):
-        with patch("travel_agent.OpenAI") as openai:
+        with patch("agents.travel_agent.OpenAI") as openai:
             TravelAgent(
                 self.settings,
                 lambda name, arguments: "not used",
@@ -418,7 +418,7 @@ class TravelAgentTests(unittest.TestCase):
             client=client,
         )
 
-        with patch("travel_agent.logger") as logger:
+        with patch("agents.travel_agent.logger") as logger:
             agent.run("文档里写了什么？", knowledge_context="行程摘要")
 
         log_calls = " ".join(str(call) for call in logger.info.call_args_list)

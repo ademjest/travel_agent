@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from chat_transport import storage_scope_id
+from core.chat_transport import storage_scope_id
 
 if TYPE_CHECKING:
-    from document_service import PreparedDocument
+    from services.document_service import PreparedDocument
 
 
 RECENT_TURN_LIMIT = 6

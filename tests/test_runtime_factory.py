@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from memory_store import MemoryStore
-from runtime_factory import build_runtime
-from settings import Settings
+from app.runtime_factory import build_runtime
+from core.settings import Settings
+from infrastructure.memory_store import MemoryStore
 
 
 class FakeTransport:

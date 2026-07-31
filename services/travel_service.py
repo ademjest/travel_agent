@@ -1,4 +1,4 @@
-from amap_client import (
+from infrastructure.amap_client import (
     AmapClient,
     AmapError,
     CurrentWeather,
@@ -6,8 +6,8 @@ from amap_client import (
     TrafficSegment,
     WeatherForecast,
 )
-from commands import HELP_TEXT, parse_command
-from settings import Settings
+from core.commands import HELP_TEXT, parse_command
+from core.settings import Settings
 
 
 RELIABLE_TRAFFIC_COVERAGE_RATIO = 0.7

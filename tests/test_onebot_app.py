@@ -15,18 +15,18 @@ warnings.filterwarnings(
 )
 from fastapi.testclient import TestClient
 
-from bot_application import TravelBotApplication
-from document_service import DocumentIngestResult
-from memory_store import MemoryStore
-from onebot_app import (
+from adapters.onebot_app import (
     OneBotAdapter,
     OneBotReplyRenderer,
     OneBotTransport,
     create_onebot_app,
 )
-from outbox_worker import OutboxWorker
-from settings import OneBotSettings, SettingsError
-from upload_binding import PrivateUploadResult
+from app.bot_application import TravelBotApplication
+from core.settings import OneBotSettings, SettingsError
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentIngestResult
+from services.outbox_worker import OutboxWorker
+from services.upload_binding import PrivateUploadResult
 
 
 class RecordingTransport:
@@ -309,7 +309,7 @@ class OneBotTransportTests(unittest.IsolatedAsyncioTestCase):
             "token",
             client=client,
         )
-        from chat_transport import OutgoingMessage
+        from core.chat_transport import OutgoingMessage
 
         with self.assertRaises(httpx.HTTPStatusError):
             await transport.send(OutgoingMessage(

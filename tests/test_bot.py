@@ -6,17 +6,17 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from bot import (
+from run_bot import (
     QQOfficialReplyRenderer,
     QQOfficialTransport,
     TravelRiskBot,
 )
-from bot_application import TravelBotApplication
-from chat_transport import ChatEvent, OutgoingMessage
-from document_service import DocumentIngestResult
-from memory_store import MemoryStore
-from outbox_worker import OutboxWorker
-from upload_binding import PrivateUploadResult
+from app.bot_application import TravelBotApplication
+from core.chat_transport import ChatEvent, OutgoingMessage
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentIngestResult
+from services.outbox_worker import OutboxWorker
+from services.upload_binding import PrivateUploadResult
 
 
 class FakeSettings:
@@ -215,9 +215,10 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             os.environ,
             {"APP_GIT_REF": "main", "APP_GIT_SHA": "f6f0617abcdef"},
         ):
-            with patch("bot.logger.info") as info, patch(
-                "bot.asyncio.create_task"
-            ) as create_task:
+            with patch(
+                    "run_bot.logger.info") as info, patch(
+                    "run_bot.asyncio.create_task"
+                ) as create_task:
                 create_task.side_effect = (
                     lambda coroutine, **kwargs: coroutine.close()
                 )
@@ -243,7 +244,8 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         )
         running_task = SimpleNamespace(done=lambda: False)
 
-        with patch("bot.asyncio.create_task") as create_task:
+        with patch(
+                "run_bot.asyncio.create_task") as create_task:
             def keep_running(coroutine, **kwargs):
                 coroutine.close()
                 return running_task
@@ -274,7 +276,8 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             memory_content=None,
         )
 
-        with patch("bot.asyncio.create_task") as create_task:
+        with patch(
+                "run_bot.asyncio.create_task") as create_task:
             create_task.side_effect = (
                 lambda coroutine, **kwargs: coroutine.close()
             )

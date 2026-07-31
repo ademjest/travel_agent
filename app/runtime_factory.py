@@ -3,21 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from background_supervisor import BackgroundSupervisor
-from bot_application import TravelBotApplication
-from chat_transport import MessageTransport, ReplyRenderer
-from document_service import DocumentService
-from maintenance import MaintenanceService
-from memory_store import MemoryStore
-from outbox_worker import OutboxWorker
-from reminder_scheduler import ReminderScheduler
-from reservation_service import ReservationService
-from reservation_tools import AgentToolRouter
-from settings import Settings
-from travel_agent import TravelAgent
-from travel_service import TravelService
-from upload_binding import UploadBindingService
-from vision_service import ImageVisionExtractor, ReservationImageService
+from agents.travel_agent import TravelAgent
+from app.bot_application import TravelBotApplication
+from core.background_supervisor import BackgroundSupervisor
+from core.chat_transport import MessageTransport, ReplyRenderer
+from core.settings import Settings
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentService
+from services.maintenance import MaintenanceService
+from services.outbox_worker import OutboxWorker
+from services.reminder_scheduler import ReminderScheduler
+from services.reservation_service import ReservationService
+from services.travel_service import TravelService
+from services.upload_binding import UploadBindingService
+from services.vision_service import ImageVisionExtractor, ReservationImageService
+from tools.reservation_tools import AgentToolRouter
 
 
 @dataclass(frozen=True)

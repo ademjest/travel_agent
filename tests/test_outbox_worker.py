@@ -4,9 +4,13 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from chat_transport import OutgoingMessage
-from memory_store import MemoryStore
-from outbox_worker import MAX_OUTBOX_ATTEMPTS, OutboxWorker, retry_delay
+from core.chat_transport import OutgoingMessage
+from infrastructure.memory_store import MemoryStore
+from services.outbox_worker import (
+    MAX_OUTBOX_ATTEMPTS,
+    OutboxWorker,
+    retry_delay,
+)
 
 
 class FakeTransport:

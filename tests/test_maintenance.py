@@ -3,8 +3,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from maintenance import MaintenanceService, RetentionPolicy
-from memory_store import MemoryStore
+from infrastructure.memory_store import MemoryStore
+from services.maintenance import MaintenanceService, RetentionPolicy
 
 
 class MaintenanceServiceTests(unittest.TestCase):

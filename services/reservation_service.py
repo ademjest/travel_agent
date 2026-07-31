@@ -7,8 +7,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal, Mapping, Protocol, Sequence
 from zoneinfo import ZoneInfo
 
-from chat_transport import storage_scope_id
-from event_idempotency import event_operation_key
+from core.chat_transport import storage_scope_id
+from core.event_idempotency import event_operation_key
 
 
 AdvanceUnit = Literal["day", "month", "none"]
