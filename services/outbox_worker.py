@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from core.chat_transport import MessageTransport, OutgoingMessage
+from core.chat_transport import DeliveryError, MessageTransport, OutgoingMessage
 from infrastructure.memory_store import MemoryStore
 
 
 RETRY_SECONDS = (5, 15, 60, 300, 900)
 MAX_OUTBOX_ATTEMPTS = 8
+logger = logging.getLogger(__name__)
 
 
 def retry_delay(attempt_count: int) -> timedelta:
@@ -55,6 +57,45 @@ class OutboxWorker:
                     reply_to_id=row.reply_to_id,
                     payload=row.payload,
                 ))
+            except DeliveryError as exc:
+                if exc.delivered:
+                    sent_at = now or self.clock()
+                    sent = await asyncio.to_thread(
+                        self.store.mark_outbox_sent,
+                        row.outbox_id,
+                        token,
+                        sent_at,
+                    )
+                    if sent:
+                        delivered += 1
+                    logger.info(
+                        "Outbox delivery already completed: outbox_id=%s "
+                        "attempt=%s code=%s",
+                        row.outbox_id,
+                        row.attempt_count + 1,
+                        exc.code,
+                    )
+                    continue
+                failed_at = now or self.clock()
+                retry_at = failed_at + retry_delay(row.attempt_count + 1)
+                state_at = retry_at if exc.retryable else failed_at
+                await asyncio.to_thread(
+                    self.store.mark_outbox_failed,
+                    row.outbox_id,
+                    token,
+                    exc.code,
+                    state_at,
+                    self.max_attempts,
+                    not exc.retryable,
+                )
+                logger.warning(
+                    "Outbox delivery failed: outbox_id=%s attempt=%s "
+                    "code=%s retryable=%s",
+                    row.outbox_id,
+                    row.attempt_count + 1,
+                    exc.code,
+                    exc.retryable,
+                )
             except Exception as exc:
                 failed_at = now or self.clock()
                 retry_at = failed_at + retry_delay(row.attempt_count + 1)
@@ -65,6 +106,13 @@ class OutboxWorker:
                     type(exc).__name__,
                     retry_at,
                     self.max_attempts,
+                )
+                logger.warning(
+                    "Outbox delivery failed: outbox_id=%s attempt=%s "
+                    "error_type=%s retryable=True",
+                    row.outbox_id,
+                    row.attempt_count + 1,
+                    type(exc).__name__,
                 )
             else:
                 sent_at = now or self.clock()

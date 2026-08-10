@@ -12,6 +12,7 @@ class DeploymentConfigTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(__file__).resolve().parents[1]
         self.compose_path = self.root / "deploy" / "napcat" / "compose.yml"
+        self.readme_path = self.root / "README.md"
         self.workflow_path = (
             self.root / ".github" / "workflows" / "scheduled-bot.yml"
         )
@@ -69,6 +70,9 @@ class DeploymentConfigTests(unittest.TestCase):
         self.assertIn("qq_config", mounts)
         self.assertIn("napcat_config", compose["volumes"])
         self.assertIn("qq_config", compose["volumes"])
+        onebot = compose["services"]["onebot"]
+        self.assertIn("travel_data:/app/data", onebot["volumes"])
+        self.assertEqual(onebot["environment"]["APP_DATA_DIR"], "/app/data")
 
     def test_images_are_pinned_and_secrets_are_not_hardcoded(self):
         text = self.compose_path.read_text(encoding="utf-8")
@@ -80,6 +84,14 @@ class DeploymentConfigTests(unittest.TestCase):
         self.assertIn("${ONEBOT_ACCESS_TOKEN}", text)
         self.assertIn("${ONEBOT_INBOUND_TOKEN}", text)
         self.assertNotRegex(text, r"QQ_ACCOUNT\s*:\s*\d+")
+
+    def test_napcat_docs_cover_group_file_event_requirements(self):
+        readme = self.readme_path.read_text(encoding="utf-8")
+
+        self.assertIn("group_upload", readme)
+        self.assertIn("/get_group_file_url", readme)
+        self.assertIn("X-Signature", readme)
+        self.assertIn("其他普通群聊和普通图片只保存为上下文", readme)
 
     def test_retention_cleanup_only_deletes_old_chat_messages(self):
         with tempfile.TemporaryDirectory() as directory:

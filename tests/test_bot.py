@@ -12,7 +12,7 @@ from run_bot import (
     TravelRiskBot,
 )
 from app.bot_application import TravelBotApplication
-from core.chat_transport import ChatEvent, OutgoingMessage
+from core.chat_transport import ChatEvent, DeliveryError, OutgoingMessage
 from infrastructure.memory_store import MemoryStore
 from services.document_service import DocumentIngestResult
 from services.outbox_worker import OutboxWorker
@@ -71,6 +71,42 @@ class QQOfficialTransportTests(unittest.IsolatedAsyncioTestCase):
         ))
 
         self.assertEqual(api.group_messages[0]["msg_id"], "message-1")
+
+    async def test_duplicate_reply_is_reported_as_already_delivered(self):
+        api = FakeApi(group_failures=1)
+        transport = QQOfficialTransport(api)
+        api.post_group_message = AsyncMock(
+            side_effect=RuntimeError("消息被去重，请检查请求msgseq")
+        )
+
+        with self.assertRaises(DeliveryError) as raised:
+            await transport.send(OutgoingMessage(
+                channel="group",
+                target_id="group-a",
+                reply_to_id="message-1",
+                payload={"msg_type": 0, "content": "被动回复"},
+            ))
+
+        self.assertTrue(raised.exception.delivered)
+        self.assertEqual(raised.exception.code, "qq_duplicate")
+
+    async def test_expired_reply_is_reported_as_permanent_failure(self):
+        api = FakeApi(group_failures=1)
+        transport = QQOfficialTransport(api)
+        api.post_group_message = AsyncMock(
+            side_effect=RuntimeError("回复消息msg_id已过期")
+        )
+
+        with self.assertRaises(DeliveryError) as raised:
+            await transport.send(OutgoingMessage(
+                channel="group",
+                target_id="group-a",
+                reply_to_id="message-1",
+                payload={"msg_type": 0, "content": "被动回复"},
+            ))
+
+        self.assertFalse(raised.exception.retryable)
+        self.assertEqual(raised.exception.code, "qq_reply_expired")
 
 
 class QQOfficialReplyRendererTests(unittest.TestCase):

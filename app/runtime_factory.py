@@ -13,6 +13,7 @@ from services.document_service import DocumentService
 from services.maintenance import MaintenanceService
 from services.outbox_worker import OutboxWorker
 from services.reminder_scheduler import ReminderScheduler
+from services.reservation_draft_creator import ReservationDraftCreator
 from services.reservation_service import ReservationService
 from services.travel_service import TravelService
 from services.upload_binding import UploadBindingService
@@ -25,6 +26,7 @@ class RuntimeComponents:
     store: MemoryStore
     travel_service: TravelService
     reservation_service: ReservationService
+    reservation_draft_creator: ReservationDraftCreator
     tool_router: AgentToolRouter
     travel_agent: TravelAgent | None
     document_service: DocumentService
@@ -49,7 +51,29 @@ def build_runtime(
     memory_store = store or MemoryStore()
     travel_service = TravelService(settings)
     reservation_service = ReservationService(memory_store)
-    tool_router = AgentToolRouter(travel_service, reservation_service)
+    image_extractor = (
+        ImageVisionExtractor(
+            model_id=settings.llm_model_id,
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+        )
+        if settings.llm_configured
+        else None
+    )
+    reservation_image_service = ReservationImageService(
+        memory_store,
+        image_extractor,
+        image_root=memory_store.database_path.parent / "images",
+    )
+    reservation_draft_creator = ReservationDraftCreator(
+        reservation_image_service,
+        reservation_service,
+    )
+    tool_router = AgentToolRouter(
+        travel_service,
+        reservation_service,
+        reservation_draft_creator,
+    )
     travel_agent = (
         TravelAgent(settings, tool_router.execute)
         if settings.llm_configured
@@ -65,19 +89,6 @@ def build_runtime(
         memory_store,
         document_service,
         group_allowed=group_allowed,
-    )
-    image_extractor = (
-        ImageVisionExtractor(
-            model_id=settings.llm_model_id,
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-        )
-        if settings.llm_configured
-        else None
-    )
-    reservation_image_service = ReservationImageService(
-        memory_store,
-        image_extractor,
     )
     outbox_worker = OutboxWorker(platform, memory_store, transport)
     reminder_scheduler = ReminderScheduler(
@@ -99,14 +110,15 @@ def build_runtime(
         outbox_worker=outbox_worker,
         reply_renderer=reply_renderer,
         reminder_scheduler=reminder_scheduler,
-        reservation_image_service=reservation_image_service,
         reservation_service=reservation_service,
+        tool_router=tool_router,
         group_allowed=group_allowed,
     )
     return RuntimeComponents(
         store=memory_store,
         travel_service=travel_service,
         reservation_service=reservation_service,
+        reservation_draft_creator=reservation_draft_creator,
         tool_router=tool_router,
         travel_agent=travel_agent,
         document_service=document_service,

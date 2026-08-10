@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import os
 import re
 import secrets
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +16,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 
 from app.bot_application import TravelBotApplication
+from app.group_trigger_policy import GroupTriggerPolicy
 from app.runtime_factory import build_runtime
 from core.background_supervisor import BackgroundSupervisor
 from core.chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
@@ -51,6 +55,33 @@ class OneBotTransport:
             raise RuntimeError(
                 f"OneBot send failed: retcode={result.get('retcode')}"
             )
+
+    async def get_group_file_url(
+            self,
+            group_id: str,
+            file_id: str,
+            busid: object) -> str:
+        response = await self.client.post(
+            "/get_group_file_url",
+            json={
+                "group_id": group_id,
+                "file_id": file_id,
+                "busid": busid,
+            },
+        )
+        response.raise_for_status()
+        result = response.json()
+        if (
+                result.get("status") == "failed"
+                or int(result.get("retcode", 0) or 0) != 0):
+            raise RuntimeError(
+                "OneBot group file URL failed: "
+                f"retcode={result.get('retcode')}"
+            )
+        url = str((result.get("data") or {}).get("url") or "").strip()
+        if not url:
+            raise RuntimeError("OneBot group file URL response has no data.url")
+        return url
 
     async def aclose(self) -> None:
         if self._owns_client:
@@ -104,22 +135,28 @@ class OneBotAdapter:
         self.settings = settings
         self.application = application
         self.store = store
+        self.transport = application.outbox_worker.transport
+        self.trigger_policy = GroupTriggerPolicy(store)
 
     async def handle(self, payload: dict[str, Any]) -> dict[str, str]:
-        if payload.get("post_type") != "message":
-            return {"status": "ignored"}
-        message_type = str(payload.get("message_type") or "")
-        if message_type == "group":
-            self._required_id(payload, "message_id")
-            self._required_id(payload, "group_id")
-            self._required_id(payload, "user_id")
-            self._required_id(payload, "self_id")
-            return await self._handle_group(payload)
-        if message_type == "private":
-            self._required_id(payload, "message_id")
-            self._required_id(payload, "user_id")
-            await self.application.handle(self._private_event(payload))
-            return {"status": "handled"}
+        post_type = str(payload.get("post_type") or "")
+        if post_type == "message":
+            message_type = str(payload.get("message_type") or "")
+            if message_type == "group":
+                self._required_id(payload, "message_id")
+                self._required_id(payload, "group_id")
+                self._required_id(payload, "user_id")
+                self._required_id(payload, "self_id")
+                return await self._handle_group(payload)
+            if message_type == "private":
+                self._required_id(payload, "message_id")
+                self._required_id(payload, "user_id")
+                await self.application.handle(self._private_event(payload))
+                return {"status": "handled"}
+        if (
+                post_type == "notice"
+                and payload.get("notice_type") == "group_upload"):
+            return await self._handle_group_upload(payload)
         return {"status": "ignored"}
 
     @staticmethod
@@ -143,10 +180,18 @@ class OneBotAdapter:
         group_id = self._required_id(payload, "group_id")
         if not self.settings.allows_group(group_id):
             raise HTTPException(status_code=403, detail="group not allowed")
-        event, triggered = self._group_event(payload)
+        if (
+                self._required_id(payload, "user_id")
+                == self._required_id(payload, "self_id")):
+            return {"status": "ignored"}
+
+        segments = self._segments(payload)
+        event, triggered = self._group_event(payload, segments)
+        if not triggered:
+            triggered = await self.trigger_policy.should_handle(event)
         if not triggered and event.reply_to_id:
             resolver = getattr(
-                self.application.outbox_worker.transport,
+                self.transport,
                 "reply_is_from_bot",
                 None,
             )
@@ -159,6 +204,17 @@ class OneBotAdapter:
                 except Exception:
                     triggered = False
         if triggered:
+            event_status = await asyncio.to_thread(
+                self.store.get_event_status,
+                event.event_key,
+            )
+            if event_status == "completed":
+                return {"status": "handled"}
+            segments = await self._resolve_group_file_urls(
+                group_id,
+                segments,
+            )
+            event, _ = self._group_event(payload, segments)
             await self.application.handle(event)
             return {"status": "handled"}
         await asyncio.to_thread(
@@ -174,10 +230,141 @@ class OneBotAdapter:
         )
         return {"status": "observed"}
 
+    async def _handle_group_upload(
+            self,
+            payload: dict[str, Any]) -> dict[str, str]:
+        group_id = self._required_id(payload, "group_id")
+        if not self.settings.allows_group(group_id):
+            raise HTTPException(status_code=403, detail="group not allowed")
+        user_id = self._required_id(payload, "user_id")
+        self_id = self._required_id(payload, "self_id")
+        if user_id == self_id:
+            return {"status": "ignored"}
+
+        file_data = payload.get("file")
+        if not isinstance(file_data, dict):
+            raise HTTPException(
+                status_code=400,
+                detail="missing group upload file",
+            )
+        file_id = str(
+            file_data.get("file_id")
+            or file_data.get("id")
+            or file_data.get("file")
+            or ""
+        ).strip()
+        busid = file_data.get("busid")
+        if not file_id:
+            raise HTTPException(status_code=400, detail="missing group file id")
+        if busid is None or str(busid).strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail="missing group file busid",
+            )
+
+        segments = [{
+            "type": "file",
+            "data": {
+                "file_id": file_id,
+                "busid": busid,
+                "name": (
+                    file_data.get("name")
+                    or file_data.get("filename")
+                    or file_id
+                ),
+                "url": file_data.get("url") or "",
+                "content_type": file_data.get("content_type") or "",
+                "size": (
+                    file_data.get("size")
+                    or file_data.get("file_size")
+                    or 0
+                ),
+            },
+        }]
+        digest = hashlib.sha256(
+            f"{group_id}:{user_id}:{file_id}:{busid}".encode("utf-8")
+        ).hexdigest()
+        event = ChatEvent(
+            platform="onebot",
+            channel="group",
+            event_id=f"group-upload:{digest}",
+            scope_id=group_id,
+            sender_id=user_id,
+            content="",
+            attachments=self._attachments(segments),
+        )
+        if not await self.trigger_policy.should_handle(event):
+            return {"status": "observed"}
+        event_status = await asyncio.to_thread(
+            self.store.get_event_status,
+            event.event_key,
+        )
+        if event_status == "completed":
+            return {"status": "handled"}
+        resolved_segments = await self._resolve_group_file_urls(
+            group_id,
+            segments,
+        )
+        event = replace(
+            event,
+            attachments=self._attachments(resolved_segments),
+        )
+        await self.application.handle(event)
+        return {"status": "handled"}
+
+    async def _resolve_group_file_urls(
+            self,
+            group_id: str,
+            segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        resolved_segments = []
+        for segment in segments:
+            data = segment.get("data")
+            if not isinstance(data, dict):
+                data = {}
+            if segment.get("type") != "file" or data.get("url"):
+                resolved_segments.append(segment)
+                continue
+
+            file_id = str(
+                data.get("file_id")
+                or data.get("id")
+                or data.get("file")
+                or ""
+            ).strip()
+            busid = data.get("busid")
+            if not file_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="missing group file id",
+                )
+            if busid is None or str(busid).strip() == "":
+                raise HTTPException(
+                    status_code=400,
+                    detail="missing group file busid",
+                )
+            resolver = getattr(self.transport, "get_group_file_url", None)
+            if resolver is None:
+                raise HTTPException(
+                    status_code=502,
+                    detail="group file URL resolver is unavailable",
+                )
+            try:
+                url = await resolver(group_id, file_id, busid)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"failed to resolve group file URL: {exc}",
+                ) from None
+            resolved_segments.append({
+                **segment,
+                "data": {**data, "url": url},
+            })
+        return resolved_segments
+
     def _group_event(
             self,
-            payload: dict[str, Any]) -> tuple[ChatEvent, bool]:
-        segments = self._segments(payload)
+            payload: dict[str, Any],
+            segments: list[dict[str, Any]]) -> tuple[ChatEvent, bool]:
         self_id = self._required_id(payload, "self_id")
         mentioned = any(
             segment.get("type") == "at"
@@ -254,11 +441,14 @@ class OneBotAdapter:
             data = segment.get("data", {})
             attachments.append(ChatAttachment(
                 filename=str(
-                    data.get("name") or data.get("file") or "attachment"
+                    data.get("name")
+                    or data.get("filename")
+                    or data.get("file")
+                    or "attachment"
                 ),
                 url=str(data.get("url") or ""),
                 content_type=str(data.get("content_type") or ""),
-                size=int(data.get("size") or 0),
+                size=int(data.get("size") or data.get("file_size") or 0),
             ))
         return tuple(attachments)
 
@@ -307,6 +497,7 @@ def create_onebot_app(
 
     @app.post("/onebot")
     async def onebot_endpoint(request: Request):
+        raw_body = await request.body()
         authorization = request.headers.get("Authorization", "")
         inbound_header = request.headers.get("X-OneBot-Token", "")
         provided = (
@@ -314,7 +505,21 @@ def create_onebot_app(
             if authorization.startswith("Bearer ")
             else inbound_header.strip()
         )
-        if not secrets.compare_digest(provided, settings.inbound_token):
+        token_authenticated = bool(provided) and secrets.compare_digest(
+            provided,
+            settings.inbound_token,
+        )
+        signature = request.headers.get("X-Signature", "").strip()
+        expected_signature = "sha1=" + hmac.new(
+            settings.inbound_token.encode("utf-8"),
+            raw_body,
+            hashlib.sha1,
+        ).hexdigest()
+        signature_authenticated = (
+            bool(signature)
+            and secrets.compare_digest(signature, expected_signature)
+        )
+        if not token_authenticated and not signature_authenticated:
             raise HTTPException(status_code=401, detail="invalid token")
         payload = await request.json()
         if not isinstance(payload, dict):

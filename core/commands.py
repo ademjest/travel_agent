@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from datetime import date
 
 
 HELP_TEXT = """🚙 青甘自驾助手
@@ -50,6 +51,21 @@ MODIFY_TIMES_RE = re.compile(
     rf"^修改预约提醒\s+({ITEM_CODE})\s+时间\s+(.+)$"
 )
 CANCEL_ITEM_RE = re.compile(rf"^取消预约提醒\s+({ITEM_CODE})$")
+
+
+def _is_valid_iso_date(value: str) -> bool:
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _invalid_date_command(name: str) -> Command:
+    return Command(
+        name=name,
+        error="日期无效，请使用 YYYY-MM-DD 格式，例如 2026-08-20。",
+    )
 
 
 def normalize_command(content: str) -> str:
@@ -112,14 +128,19 @@ def parse_command(content: str) -> Command:
 
     match = COMPLETE_DATE_RE.fullmatch(command)
     if match:
+        plan_code, item_index, visit_date = match.groups()
+        if not _is_valid_iso_date(visit_date):
+            return _invalid_date_command("reservation_complete_date")
         return Command(
             name="reservation_complete_date",
-            args=match.groups(),
+            args=(plan_code, item_index, visit_date),
         )
 
     match = ADD_ITEM_RE.fullmatch(command)
     if match:
         plan_code, attraction, visit_date, rule, value, unit = match.groups()
+        if not _is_valid_iso_date(visit_date):
+            return _invalid_date_command("reservation_add_item")
         if rule == "无需预约":
             return Command(
                 name="reservation_add_item",
@@ -161,7 +182,13 @@ def parse_command(content: str) -> Command:
 
     match = MODIFY_DATE_RE.fullmatch(command)
     if match:
-        return Command(name="reservation_modify_date", args=match.groups())
+        item_code, visit_date = match.groups()
+        if not _is_valid_iso_date(visit_date):
+            return _invalid_date_command("reservation_modify_date")
+        return Command(
+            name="reservation_modify_date",
+            args=(item_code, visit_date),
+        )
 
     match = MODIFY_TIMES_RE.fullmatch(command)
     if match:

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from core.chat_transport import storage_scope_id
+from core.data_paths import database_path as default_database_path
 
 if TYPE_CHECKING:
     from services.document_service import PreparedDocument
@@ -189,8 +190,7 @@ class DueReservationReminder:
 
 class MemoryStore:
     def __init__(self, database_path: str | Path | None = None):
-        default_path = Path(__file__).resolve().parent / "data" / "travel_bot.db"
-        self.database_path = Path(database_path or default_path)
+        self.database_path = Path(database_path or default_database_path())
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._document_fts_available = False
         self._initialize()
@@ -1047,7 +1047,8 @@ class MemoryStore:
             claim_token: str,
             error: str,
             next_attempt_at: datetime,
-            max_attempts: int = 8) -> bool:
+            max_attempts: int = 8,
+            permanent: bool = False) -> bool:
         error_text = str(error)[:MAX_EVENT_ERROR_CHARS]
         with self._connect() as connection:
             row = connection.execute(
@@ -1069,9 +1070,8 @@ class MemoryStore:
                 return False
 
             cancelled_delivery = row["reminder_status"] == "cancelled"
-            terminal = (
-                int(row["attempt_count"]) >= max_attempts
-                and not cancelled_delivery
+            terminal = not cancelled_delivery and (
+                permanent or int(row["attempt_count"]) >= max_attempts
             )
             if cancelled_delivery:
                 cursor = connection.execute(

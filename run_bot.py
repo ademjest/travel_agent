@@ -9,7 +9,12 @@ from dotenv import load_dotenv
 from adapters.qq_ui import build_group_message_payload
 from app.runtime_factory import build_runtime
 from core.background_supervisor import BackgroundSupervisor
-from core.chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
+from core.chat_transport import (
+    ChatAttachment,
+    ChatEvent,
+    DeliveryError,
+    OutgoingMessage,
+)
 from core.settings import Settings, SettingsError
 
 
@@ -21,22 +26,48 @@ class QQOfficialTransport:
         self.api = api
 
     async def send(self, message: OutgoingMessage) -> None:
-        if message.channel == "group":
-            parameters = {
-                "group_openid": message.target_id,
-                "msg_seq": 1,
+        try:
+            if message.channel == "group":
+                parameters = {
+                    "group_openid": message.target_id,
+                    "msg_seq": 1,
+                    **message.payload,
+                }
+                if message.reply_to_id:
+                    parameters["msg_id"] = message.reply_to_id
+                await self.api.post_group_message(**parameters)
+                return
+            await self.api.post_c2c_message(
+                openid=message.target_id,
+                msg_id=message.reply_to_id,
+                msg_seq=1,
                 **message.payload,
-            }
-            if message.reply_to_id:
-                parameters["msg_id"] = message.reply_to_id
-            await self.api.post_group_message(**parameters)
-            return
-        await self.api.post_c2c_message(
-            openid=message.target_id,
-            msg_id=message.reply_to_id,
-            msg_seq=1,
-            **message.payload,
-        )
+            )
+        except Exception as exc:
+            classified = self._classify_error(exc)
+            if classified is not None:
+                raise classified from exc
+            raise
+
+    @staticmethod
+    def _classify_error(exc: Exception) -> DeliveryError | None:
+        message = " ".join(str(exc).split())
+        lowered = message.lower()
+        if (
+                "去重" in message
+                and ("msgseq" in lowered or "msg_seq" in lowered)):
+            return DeliveryError(
+                "qq_duplicate",
+                "QQ 已接收相同的回复消息。",
+                delivered=True,
+            )
+        if "过期" in message and "msg_id" in lowered:
+            return DeliveryError(
+                "qq_reply_expired",
+                "QQ 被动回复消息已过期。",
+                retryable=False,
+            )
+        return None
 
 
 class QQOfficialReplyRenderer:

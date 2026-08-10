@@ -145,6 +145,17 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(command.name, "reservation_confirm_help")
         self.assertEqual(command.args, ())
 
+    def test_invalid_reservation_dates_are_rejected(self):
+        cases = (
+            "补充预约 R-20260722-001 2 2026-02-31",
+            "新增预约 R-20260722-001 莫高窟 2026-99-99 提前1月",
+            "修改预约提醒 A-000123 游览日期 2026-13-01",
+        )
+        for content in cases:
+            with self.subTest(content=content):
+                command = parse_command(content)
+                self.assertIn("日期无效", command.error)
+
     def test_invalid_reservation_time_is_left_for_strict_service_validation(self):
         command = parse_command("设置提醒 R-20260722-001 1 明早七点")
         self.assertEqual(command.name, "reservation_set_times")

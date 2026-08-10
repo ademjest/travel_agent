@@ -12,6 +12,7 @@ from pathlib import Path
 import requests
 from openai import OpenAI
 
+from core.data_paths import image_root as default_image_root
 from infrastructure.memory_store import MemoryStore, ReservationImageRecord
 from infrastructure.secure_download import download_https, resolve_host
 from services.reservation_service import (
@@ -180,10 +181,7 @@ class ReservationImageService:
             resolver=resolve_host):
         self.store = store
         self.extractor = extractor
-        self.image_root = Path(
-            image_root
-            or Path(__file__).resolve().parent / "data" / "images"
-        )
+        self.image_root = Path(image_root or default_image_root())
         self.session = session or requests.Session()
         if session is None:
             self.session.trust_env = False

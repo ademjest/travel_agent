@@ -52,3 +52,15 @@ class TravelDecisionTests(unittest.TestCase):
         self.assertIn("list_reservation_plans", decision.allowed_tools)
         self.assertIn("confirm_reservation_plan", decision.allowed_tools)
         self.assertTrue(decision.required_tool_groups)
+
+    def test_image_reservation_intent_requires_creation_tool(self):
+        decision = decide_travel_action("按这张攻略帮我制定预约")
+
+        self.assertIn(
+            "create_reservation_draft_from_image",
+            decision.allowed_tools,
+        )
+        self.assertIn(
+            ("create_reservation_draft_from_image",),
+            decision.required_tool_groups,
+        )

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from tools.agent_tools import (
+    CREATE_RESERVATION_DRAFT_TOOL,
     CURRENT_WEATHER_TOOL,
     DRIVING_ROUTE_TOOL,
     RESERVATION_TOOL_NAMES,
@@ -68,6 +69,11 @@ _RESERVATION_ACTION_SIGNALS = (
     "补充预约",
     "查看预约",
 )
+_RESERVATION_IMAGE_SIGNALS = (
+    "制定预约",
+    "根据图片制定预约",
+    "按这张攻略",
+)
 
 
 def decide_travel_action(user_message: str) -> TravelDecision:
@@ -86,8 +92,11 @@ def decide_travel_action(user_message: str) -> TravelDecision:
     for intent in intents:
         if intent in {"weather", "forecast", "route", "traffic"}:
             required_groups.append(TOOL_BY_INTENT[intent])
-    if "reservation" in intents and _contains(text, *_RESERVATION_ACTION_SIGNALS):
-        required_groups.append(RESERVATION_TOOL_NAMES)
+    if "reservation" in intents:
+        if _contains(text, *_RESERVATION_IMAGE_SIGNALS):
+            required_groups.append((CREATE_RESERVATION_DRAFT_TOOL,))
+        elif _contains(text, *_RESERVATION_ACTION_SIGNALS):
+            required_groups.append(RESERVATION_TOOL_NAMES)
 
     route_intents = set(intents) & {"route", "traffic"}
     needs_clarification = (

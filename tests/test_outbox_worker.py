@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from core.chat_transport import OutgoingMessage
+from core.chat_transport import DeliveryError, OutgoingMessage
 from infrastructure.memory_store import MemoryStore
 from services.outbox_worker import (
     MAX_OUTBOX_ATTEMPTS,
@@ -23,6 +23,16 @@ class FakeTransport:
         if self.failures:
             self.failures -= 1
             raise RuntimeError("send failed")
+
+
+class ErrorTransport:
+    def __init__(self, error):
+        self.error = error
+        self.messages = []
+
+    async def send(self, message):
+        self.messages.append(message)
+        raise self.error
 
 
 class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
@@ -87,6 +97,59 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual((first, before_retry, second), (0, 0, 1))
         self.assertEqual(transport.messages, [self.expected, self.expected])
+
+    async def test_duplicate_delivery_is_completed_without_retry(self):
+        self.enqueue()
+        transport = ErrorTransport(DeliveryError(
+            "qq_duplicate",
+            "message already delivered",
+            delivered=True,
+        ))
+        worker = OutboxWorker("qq_official", self.store, transport)
+
+        delivered = await worker.dispatch_due_once(now=self.now)
+
+        self.assertEqual(delivered, 1)
+        self.assertEqual(
+            self.store.get_event_status(
+                "qq_official:group:group-a:message-1"
+            ),
+            "completed",
+        )
+        self.assertEqual(
+            self.store.list_due_outbox(
+                "qq_official",
+                now=self.now + timedelta(days=1),
+            ),
+            (),
+        )
+
+    async def test_permanent_delivery_error_dead_letters_immediately(self):
+        self.enqueue()
+        transport = ErrorTransport(DeliveryError(
+            "qq_reply_expired",
+            "reply message expired",
+            retryable=False,
+        ))
+        worker = OutboxWorker("qq_official", self.store, transport)
+
+        delivered = await worker.dispatch_due_once(now=self.now)
+
+        self.assertEqual(delivered, 0)
+        self.assertEqual(len(transport.messages), 1)
+        self.assertEqual(
+            self.store.get_event_status(
+                "qq_official:group:group-a:message-1"
+            ),
+            "dead_letter",
+        )
+        self.assertEqual(
+            self.store.list_due_outbox(
+                "qq_official",
+                now=self.now + timedelta(days=1),
+            ),
+            (),
+        )
 
     async def test_repeated_failures_use_a_capped_retry_delay(self):
         self.enqueue()

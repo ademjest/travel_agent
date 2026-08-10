@@ -9,6 +9,7 @@ from openai import OpenAIError
 
 from agents.context_builder import ContextBuilder
 from agents.travel_agent import TravelAgent
+from agents.travel_decision import decide_travel_action
 from core.chat_transport import ChatEvent, ReplyRenderer
 from core.commands import parse_command
 from infrastructure.memory_store import EventClaim, MemoryStore
@@ -16,7 +17,11 @@ from services.document_service import DocumentService
 from services.outbox_worker import OutboxWorker
 from services.travel_service import TravelService
 from services.upload_binding import UploadBindingService
-from tools.agent_tools import AgentToolContext
+from services.vision_service import ReservationImageService
+from tools.agent_tools import (
+    CREATE_RESERVATION_DRAFT_TOOL,
+    AgentToolContext,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -36,8 +41,8 @@ class TravelBotApplication:
             outbox_worker: OutboxWorker,
             reply_renderer: ReplyRenderer,
             reminder_scheduler: object,
-            reservation_image_service: object | None = None,
             reservation_service: object | None = None,
+            tool_router: object | None = None,
             group_allowed: Callable[[str], bool] | None = None,
             context_builder: ContextBuilder | None = None,
             event_lease_renew_seconds: float = 60.0):
@@ -49,8 +54,8 @@ class TravelBotApplication:
         self.outbox_worker = outbox_worker
         self.reply_renderer = reply_renderer
         self.reminder_scheduler = reminder_scheduler
-        self.reservation_image_service = reservation_image_service
         self.reservation_service = reservation_service
+        self.tool_router = tool_router
         self.group_allowed = group_allowed or (lambda group_id: True)
         self.context_builder = context_builder or ContextBuilder(store)
         self.event_lease_renew_seconds = event_lease_renew_seconds
@@ -120,8 +125,7 @@ class TravelBotApplication:
     async def _renew_event_lease(self, claim: EventClaim) -> None:
         while True:
             await asyncio.sleep(self.event_lease_renew_seconds)
-            renewed = await asyncio.to_thread(
-                self.store.renew_event,
+            renewed = self.store.renew_event(
                 claim.event_id,
                 claim.claim_token,
             )
@@ -170,20 +174,11 @@ class TravelBotApplication:
                 )
                 return reply, memory_content
 
-            image_attachments = (
-                [
-                    attachment
-                    for attachment in event.attachments
-                    if self.reservation_image_service.is_supported_attachment(
-                        attachment
-                    )
-                ]
-                if (
-                    self.reservation_image_service is not None
-                    and self.reservation_service is not None
-                )
-                else []
-            )
+            image_attachments = [
+                attachment
+                for attachment in event.attachments
+                if ReservationImageService.is_supported_attachment(attachment)
+            ]
             reservation_workflow_active = False
             if self.reservation_service is not None:
                 if (
@@ -205,7 +200,19 @@ class TravelBotApplication:
                     )
                 )
 
-            if image_attachments and not reservation_workflow_active:
+            agent_can_handle_image = False
+            if (
+                    image_attachments
+                    and command.name == "unknown"
+                    and self.travel_agent is not None):
+                agent_can_handle_image = (
+                    "reservation"
+                    in decide_travel_action(event.content).intents
+                )
+            if (
+                    image_attachments
+                    and not reservation_workflow_active
+                    and not agent_can_handle_image):
                 return (
                     "图片不会自动创建预约计划。"
                     "如果这是预约攻略，请先发送“制定预约”，"
@@ -228,52 +235,19 @@ class TravelBotApplication:
                     "请拆成两条消息分别发送。",
                     memory_content or "混合发送预约图片和旅行文档",
                 )
-            if len(image_attachments) == 1:
-                try:
-                    result = await asyncio.to_thread(
-                        self.reservation_image_service.process_attachment,
-                        storage_scope_id=event.storage_scope_id,
-                        platform=event.platform,
-                        group_id=event.scope_id,
-                        uploader_id=event.sender_id,
-                        attachment=image_attachments[0],
-                    )
-                except ValueError as exc:
+            if len(image_attachments) == 1 and reservation_workflow_active:
+                if self.tool_router is None:
                     return (
-                        f"图片处理失败：{exc}。请检查图片后重新发送。",
+                        "预约图片工具暂不可用，请稍后重试。",
                         memory_content or "上传景点预约图片失败",
                     )
-                except Exception:
-                    logger.exception("Reservation image download failed")
-                    return (
-                        "图片下载失败，请稍后重新发送；"
-                        "本次没有创建预约计划。",
-                        memory_content or "上传景点预约图片失败",
-                    )
-                extraction_items = (
-                    result.extraction.items
-                    if result.extraction is not None
-                    else ()
+                reply = await asyncio.to_thread(
+                    self.tool_router.execute,
+                    CREATE_RESERVATION_DRAFT_TOOL,
+                    {"attachment_index": 1},
+                    self._tool_context(event),
                 )
-                plan = await asyncio.to_thread(
-                    self.reservation_service.create_draft,
-                    result.image,
-                    extraction_items,
-                    source_event_id=event.event_key,
-                )
-                reply = self.reservation_service.format_draft(plan)
-                if result.extraction is None:
-                    reply = (
-                        "图片已保存，但自动识别失败，"
-                        "已转为全手动草稿。\n"
-                        + reply
-                    )
-                await asyncio.to_thread(
-                    self.reservation_service.finish_workflow,
-                    event.platform,
-                    event.scope_id,
-                    event.sender_id,
-                )
+                reply = reply.removeprefix("工具错误：")
                 return reply, "上传景点预约图片"
 
             document_result = await asyncio.to_thread(
@@ -329,12 +303,7 @@ class TravelBotApplication:
                             event.content,
                             agent_context,
                             "",
-                            AgentToolContext(
-                                platform=event.platform,
-                                group_id=event.scope_id,
-                                creator_id=event.sender_id,
-                                event_id=event.event_key,
-                            ),
+                            self._tool_context(event),
                         )
                     else:
                         agent_result = await asyncio.to_thread(
@@ -361,6 +330,16 @@ class TravelBotApplication:
             logger.exception("Unexpected error while handling group message")
             reply = "处理请求时出现内部错误，请稍后重试。"
         return reply, memory_content
+
+    @staticmethod
+    def _tool_context(event: ChatEvent) -> AgentToolContext:
+        return AgentToolContext(
+            platform=event.platform,
+            group_id=event.scope_id,
+            creator_id=event.sender_id,
+            event_id=event.event_key,
+            attachments=event.attachments,
+        )
 
     async def _build_private_reply(
             self,

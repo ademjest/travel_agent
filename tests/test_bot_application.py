@@ -10,7 +10,9 @@ from core.chat_transport import ChatAttachment, ChatEvent
 from infrastructure.memory_store import MemoryStore
 from services.document_service import DocumentIngestResult
 from services.outbox_worker import OutboxWorker
+from services.reservation_draft_creator import ReservationDraftCreator
 from services.upload_binding import PrivateUploadResult
+from tools.reservation_tools import AgentToolRouter
 
 
 class FakeTransport:
@@ -98,7 +100,8 @@ class FakeReservationImageService:
 
 
 class FakeReservationService:
-    def __init__(self):
+    def __init__(self, store):
+        self.store = store
         self.created = []
         self.commands = []
         self.active_workflows = set()
@@ -158,14 +161,22 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.document_service = FakeDocumentService()
         self.upload_service = FakeUploadBindingService()
         self.reservation_image_service = FakeReservationImageService()
-        self.reservation_service = FakeReservationService()
+        self.reservation_service = FakeReservationService(self.store)
+        self.tool_router = AgentToolRouter(
+            self.travel_service,
+            self.reservation_service,
+            ReservationDraftCreator(
+                self.reservation_image_service,
+                self.reservation_service,
+            ),
+        )
         self.application = TravelBotApplication(
             store=self.store,
             travel_service=self.travel_service,
             travel_agent=self.travel_agent,
             document_service=self.document_service,
-            reservation_image_service=self.reservation_image_service,
             reservation_service=self.reservation_service,
+            tool_router=self.tool_router,
             upload_binding_service=self.upload_service,
             outbox_worker=self.worker,
             reply_renderer=FakeRenderer(),

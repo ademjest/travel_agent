@@ -3,11 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from core.chat_transport import ChatAttachment
+
 
 CURRENT_WEATHER_TOOL = "get_current_weather"
 WEATHER_FORECAST_TOOL = "get_weather_forecast"
 DRIVING_ROUTE_TOOL = "get_driving_route"
 ROUTE_TRAFFIC_TOOL = "get_route_traffic"
+CREATE_RESERVATION_DRAFT_TOOL = "create_reservation_draft_from_image"
 
 TRAVEL_TOOL_NAMES = (
     CURRENT_WEATHER_TOOL,
@@ -17,6 +20,7 @@ TRAVEL_TOOL_NAMES = (
 )
 
 RESERVATION_TOOL_NAMES = (
+    CREATE_RESERVATION_DRAFT_TOOL,
     "list_reservation_plans",
     "refresh_reservation_plan",
     "confirm_reservation_plan",
@@ -36,6 +40,7 @@ class AgentToolContext:
     group_id: str
     creator_id: str
     event_id: str
+    attachments: tuple[ChatAttachment, ...] = ()
 
 
 def _function_tool(
@@ -125,6 +130,21 @@ TOOLS = [
             "destination": {"type": "string", "description": "驾车终点。"},
         },
         ("origin", "destination"),
+    ),
+    _function_tool(
+        CREATE_RESERVATION_DRAFT_TOOL,
+        (
+            "使用当前消息中的一张预约攻略图片创建预约草稿。"
+            "只能选择当前事件的附件，不能传入外部 URL。"
+        ),
+        {
+            "attachment_index": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "当前消息中预约图片的序号；只有一张时填写 1。",
+            }
+        },
+        ("attachment_index",),
     ),
     _function_tool(
         "list_reservation_plans",

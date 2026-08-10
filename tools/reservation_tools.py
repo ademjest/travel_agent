@@ -8,7 +8,12 @@ from services.reservation_service import (
     ReservationService,
     parse_beijing_datetime_list,
 )
-from tools.agent_tools import AgentToolContext, RESERVATION_TOOL_NAMES
+from services.reservation_draft_creator import ReservationDraftCreator
+from tools.agent_tools import (
+    CREATE_RESERVATION_DRAFT_TOOL,
+    AgentToolContext,
+    RESERVATION_TOOL_NAMES,
+)
 
 
 MAX_TOOL_TEXT_CHARS = 500
@@ -43,8 +48,12 @@ def _times(arguments: Mapping[str, object]):
 
 
 class ReservationToolExecutor:
-    def __init__(self, service: ReservationService):
+    def __init__(
+            self,
+            service: ReservationService,
+            draft_creator: ReservationDraftCreator):
         self.service = service
+        self.draft_creator = draft_creator
 
     def execute(
             self,
@@ -89,6 +98,18 @@ class ReservationToolExecutor:
         group_id = context.group_id
         creator_id = context.creator_id
 
+        if name == CREATE_RESERVATION_DRAFT_TOOL:
+            return self.draft_creator.create(
+                platform=platform,
+                group_id=group_id,
+                creator_id=creator_id,
+                event_id=context.event_id,
+                attachments=context.attachments,
+                attachment_index=_positive_int(
+                    arguments,
+                    "attachment_index",
+                ),
+            )
         if name == "list_reservation_plans":
             return self.service.format_plan_list(
                 self.service.list_plans(platform, group_id, creator_id)
@@ -195,9 +216,16 @@ class ReservationToolExecutor:
 
 
 class AgentToolRouter:
-    def __init__(self, travel_service, reservation_service: ReservationService):
+    def __init__(
+            self,
+            travel_service,
+            reservation_service: ReservationService,
+            draft_creator: ReservationDraftCreator):
         self.travel_service = travel_service
-        self.reservation_tools = ReservationToolExecutor(reservation_service)
+        self.reservation_tools = ReservationToolExecutor(
+            reservation_service,
+            draft_creator,
+        )
 
     def execute(
             self,

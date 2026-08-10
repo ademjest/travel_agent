@@ -1,4 +1,7 @@
 import asyncio
+import hashlib
+import hmac
+import json
 import os
 import tempfile
 import unittest
@@ -32,12 +35,21 @@ from services.upload_binding import PrivateUploadResult
 class RecordingTransport:
     def __init__(self):
         self.messages = []
+        self.group_file_url_calls = []
+        self.group_file_url = "https://example.test/group-file"
+        self.group_file_url_error = None
 
     async def send(self, message):
         self.messages.append(message)
 
     async def reply_is_from_bot(self, message_id, self_id):
         return message_id == "previous" and self_id == "30001"
+
+    async def get_group_file_url(self, group_id, file_id, busid):
+        self.group_file_url_calls.append((group_id, file_id, busid))
+        if self.group_file_url_error is not None:
+            raise self.group_file_url_error
+        return self.group_file_url
 
 
 class FakeTravelService:
@@ -46,8 +58,13 @@ class FakeTravelService:
 
 
 class FakeDocumentService:
+    def __init__(self):
+        self.calls = []
+        self.result = DocumentIngestResult(handled=False)
+
     def ingest_attachments(self, group_id, sender_id, attachments):
-        return DocumentIngestResult(handled=False)
+        self.calls.append((group_id, sender_id, attachments))
+        return self.result
 
 
 class FakeUploadService:
@@ -76,11 +93,12 @@ class OneBotAppTests(unittest.TestCase):
             scan_once=AsyncMock(return_value=0),
             run=AsyncMock(),
         )
+        self.documents = FakeDocumentService()
         application = TravelBotApplication(
             store=self.store,
             travel_service=FakeTravelService(),
             travel_agent=None,
-            document_service=FakeDocumentService(),
+            document_service=self.documents,
             upload_binding_service=FakeUploadService(),
             outbox_worker=worker,
             reply_renderer=OneBotReplyRenderer(),
@@ -141,6 +159,45 @@ class OneBotAppTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_valid_napcat_signature_is_accepted(self):
+        payload = {
+            "post_type": "meta_event",
+            "meta_event_type": "heartbeat",
+        }
+        body = json.dumps(
+            payload,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        signature = "sha1=" + hmac.new(
+            b"inbound-token",
+            body,
+            hashlib.sha1,
+        ).hexdigest()
+
+        response = self.client.post(
+            "/onebot",
+            headers={
+                "Content-Type": "application/json",
+                "X-Signature": signature,
+            },
+            content=body,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ignored"})
+
+    def test_invalid_napcat_signature_is_rejected(self):
+        response = self.client.post(
+            "/onebot",
+            headers={
+                "Content-Type": "application/json",
+                "X-Signature": "sha1=invalid",
+            },
+            content=b'{"post_type":"meta_event"}',
+        )
+
+        self.assertEqual(response.status_code, 401)
+
     def test_missing_required_message_id_is_rejected(self):
         payload = self.payload(
             1,
@@ -184,6 +241,277 @@ class OneBotAppTests(unittest.TestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].content, "明早八点集合")
         self.assertEqual(self.transport.messages, [])
+
+    def test_non_at_fixed_command_invokes_application(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(
+                20,
+                [{"type": "text", "data": {"text": "ping"}}],
+            ),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(len(self.transport.messages), 1)
+
+    def test_non_at_reservation_start_invokes_application(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(
+                21,
+                [{"type": "text", "data": {"text": "制定预约"}}],
+            ),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(len(self.transport.messages), 1)
+
+    def test_active_reservation_workflow_accepts_next_image_without_at(self):
+        self.store.start_reservation_workflow(
+            "onebot",
+            "10001",
+            "20001",
+        )
+
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(22, [{
+                "type": "image",
+                "data": {
+                    "name": "booking.jpg",
+                    "url": "https://example.test/booking.jpg",
+                },
+            }]),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(len(self.transport.messages), 1)
+
+    def test_explicit_reservation_image_intent_does_not_require_at(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(23, [
+                {
+                    "type": "text",
+                    "data": {"text": "按这张攻略帮我制定预约"},
+                },
+                {
+                    "type": "image",
+                    "data": {
+                        "name": "booking.png",
+                        "url": "https://example.test/booking.png",
+                    },
+                },
+            ]),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(len(self.transport.messages), 1)
+
+    def test_plain_image_without_active_workflow_is_only_observed(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(24, [{
+                "type": "image",
+                "data": {
+                    "name": "scenery.jpg",
+                    "url": "https://example.test/scenery.jpg",
+                },
+            }]),
+        )
+
+        self.assertEqual(response.json(), {"status": "observed"})
+        self.assertEqual(self.transport.messages, [])
+
+    def test_unsupported_group_file_is_observed_without_url_lookup(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(29, [{
+                "type": "file",
+                "data": {
+                    "file_id": "archive-29",
+                    "busid": 102,
+                    "name": "photos.zip",
+                },
+            }]),
+        )
+
+        self.assertEqual(response.json(), {"status": "observed"})
+        self.assertEqual(self.transport.group_file_url_calls, [])
+        self.assertEqual(self.transport.messages, [])
+
+    def test_supported_group_document_does_not_require_at(self):
+        self.documents.result = DocumentIngestResult(
+            handled=True,
+            reply="已导入行程",
+            memory_content="上传旅行文档 plan.xlsx",
+        )
+
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(25, [{
+                "type": "file",
+                "data": {
+                    "name": "plan.xlsx",
+                    "url": "https://example.test/plan.xlsx",
+                },
+            }]),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(len(self.documents.calls), 1)
+        self.assertEqual(len(self.transport.messages), 1)
+
+    def test_group_file_segment_resolves_missing_url(self):
+        self.documents.result = DocumentIngestResult(
+            handled=True,
+            reply="已导入行程",
+        )
+
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(26, [{
+                "type": "file",
+                "data": {
+                    "file_id": "file-26",
+                    "busid": 102,
+                    "name": "plan.xlsx",
+                    "size": 2048,
+                },
+            }]),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(
+            self.transport.group_file_url_calls,
+            [("10001", "file-26", 102)],
+        )
+        attachment = self.documents.calls[0][2][0]
+        self.assertEqual(attachment.url, self.transport.group_file_url)
+
+    def test_group_upload_notice_is_processed_once(self):
+        self.documents.result = DocumentIngestResult(
+            handled=True,
+            reply="已导入行程",
+        )
+        payload = {
+            "post_type": "notice",
+            "notice_type": "group_upload",
+            "group_id": 10001,
+            "user_id": 20001,
+            "self_id": 30001,
+            "file": {
+                "id": "notice-file-1",
+                "name": "plan.xlsx",
+                "size": 4096,
+                "busid": 102,
+            },
+        }
+
+        first = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=payload,
+        )
+        self.transport.group_file_url_error = RuntimeError("expired URL")
+        second = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=payload,
+        )
+
+        self.assertEqual(first.json(), {"status": "handled"})
+        self.assertEqual(second.json(), {"status": "handled"})
+        self.assertEqual(len(self.documents.calls), 1)
+        self.assertEqual(len(self.transport.messages), 1)
+        self.assertEqual(
+            self.transport.group_file_url_calls,
+            [("10001", "notice-file-1", 102)],
+        )
+
+    def test_messages_and_notices_sent_by_bot_are_ignored(self):
+        message = self.payload(27, [
+            {"type": "at", "data": {"qq": "30001"}},
+            {"type": "text", "data": {"text": "状态"}},
+        ])
+        message["user_id"] = 30001
+        notice = {
+            "post_type": "notice",
+            "notice_type": "group_upload",
+            "group_id": 10001,
+            "user_id": 30001,
+            "self_id": 30001,
+            "file": {
+                "id": "own-file",
+                "name": "plan.xlsx",
+                "busid": 102,
+            },
+        }
+
+        message_response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=message,
+        )
+        notice_response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=notice,
+        )
+
+        self.assertEqual(message_response.json(), {"status": "ignored"})
+        self.assertEqual(notice_response.json(), {"status": "ignored"})
+        self.assertEqual(self.transport.messages, [])
+        self.assertEqual(self.documents.calls, [])
+
+    def test_group_upload_notice_keeps_group_allowlist(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json={
+                "post_type": "notice",
+                "notice_type": "group_upload",
+                "group_id": 99999,
+                "user_id": 20001,
+                "self_id": 30001,
+                "file": {
+                    "id": "blocked-file",
+                    "name": "plan.xlsx",
+                    "busid": 102,
+                },
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_group_file_url_failure_is_reported(self):
+        self.transport.group_file_url_error = RuntimeError(
+            "retcode=1200"
+        )
+
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(28, [{
+                "type": "file",
+                "data": {
+                    "file_id": "file-28",
+                    "busid": 102,
+                    "name": "plan.xlsx",
+                },
+            }]),
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("group file URL", response.json()["detail"])
 
     def test_at_message_invokes_application(self):
         response = self.client.post(
@@ -296,6 +624,41 @@ class OneBotAppTests(unittest.TestCase):
 
 
 class OneBotTransportTests(unittest.IsolatedAsyncioTestCase):
+    async def test_get_group_file_url_returns_napcat_url(self):
+        requests = []
+
+        async def handler(request):
+            requests.append(request)
+            return httpx.Response(200, json={
+                "status": "ok",
+                "retcode": 0,
+                "data": {"url": "https://example.test/plan.xlsx"},
+            })
+
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="http://onebot.test",
+        )
+        transport = OneBotTransport(
+            "http://onebot.test",
+            "token",
+            client=client,
+        )
+
+        url = await transport.get_group_file_url(
+            "10001",
+            "file-1",
+            102,
+        )
+
+        self.assertEqual(url, "https://example.test/plan.xlsx")
+        self.assertEqual(requests[0].url.path, "/get_group_file_url")
+        self.assertEqual(
+            json.loads(requests[0].content),
+            {"group_id": "10001", "file_id": "file-1", "busid": 102},
+        )
+        await client.aclose()
+
     async def test_http_error_is_failure_before_json_parsing(self):
         async def handler(request):
             return httpx.Response(500, text="upstream failed")

@@ -49,6 +49,14 @@ class RuntimeFactoryTests(unittest.TestCase):
                 runtime.tool_router.reservation_tools.service,
                 runtime.reservation_service,
             )
+            self.assertIs(
+                runtime.tool_router.reservation_tools.draft_creator,
+                runtime.reservation_draft_creator,
+            )
+            self.assertEqual(
+                runtime.reservation_image_service.image_root,
+                store.database_path.parent / "images",
+            )
             self.assertIsNone(runtime.travel_agent)
 
 

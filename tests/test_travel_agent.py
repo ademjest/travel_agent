@@ -6,6 +6,7 @@ from agents.context_builder import AgentContext
 from agents.travel_agent import TravelAgent
 from core.settings import Settings
 from infrastructure.memory_store import ConversationTurn
+from core.chat_transport import ChatAttachment
 from tools.agent_tools import AgentToolContext
 
 
@@ -123,6 +124,7 @@ class TravelAgentTests(unittest.TestCase):
         system_prompt = client.completions.requests[0]["messages"][0]["content"]
         self.assertIn("必须调用本轮提供的预约工具", system_prompt)
         self.assertIn("不得猜测计划编号", system_prompt)
+        self.assertIn("create_reservation_draft_from_image", system_prompt)
 
     def test_agent_can_call_weather_and_traffic_in_one_step(self):
         client = FakeClient([
@@ -194,6 +196,48 @@ class TravelAgentTests(unittest.TestCase):
         )
 
         self.assertEqual(result.reply, "预约计划已经确认。")
+        self.assertEqual(calls[0][2], context)
+
+    def test_image_reservation_calls_creation_tool_with_attachment_context(self):
+        client = FakeClient([
+            completion(assistant_message(tool_calls=[
+                tool_call(
+                    "call-create",
+                    "create_reservation_draft_from_image",
+                    '{"attachment_index":1}',
+                )
+            ])),
+            completion(assistant_message(content="预约草稿已生成。")),
+        ])
+        calls = []
+
+        def execute(name, arguments, context):
+            calls.append((name, arguments, context))
+            return "预约计划 R-20260802-001"
+
+        context = AgentToolContext(
+            platform="onebot",
+            group_id="12345",
+            creator_id="67890",
+            event_id="onebot:group:12345:101",
+            attachments=(ChatAttachment(
+                filename="booking.jpg",
+                url="https://example.test/booking.jpg",
+                content_type="image/jpeg",
+            ),),
+        )
+        agent = TravelAgent(self.settings, execute, client=client)
+
+        result = agent.run(
+            "按这张攻略帮我制定预约",
+            tool_context=context,
+        )
+
+        self.assertEqual(result.reply, "预约草稿已生成。")
+        self.assertEqual(
+            calls[0][0],
+            "create_reservation_draft_from_image",
+        )
         self.assertEqual(calls[0][2], context)
 
     def test_live_answer_is_rejected_until_required_tool_is_called(self):

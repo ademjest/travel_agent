@@ -4,6 +4,20 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 
+class DeliveryError(RuntimeError):
+    def __init__(
+            self,
+            code: str,
+            message: str,
+            *,
+            retryable: bool = True,
+            delivered: bool = False):
+        super().__init__(message)
+        self.code = code
+        self.retryable = retryable
+        self.delivered = delivered
+
+
 def storage_scope_id(platform: str, scope_id: str) -> str:
     if platform == "qq_official":
         return scope_id
