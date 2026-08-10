@@ -20,6 +20,7 @@ from app.group_trigger_policy import GroupTriggerPolicy
 from app.runtime_factory import build_runtime
 from core.background_supervisor import BackgroundSupervisor
 from core.chat_transport import ChatAttachment, ChatEvent, OutgoingMessage
+from core.commands import ONEBOT_HELP_TEXT, parse_command
 from core.settings import OneBotSettings, Settings
 from infrastructure.memory_store import MemoryStore
 from services.maintenance import MaintenanceService
@@ -113,6 +114,8 @@ class OneBotTransport:
 
 class OneBotReplyRenderer:
     def render(self, channel, command_content, reply_text):
+        if parse_command(command_content).name == "help":
+            reply_text = ONEBOT_HELP_TEXT
         return {"message": reply_text}
 
     def render_reminder(self, recipient_id: str, text: str):

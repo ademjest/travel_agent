@@ -11,7 +11,7 @@ from agents.context_builder import ContextBuilder
 from agents.travel_agent import TravelAgent
 from agents.travel_decision import decide_travel_action
 from core.chat_transport import ChatEvent, ReplyRenderer
-from core.commands import parse_command
+from core.commands import ONEBOT_UPLOAD_DOCUMENT_TEXT, parse_command
 from infrastructure.memory_store import EventClaim, MemoryStore
 from services.document_service import DocumentService
 from services.outbox_worker import OutboxWorker
@@ -273,13 +273,16 @@ class TravelBotApplication:
                         event,
                     )
                 elif command.name == "upload_document":
-                    reply = await asyncio.to_thread(
-                        self.upload_binding_service.issue_binding,
-                        event.scope_id,
-                        event.sender_id,
-                        event_id=event.event_key,
-                        claim_token=claim.claim_token,
-                    )
+                    if event.platform == "onebot":
+                        reply = ONEBOT_UPLOAD_DOCUMENT_TEXT
+                    else:
+                        reply = await asyncio.to_thread(
+                            self.upload_binding_service.issue_binding,
+                            event.scope_id,
+                            event.sender_id,
+                            event_id=event.event_key,
+                            claim_token=claim.claim_token,
+                        )
                 elif (
                         reservation_workflow_active
                         and command.name == "unknown"):

@@ -68,7 +68,11 @@ class FakeDocumentService:
 
 
 class FakeUploadService:
+    def __init__(self):
+        self.issue_calls = []
+
     def issue_binding(self, group_id, sender_id, **kwargs):
+        self.issue_calls.append((group_id, sender_id, kwargs))
         return "binding"
 
     def handle_private_message(self, *args, **kwargs):
@@ -94,12 +98,13 @@ class OneBotAppTests(unittest.TestCase):
             run=AsyncMock(),
         )
         self.documents = FakeDocumentService()
+        self.uploads = FakeUploadService()
         application = TravelBotApplication(
             store=self.store,
             travel_service=FakeTravelService(),
             travel_agent=None,
             document_service=self.documents,
-            upload_binding_service=FakeUploadService(),
+            upload_binding_service=self.uploads,
             outbox_worker=worker,
             reply_renderer=OneBotReplyRenderer(),
             reminder_scheduler=self.scheduler,
@@ -254,6 +259,38 @@ class OneBotAppTests(unittest.TestCase):
 
         self.assertEqual(response.json(), {"status": "handled"})
         self.assertEqual(len(self.transport.messages), 1)
+
+    def test_help_uses_onebot_specific_text_menu(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(
+                201,
+                [{"type": "text", "data": {"text": "帮助"}}],
+            ),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        message = self.transport.messages[0].payload["message"]
+        self.assertIn("OneBot/NapCat", message)
+        self.assertIn("无需 @", message)
+        self.assertIn("不需绑定码", message)
+
+    def test_upload_command_prompts_direct_group_upload_without_binding(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(
+                202,
+                [{"type": "text", "data": {"text": "上传文档"}}],
+            ),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        message = self.transport.messages[0].payload["message"]
+        self.assertIn("直接发送到当前群", message)
+        self.assertIn("不需一次性绑定码", message)
+        self.assertEqual(self.uploads.issue_calls, [])
 
     def test_non_at_reservation_start_invokes_application(self):
         response = self.client.post(

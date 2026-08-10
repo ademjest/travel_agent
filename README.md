@@ -514,6 +514,8 @@ ssh -L 6099:127.0.0.1:6099 your-user@your-server
 
 NapCat/OneBot 不要求每条有效操作都 `@机器人`。以下消息会直接处理：固定命令；发送“制定预约”后 30 分钟内的下一张图片；正文明确包含预约意图的图片；`.docx/.txt/.md/.xlsx` 旅行文档群文件。`@机器人` 和能够确认是回复机器人本身的消息仍会处理。其他普通群聊和普通图片只保存为上下文，不调用 LLM、不自动回复；机器人自己发送的消息和文件 notice 会被忽略。
 
+OneBot 模式下发送“帮助”会返回专用的纯文本菜单，不使用 QQ 官方 Bot 的 Markdown 键盘。发送“上传文档”只会提示直接把支持的文件发到当前群，不会生成一次性绑定码；绑定码和私聊上传流程仅保留给 QQ 官方 Bot。
+
 旅行文档可以直接发送到当前允许群。适配器同时支持 message 中的 `file` segment 和 `group_upload` notice；如果事件没有文件 URL，会立即调用 `/get_group_file_url`，再把附件交给统一的文档导入流程。URL 获取失败会返回可定位的 HTTP 502 错误，不会把空 URL 静默交给业务层。所有允许群消息都只保存归一化文本和必要标识，不保存完整 OneBot 原始 JSON。
 
 OneBot 服务提供 `GET /health`，返回后台任务、Outbox、死信、预约提醒和留存任务状态，不返回 Access Token、入站 Token 或 API Key。
