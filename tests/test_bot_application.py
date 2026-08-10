@@ -1,5 +1,7 @@
 import asyncio
+import asyncio
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -400,6 +402,90 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.reservation_service.created), 1)
         self.assertFalse(self.reservation_service.workflow_is_active(
             "qq_official", "group-a", "member-a"
+        ))
+
+    async def test_onebot_image_reports_progress_and_processing_status(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        class SlowReservationImageService(FakeReservationImageService):
+            def process_attachment(inner_self, **kwargs):
+                started.set()
+                release.wait(timeout=2)
+                return super().process_attachment(**kwargs)
+
+        image_service = SlowReservationImageService()
+        tool_router = AgentToolRouter(
+            self.travel_service,
+            self.reservation_service,
+            ReservationDraftCreator(
+                image_service,
+                self.reservation_service,
+            ),
+        )
+        worker = OutboxWorker("onebot", self.store, self.transport)
+        application = TravelBotApplication(
+            store=self.store,
+            travel_service=self.travel_service,
+            travel_agent=self.travel_agent,
+            document_service=self.document_service,
+            reservation_service=self.reservation_service,
+            tool_router=tool_router,
+            upload_binding_service=self.upload_service,
+            outbox_worker=worker,
+            reply_renderer=FakeRenderer(),
+            reminder_scheduler=object(),
+            group_allowed=lambda group_id: group_id == "group-a",
+        )
+        self.reservation_service.start_workflow(
+            "onebot",
+            "group-a",
+            "member-a",
+        )
+        image_event = ChatEvent(
+            platform="onebot",
+            channel="group",
+            event_id="onebot-image",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+            ),
+        )
+
+        task = asyncio.create_task(application.handle(image_event))
+        try:
+            self.assertTrue(await asyncio.to_thread(started.wait, 1))
+            self.assertIn(
+                "正在下载并识别",
+                self.transport.messages[0].payload["content"],
+            )
+
+            await application.handle(ChatEvent(
+                platform="onebot",
+                channel="group",
+                event_id="onebot-question",
+                scope_id="group-a",
+                sender_id="member-a",
+                content="看得到我发的图片吗",
+            ))
+
+            self.assertTrue(any(
+                "仍在识别" in message.payload["content"]
+                for message in self.transport.messages
+            ))
+        finally:
+            release.set()
+            await task
+
+        self.assertTrue(any(
+            "预约计划 R-20260722-001" in message.payload["content"]
+            for message in self.transport.messages
         ))
 
     async def test_multiple_images_are_rejected_without_model_call(self):

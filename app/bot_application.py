@@ -10,7 +10,7 @@ from openai import OpenAIError
 from agents.context_builder import ContextBuilder
 from agents.travel_agent import TravelAgent
 from agents.travel_decision import decide_travel_action
-from core.chat_transport import ChatEvent, ReplyRenderer
+from core.chat_transport import ChatEvent, OutgoingMessage, ReplyRenderer
 from core.commands import ONEBOT_UPLOAD_DOCUMENT_TEXT, parse_command
 from infrastructure.memory_store import EventClaim, MemoryStore
 from services.document_service import DocumentService
@@ -59,6 +59,7 @@ class TravelBotApplication:
         self.group_allowed = group_allowed or (lambda group_id: True)
         self.context_builder = context_builder or ContextBuilder(store)
         self.event_lease_renew_seconds = event_lease_renew_seconds
+        self._reservation_processing: set[tuple[str, str, str]] = set()
 
     async def handle(self, event: ChatEvent) -> None:
         if event.channel == "group" and not self.group_allowed(event.scope_id):
@@ -164,6 +165,11 @@ class TravelBotApplication:
             claim: EventClaim) -> tuple[str, str]:
         try:
             command = parse_command(event.content)
+            workflow_key = (
+                event.platform,
+                event.scope_id,
+                event.sender_id,
+            )
             if (
                     command.name == "reservation_stop"
                     and self.reservation_service is not None):
@@ -236,17 +242,33 @@ class TravelBotApplication:
                     memory_content or "混合发送预约图片和旅行文档",
                 )
             if len(image_attachments) == 1 and reservation_workflow_active:
+                if workflow_key in self._reservation_processing:
+                    return (
+                        "上一张预约攻略图片仍在识别，请等待当前草稿完成，"
+                        "不要重复发送图片。",
+                        memory_content or "重复发送预约图片",
+                    )
                 if self.tool_router is None:
                     return (
                         "预约图片工具暂不可用，请稍后重试。",
                         memory_content or "上传景点预约图片失败",
                     )
-                reply = await asyncio.to_thread(
-                    self.tool_router.execute,
-                    CREATE_RESERVATION_DRAFT_TOOL,
-                    {"attachment_index": 1},
-                    self._tool_context(event),
-                )
+                self._reservation_processing.add(workflow_key)
+                try:
+                    await self._send_onebot_progress(
+                        event,
+                        "已收到预约攻略图片，正在下载并识别。"
+                        "处理通常需要几十秒，完成后会自动发送预约草稿，"
+                        "请勿重复发送。",
+                    )
+                    reply = await asyncio.to_thread(
+                        self.tool_router.execute,
+                        CREATE_RESERVATION_DRAFT_TOOL,
+                        {"attachment_index": 1},
+                        self._tool_context(event),
+                    )
+                finally:
+                    self._reservation_processing.discard(workflow_key)
                 reply = reply.removeprefix("工具错误：")
                 return reply, "上传景点预约图片"
 
@@ -286,10 +308,16 @@ class TravelBotApplication:
                 elif (
                         reservation_workflow_active
                         and command.name == "unknown"):
-                    reply = (
-                        "当前正在制定预约。请发送一张预约攻略图片，"
-                        "或发送“退出制定预约”结束当前流程。"
-                    )
+                    if workflow_key in self._reservation_processing:
+                        reply = (
+                            "已收到上一张预约攻略图片，目前仍在识别。"
+                            "完成后会自动发送预约草稿，请稍候。"
+                        )
+                    else:
+                        reply = (
+                            "当前正在制定预约。请发送一张预约攻略图片，"
+                            "或发送“退出制定预约”结束当前流程。"
+                        )
                 elif command.name != "unknown" or not self.travel_agent:
                     reply = await asyncio.to_thread(
                         self.travel_service.handle,
@@ -333,6 +361,33 @@ class TravelBotApplication:
             logger.exception("Unexpected error while handling group message")
             reply = "处理请求时出现内部错误，请稍后重试。"
         return reply, memory_content
+
+    async def _send_onebot_progress(
+            self,
+            event: ChatEvent,
+            text: str) -> None:
+        if event.platform != "onebot":
+            return
+        payload = self.reply_renderer.render(
+            event.channel,
+            event.content,
+            text,
+        )
+        try:
+            await asyncio.wait_for(
+                self.outbox_worker.transport.send(OutgoingMessage(
+                    channel=event.channel,
+                    target_id=event.scope_id,
+                    reply_to_id=event.event_id,
+                    payload=payload,
+                )),
+                timeout=5,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to send reservation image progress: event_id=%s",
+                event.event_key,
+            )
 
     @staticmethod
     def _tool_context(event: ChatEvent) -> AgentToolContext:

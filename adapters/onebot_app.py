@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import logging
 import os
 import re
 import secrets
@@ -24,6 +25,9 @@ from core.commands import ONEBOT_HELP_TEXT, parse_command
 from core.settings import OneBotSettings, Settings
 from infrastructure.memory_store import MemoryStore
 from services.maintenance import MaintenanceService
+
+
+logger = logging.getLogger(__name__)
 
 
 class OneBotTransport:
@@ -60,14 +64,12 @@ class OneBotTransport:
     async def get_group_file_url(
             self,
             group_id: str,
-            file_id: str,
-            busid: object) -> str:
+            file_id: str) -> str:
         response = await self.client.post(
             "/get_group_file_url",
             json={
                 "group_id": group_id,
                 "file_id": file_id,
-                "busid": busid,
             },
         )
         response.raise_for_status()
@@ -213,10 +215,25 @@ class OneBotAdapter:
             )
             if event_status == "completed":
                 return {"status": "handled"}
-            segments = await self._resolve_group_file_urls(
-                group_id,
-                segments,
-            )
+            try:
+                segments = await self._resolve_group_file_urls(
+                    group_id,
+                    segments,
+                )
+            except HTTPException as exc:
+                has_group_file = any(
+                    segment.get("type") == "file"
+                    for segment in segments
+                )
+                if has_group_file and exc.status_code == 502:
+                    logger.info(
+                        "Deferred group file message until upload notice: "
+                        "group_id=%s event_id=%s",
+                        group_id,
+                        event.event_id,
+                    )
+                    return {"status": "deferred"}
+                raise
             event, _ = self._group_event(payload, segments)
             await self.application.handle(event)
             return {"status": "handled"}
@@ -256,23 +273,18 @@ class OneBotAdapter:
             or file_data.get("file")
             or ""
         ).strip()
-        busid = file_data.get("busid")
         if not file_id:
             raise HTTPException(status_code=400, detail="missing group file id")
-        if busid is None or str(busid).strip() == "":
-            raise HTTPException(
-                status_code=400,
-                detail="missing group file busid",
-            )
 
         segments = [{
             "type": "file",
             "data": {
                 "file_id": file_id,
-                "busid": busid,
+                "busid": file_data.get("busid"),
                 "name": (
                     file_data.get("name")
                     or file_data.get("filename")
+                    or file_data.get("file_name")
                     or file_id
                 ),
                 "url": file_data.get("url") or "",
@@ -285,7 +297,7 @@ class OneBotAdapter:
             },
         }]
         digest = hashlib.sha256(
-            f"{group_id}:{user_id}:{file_id}:{busid}".encode("utf-8")
+            f"{group_id}:{user_id}:{file_id}".encode("utf-8")
         ).hexdigest()
         event = ChatEvent(
             platform="onebot",
@@ -334,16 +346,10 @@ class OneBotAdapter:
                 or data.get("file")
                 or ""
             ).strip()
-            busid = data.get("busid")
             if not file_id:
                 raise HTTPException(
                     status_code=400,
                     detail="missing group file id",
-                )
-            if busid is None or str(busid).strip() == "":
-                raise HTTPException(
-                    status_code=400,
-                    detail="missing group file busid",
                 )
             resolver = getattr(self.transport, "get_group_file_url", None)
             if resolver is None:
@@ -352,7 +358,7 @@ class OneBotAdapter:
                     detail="group file URL resolver is unavailable",
                 )
             try:
-                url = await resolver(group_id, file_id, busid)
+                url = await resolver(group_id, file_id)
             except Exception as exc:
                 raise HTTPException(
                     status_code=502,
@@ -446,6 +452,7 @@ class OneBotAdapter:
                 filename=str(
                     data.get("name")
                     or data.get("filename")
+                    or data.get("file_name")
                     or data.get("file")
                     or "attachment"
                 ),

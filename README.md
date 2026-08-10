@@ -516,7 +516,9 @@ NapCat/OneBot 不要求每条有效操作都 `@机器人`。以下消息会直�
 
 OneBot 模式下发送“帮助”会返回专用的纯文本菜单，不使用 QQ 官方 Bot 的 Markdown 键盘。发送“上传文档”只会提示直接把支持的文件发到当前群，不会生成一次性绑定码；绑定码和私聊上传流程仅保留给 QQ 官方 Bot。
 
-旅行文档可以直接发送到当前允许群。适配器同时支持 message 中的 `file` segment 和 `group_upload` notice；如果事件没有文件 URL，会立即调用 `/get_group_file_url`，再把附件交给统一的文档导入流程。URL 获取失败会返回可定位的 HTTP 502 错误，不会把空 URL 静默交给业务层。所有允许群消息都只保存归一化文本和必要标识，不保存完整 OneBot 原始 JSON。
+旅行文档可以直接发送到当前允许群。适配器同时支持 message 中的 `file` segment 和 `group_upload` notice。NapCat 可能为同一文件先上报一条只有原始 UUID 的文件消息，再上报带可解析文件 ID 的上传通知；前者无法取得 URL 时会安静等待后者，避免对同一次上传返回 502。上传通知会调用 `/get_group_file_url`，仅传入当前 NapCat 接口接受的 `group_id` 和 `file_id`，再把附件交给统一的文档导入流程。所有允许群消息都只保存归一化文本和必要标识，不保存完整 OneBot 原始 JSON。
+
+预约攻略图片进入识别前，OneBot 会先回复“已收到，正在识别”。处理期间再次询问或重复发图时，机器人会明确告知当前图片仍在处理，完成后再自动发送预约草稿。
 
 OneBot 服务提供 `GET /health`，返回后台任务、Outbox、死信、预约提醒和留存任务状态，不返回 Access Token、入站 Token 或 API Key。
 

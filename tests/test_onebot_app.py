@@ -45,8 +45,8 @@ class RecordingTransport:
     async def reply_is_from_bot(self, message_id, self_id):
         return message_id == "previous" and self_id == "30001"
 
-    async def get_group_file_url(self, group_id, file_id, busid):
-        self.group_file_url_calls.append((group_id, file_id, busid))
+    async def get_group_file_url(self, group_id, file_id):
+        self.group_file_url_calls.append((group_id, file_id))
         if self.group_file_url_error is not None:
             raise self.group_file_url_error
         return self.group_file_url
@@ -429,7 +429,7 @@ class OneBotAppTests(unittest.TestCase):
         self.assertEqual(response.json(), {"status": "handled"})
         self.assertEqual(
             self.transport.group_file_url_calls,
-            [("10001", "file-26", 102)],
+            [("10001", "file-26")],
         )
         attachment = self.documents.calls[0][2][0]
         self.assertEqual(attachment.url, self.transport.group_file_url)
@@ -471,8 +471,60 @@ class OneBotAppTests(unittest.TestCase):
         self.assertEqual(len(self.transport.messages), 1)
         self.assertEqual(
             self.transport.group_file_url_calls,
-            [("10001", "notice-file-1", 102)],
+            [("10001", "notice-file-1")],
         )
+
+    def test_group_upload_notice_does_not_require_legacy_busid(self):
+        self.documents.result = DocumentIngestResult(
+            handled=True,
+            reply="已导入行程",
+        )
+        payload = {
+            "post_type": "notice",
+            "notice_type": "group_upload",
+            "group_id": 10001,
+            "user_id": 20001,
+            "self_id": 30001,
+            "file": {
+                "id": "notice-file-without-busid",
+                "name": "plan.xlsx",
+                "size": 4096,
+            },
+        }
+
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=payload,
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(
+            self.transport.group_file_url_calls,
+            [("10001", "notice-file-without-busid")],
+        )
+
+    def test_unresolvable_file_message_waits_for_upload_notice(self):
+        self.transport.group_file_url_error = RuntimeError(
+            "raw file UUID cannot be resolved"
+        )
+
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(261, [{
+                "type": "file",
+                "data": {
+                    "file": "plan.xlsx",
+                    "file_id": "raw-file-uuid",
+                    "file_size": 2048,
+                },
+            }]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "deferred"})
+        self.assertEqual(self.documents.calls, [])
 
     def test_messages_and_notices_sent_by_bot_are_ignored(self):
         message = self.payload(27, [
@@ -537,14 +589,17 @@ class OneBotAppTests(unittest.TestCase):
         response = self.client.post(
             "/onebot",
             headers=self.headers,
-            json=self.payload(28, [{
-                "type": "file",
-                "data": {
-                    "file_id": "file-28",
-                    "busid": 102,
+            json={
+                "post_type": "notice",
+                "notice_type": "group_upload",
+                "group_id": 10001,
+                "user_id": 20001,
+                "self_id": 30001,
+                "file": {
+                    "id": "file-28",
                     "name": "plan.xlsx",
                 },
-            }]),
+            },
         )
 
         self.assertEqual(response.status_code, 502)
@@ -685,14 +740,13 @@ class OneBotTransportTests(unittest.IsolatedAsyncioTestCase):
         url = await transport.get_group_file_url(
             "10001",
             "file-1",
-            102,
         )
 
         self.assertEqual(url, "https://example.test/plan.xlsx")
         self.assertEqual(requests[0].url.path, "/get_group_file_url")
         self.assertEqual(
             json.loads(requests[0].content),
-            {"group_id": "10001", "file_id": "file-1", "busid": 102},
+            {"group_id": "10001", "file_id": "file-1"},
         )
         await client.aclose()
 
