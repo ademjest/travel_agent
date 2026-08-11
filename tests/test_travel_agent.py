@@ -293,6 +293,15 @@ class TravelAgentTests(unittest.TestCase):
 
         self.assertEqual(result.reply, "嘉峪关项目已经更新。")
         self.assertEqual(calls[0][0], "update_reservation_draft_items")
+        self.assertIsInstance(calls[0][1]["updates"], list)
+        self.assertEqual(
+            calls[0][1]["updates"][0],
+            {
+                "attraction_name": "嘉峪关",
+                "visit_date": "2026-08-21",
+                "requires_reservation": False,
+            },
+        )
         exposed_tools = client.completions.requests[0]["tools"]
         self.assertEqual(
             [tool["function"]["name"] for tool in exposed_tools],

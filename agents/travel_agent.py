@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class ToolTrace:
     name: str
-    arguments: dict[str, str]
+    arguments: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class TravelAgent:
     def __init__(
             self,
             settings: Settings,
-            tool_executor: Callable[[str, dict[str, str]], str],
+            tool_executor: Callable[[str, dict[str, object]], str],
             client: Any = None):
         if not settings.llm_configured:
             raise ValueError("LLM settings are incomplete")
@@ -353,7 +353,7 @@ class TravelAgent:
         }
 
     @staticmethod
-    def _parse_arguments(raw_arguments: str) -> tuple[dict[str, str], str]:
+    def _parse_arguments(raw_arguments: str) -> tuple[dict[str, object], str]:
         try:
             arguments = json.loads(raw_arguments or "{}")
         except json.JSONDecodeError:
@@ -363,7 +363,7 @@ class TravelAgent:
             return {}, "工具参数必须是 JSON 对象。"
 
         normalized = {
-            str(key): str(value).strip()
+            str(key): value.strip() if isinstance(value, str) else value
             for key, value in arguments.items()
             if value is not None
         }
