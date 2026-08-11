@@ -60,6 +60,7 @@ class TravelBotApplication:
         self.context_builder = context_builder or ContextBuilder(store)
         self.event_lease_renew_seconds = event_lease_renew_seconds
         self._reservation_processing: set[tuple[str, str, str]] = set()
+        self._document_processing: set[tuple[str, str, str]] = set()
 
     async def handle(self, event: ChatEvent) -> None:
         if event.channel == "group" and not self.group_allowed(event.scope_id):
@@ -241,6 +242,15 @@ class TravelBotApplication:
                     "请拆成两条消息分别发送。",
                     memory_content or "混合发送预约图片和旅行文档",
                 )
+            if (
+                    not document_attachments
+                    and workflow_key in self._document_processing
+                    and self._asks_about_document_processing(event.content)):
+                return (
+                    "已经收到你上传的文档，目前仍在解析并写入群共享资料。"
+                    "完成后会自动发送保存结果，请稍候，不需要重复上传。",
+                    memory_content,
+                )
             if len(image_attachments) == 1 and reservation_workflow_active:
                 if workflow_key in self._reservation_processing:
                     return (
@@ -272,12 +282,38 @@ class TravelBotApplication:
                 reply = reply.removeprefix("工具错误：")
                 return reply, "上传景点预约图片"
 
-            document_result = await asyncio.to_thread(
-                self.document_service.ingest_attachments,
-                event.storage_scope_id,
-                event.sender_id,
-                list(event.attachments),
-            )
+            if document_attachments:
+                if workflow_key in self._document_processing:
+                    return (
+                        "上一份文档仍在解析，请等待当前处理完成后再上传。",
+                        memory_content or "重复上传旅行文档",
+                    )
+                self._document_processing.add(workflow_key)
+                try:
+                    filenames = "、".join(
+                        attachment.filename
+                        for attachment in document_attachments
+                    )
+                    await self._send_onebot_progress(
+                        event,
+                        f"已收到文档：{filenames}。正在下载并解析，"
+                        "完成后会自动发送保存结果，请勿重复上传。",
+                    )
+                    document_result = await asyncio.to_thread(
+                        self.document_service.ingest_attachments,
+                        event.storage_scope_id,
+                        event.sender_id,
+                        list(event.attachments),
+                    )
+                finally:
+                    self._document_processing.discard(workflow_key)
+            else:
+                document_result = await asyncio.to_thread(
+                    self.document_service.ingest_attachments,
+                    event.storage_scope_id,
+                    event.sender_id,
+                    list(event.attachments),
+                )
             if document_result.handled:
                 reply = document_result.reply
                 memory_content = (
@@ -362,6 +398,19 @@ class TravelBotApplication:
             reply = "处理请求时出现内部错误，请稍后重试。"
         return reply, memory_content
 
+    @staticmethod
+    def _asks_about_document_processing(content: str) -> bool:
+        normalized = content.lower()
+        return any(term in normalized for term in (
+            "文档",
+            "文件",
+            "表格",
+            "上传",
+            "xlsx",
+            "excel",
+            "docx",
+        ))
+
     async def _send_onebot_progress(
             self,
             event: ChatEvent,
@@ -385,7 +434,7 @@ class TravelBotApplication:
             )
         except Exception:
             logger.warning(
-                "Failed to send reservation image progress: event_id=%s",
+                "Failed to send OneBot progress: event_id=%s",
                 event.event_key,
             )
 

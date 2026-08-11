@@ -305,6 +305,42 @@ class OneBotAppTests(unittest.TestCase):
         self.assertEqual(response.json(), {"status": "handled"})
         self.assertEqual(len(self.transport.messages), 1)
 
+    def test_non_at_plan_code_edit_invokes_application(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(211, [{
+                "type": "text",
+                "data": {
+                    "text": (
+                        "把 R-20260811-001 的嘉峪关日期补为 2026-08-21，"
+                        "水上雅丹不去参观了"
+                    ),
+                },
+            }]),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(len(self.transport.messages), 1)
+
+    def test_non_at_xlsx_question_invokes_application(self):
+        response = self.client.post(
+            "/onebot",
+            headers=self.headers,
+            json=self.payload(212, [{
+                "type": "text",
+                "data": {
+                    "text": (
+                        "根据我上传的青甘大环线自驾行程安排.xlsx，"
+                        "列出8月17日的全部行程"
+                    ),
+                },
+            }]),
+        )
+
+        self.assertEqual(response.json(), {"status": "handled"})
+        self.assertEqual(len(self.transport.messages), 1)
+
     def test_active_reservation_workflow_accepts_next_image_without_at(self):
         self.store.start_reservation_workflow(
             "onebot",
@@ -404,7 +440,15 @@ class OneBotAppTests(unittest.TestCase):
 
         self.assertEqual(response.json(), {"status": "handled"})
         self.assertEqual(len(self.documents.calls), 1)
-        self.assertEqual(len(self.transport.messages), 1)
+        self.assertEqual(len(self.transport.messages), 2)
+        self.assertIn(
+            "正在下载并解析",
+            self.transport.messages[0].payload["message"],
+        )
+        self.assertEqual(
+            self.transport.messages[1].payload["message"],
+            "已导入行程",
+        )
 
     def test_group_file_segment_resolves_missing_url(self):
         self.documents.result = DocumentIngestResult(
@@ -468,7 +512,15 @@ class OneBotAppTests(unittest.TestCase):
         self.assertEqual(first.json(), {"status": "handled"})
         self.assertEqual(second.json(), {"status": "handled"})
         self.assertEqual(len(self.documents.calls), 1)
-        self.assertEqual(len(self.transport.messages), 1)
+        self.assertEqual(len(self.transport.messages), 2)
+        self.assertIn(
+            "正在下载并解析",
+            self.transport.messages[0].payload["message"],
+        )
+        self.assertEqual(
+            self.transport.messages[1].payload["message"],
+            "已导入行程",
+        )
         self.assertEqual(
             self.transport.group_file_url_calls,
             [("10001", "notice-file-1")],

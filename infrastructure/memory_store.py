@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 from core.chat_transport import storage_scope_id
@@ -1797,6 +1797,122 @@ class MemoryStore:
             )
         return cursor.rowcount == 1
 
+    def update_reservation_draft_item(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            item_index: int,
+            requires_reservation: bool,
+            visit_date: date | None,
+            booking_date: date | None,
+            date_candidates: Sequence[date],
+            custom_reminder_times: Sequence[datetime],
+            reminder_policy: str,
+            status: str,
+            now: datetime | None = None) -> bool:
+        return self.update_reservation_draft_items(
+            platform=platform,
+            group_id=group_id,
+            creator_id=creator_id,
+            plan_code=plan_code,
+            updates=({
+                "item_index": item_index,
+                "requires_reservation": requires_reservation,
+                "visit_date": visit_date,
+                "booking_date": booking_date,
+                "date_candidates": date_candidates,
+                "custom_reminder_times": custom_reminder_times,
+                "reminder_policy": reminder_policy,
+                "status": status,
+            },),
+            now=now,
+        )
+
+    def update_reservation_draft_items(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            updates: Sequence[Mapping[str, object]],
+            now: datetime | None = None) -> bool:
+        if not updates:
+            return False
+        updated_at = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            plan = connection.execute(
+                """
+                SELECT id FROM reservation_plans
+                WHERE platform = ?
+                  AND group_id = ?
+                  AND creator_id = ?
+                  AND plan_code = ?
+                  AND status = 'draft'
+                """,
+                (platform, group_id, creator_id, plan_code),
+            ).fetchone()
+            if plan is None:
+                return False
+
+            plan_id = int(plan["id"])
+            item_indices = [int(update["item_index"]) for update in updates]
+            if len(set(item_indices)) != len(item_indices):
+                raise ValueError("同一景点不能在一次批量修改中重复出现")
+            placeholders = ",".join("?" for unused in item_indices)
+            existing = connection.execute(
+                f"""
+                SELECT item_index FROM reservation_items
+                WHERE plan_id = ? AND item_index IN ({placeholders})
+                """,
+                (plan_id, *item_indices),
+            ).fetchall()
+            if {int(row["item_index"]) for row in existing} != set(item_indices):
+                raise ValueError("未找到预约项目")
+
+            for update in updates:
+                visit_date = update["visit_date"]
+                booking_date = update["booking_date"]
+                date_candidates = update["date_candidates"]
+                custom_times = update["custom_reminder_times"]
+                connection.execute(
+                    """
+                    UPDATE reservation_items
+                    SET requires_reservation = ?,
+                        visit_date = ?,
+                        booking_date = ?,
+                        date_candidates_json = ?,
+                        custom_reminder_times_json = ?,
+                        reminder_policy = ?,
+                        status = ?,
+                        updated_at = ?
+                    WHERE plan_id = ? AND item_index = ?
+                    """,
+                    (
+                        int(bool(update["requires_reservation"])),
+                        visit_date.isoformat() if visit_date else None,
+                        booking_date.isoformat() if booking_date else None,
+                        json.dumps([
+                            value.isoformat()
+                            for value in date_candidates
+                        ]),
+                        json.dumps([
+                            value.astimezone(
+                                ZoneInfo("Asia/Shanghai")
+                            ).isoformat()
+                            for value in custom_times
+                        ]),
+                        str(update["reminder_policy"]),
+                        str(update["status"]),
+                        updated_at.isoformat(),
+                        plan_id,
+                        int(update["item_index"]),
+                    ),
+                )
+        return True
+
     def claim_reservation_refresh(
             self,
             platform: str,
@@ -3176,6 +3292,16 @@ class MemoryStore:
             filename=filename,
             is_new=True,
         )
+
+    def update_document_summary(
+            self,
+            document_id: int,
+            summary: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE documents SET summary = ? WHERE id = ?",
+                (summary, document_id),
+            )
 
     def commit_private_document_event(
             self,

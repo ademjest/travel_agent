@@ -147,6 +147,74 @@ class ReservationToolExecutor:
                 date.fromisoformat(_text(arguments, "visit_date")),
             )
             return self.service.format_draft(plan)
+        if name == "update_reservation_draft_item":
+            visit_date_text = str(arguments.get("visit_date") or "").strip()
+            requires = arguments.get("requires_reservation")
+            if requires is not None and not isinstance(requires, bool):
+                raise ValueError("requires_reservation 必须是布尔值")
+            visit_status = str(arguments.get("visit_status") or "").strip()
+            if visit_status and visit_status not in {"visit", "skip"}:
+                raise ValueError("visit_status 必须是 visit 或 skip")
+            if not visit_date_text and requires is None and not visit_status:
+                raise ValueError("至少需要提供一项草稿修改")
+            plan = self.service.update_draft_item(
+                platform=platform,
+                group_id=group_id,
+                creator_id=creator_id,
+                plan_code=_text(arguments, "plan_code"),
+                item_index=_positive_int(arguments, "item_index"),
+                visit_date=(
+                    date.fromisoformat(visit_date_text)
+                    if visit_date_text
+                    else None
+                ),
+                requires_reservation=requires,
+                visit_status=visit_status or None,
+            )
+            return self.service.format_draft(plan)
+        if name == "update_reservation_draft_items":
+            raw_updates = arguments.get("updates")
+            if (
+                    not isinstance(raw_updates, list)
+                    or not raw_updates
+                    or len(raw_updates) > 20):
+                raise ValueError("updates 必须包含 1 到 20 项修改")
+            updates = []
+            for raw_update in raw_updates:
+                if not isinstance(raw_update, Mapping):
+                    raise ValueError("updates 中的每一项必须是对象")
+                attraction_name = _text(raw_update, "attraction_name")
+                visit_date_text = str(
+                    raw_update.get("visit_date") or ""
+                ).strip()
+                requires = raw_update.get("requires_reservation")
+                if requires is not None and not isinstance(requires, bool):
+                    raise ValueError("requires_reservation 必须是布尔值")
+                visit_status = str(
+                    raw_update.get("visit_status") or ""
+                ).strip()
+                if visit_status and visit_status not in {"visit", "skip"}:
+                    raise ValueError("visit_status 必须是 visit 或 skip")
+                if not visit_date_text and requires is None and not visit_status:
+                    raise ValueError(f"景点 {attraction_name} 没有提供修改内容")
+                updates.append({
+                    "attraction_name": attraction_name,
+                    "visit_date": (
+                        date.fromisoformat(visit_date_text)
+                        if visit_date_text
+                        else None
+                    ),
+                    "requires_reservation": requires,
+                    "visit_status": visit_status or None,
+                })
+            plan = self.service.update_draft_items(
+                platform=platform,
+                group_id=group_id,
+                creator_id=creator_id,
+                plan_code=_text(arguments, "plan_code"),
+                updates=updates,
+            )
+            return self.service.format_draft(plan)
         if name == "add_reservation_item":
             requires = arguments.get("requires_reservation")
             if not isinstance(requires, bool):

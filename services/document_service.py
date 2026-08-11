@@ -142,13 +142,6 @@ class DocumentService:
                 text = self._extract_text(filename, data)
                 chunks = self._chunk_text(text)
                 digest = hashlib.sha256(data).hexdigest()
-                summary = ""
-                summary_failed = False
-                if self.summarizer:
-                    try:
-                        summary = self.summarizer(filename, text)
-                    except Exception:
-                        summary_failed = True
                 stored = self.memory_store.add_document(
                     group_openid=group_openid,
                     uploader_openid=member_openid,
@@ -156,17 +149,25 @@ class DocumentService:
                     sha256=digest,
                     full_text=text,
                     chunks=chunks,
-                    summary=summary,
                 )
                 memory_names.append(filename)
                 if stored.is_new:
                     messages.append(
                         f"已保存旅行文档：{filename}（{len(text)} 字，{len(chunks)} 个片段）。"
                     )
-                    if summary:
-                        messages.append("已生成长期行程摘要。")
-                    elif summary_failed:
-                        messages.append("自动摘要失败，但文档原文和分块已正常保存。")
+                    if self.summarizer:
+                        try:
+                            summary = self.summarizer(filename, text)
+                            if summary:
+                                self.memory_store.update_document_summary(
+                                    stored.document_id,
+                                    summary,
+                                )
+                                messages.append("已生成长期行程摘要。")
+                        except Exception:
+                            messages.append(
+                                "自动摘要失败，但文档原文和分块已正常保存。"
+                            )
                 else:
                     messages.append(f"该文档已保存过：{stored.filename}。")
             except Exception as exc:

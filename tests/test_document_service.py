@@ -1,5 +1,6 @@
 import io
 import tempfile
+import threading
 import unittest
 from datetime import date, datetime
 from pathlib import Path
@@ -278,6 +279,51 @@ class DocumentServiceTests(unittest.TestCase):
             "我们整体怎么安排？",
         )
         self.assertIn("8月17日前往大柴旦", context)
+
+    def test_document_is_searchable_while_summary_is_still_running(self):
+        store = MemoryStore(Path(self.temp_dir.name) / "slow-summary.db")
+        started = threading.Event()
+        release = threading.Event()
+
+        def summarize(filename, text):
+            started.set()
+            release.wait(timeout=2)
+            return "行程摘要"
+
+        service = DocumentService(store, summarizer=summarize)
+        attachment = SimpleNamespace(
+            filename="plan.docx",
+            url="https://example.test/plan.docx",
+            size=100,
+        )
+        result = {}
+
+        def ingest():
+            result["value"] = service.ingest_attachments(
+                "group-slow-summary",
+                "member",
+                [attachment],
+            )
+
+        with patch.object(
+                service,
+                "_download_attachment",
+                return_value=make_docx_bytes()):
+            thread = threading.Thread(target=ingest)
+            thread.start()
+            try:
+                self.assertTrue(started.wait(timeout=1))
+                context = store.build_document_context(
+                    "group-slow-summary",
+                    "茶卡住哪里",
+                )
+                self.assertIn("茶卡镇", context)
+            finally:
+                release.set()
+                thread.join(timeout=2)
+
+        self.assertFalse(thread.is_alive())
+        self.assertIn("已生成长期行程摘要", result["value"].reply)
 
 
 if __name__ == "__main__":

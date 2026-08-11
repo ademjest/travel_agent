@@ -748,6 +748,105 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(completed.items[0].status, "ready")
         self.assertEqual(completed.items[0].booking_date, date(2026, 8, 15))
 
+    def test_draft_items_can_change_requirement_date_and_visit_status(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        plan = service.create_draft(
+            self.image,
+            (
+                self.item("嘉峪关", True, 1, "day"),
+                self.item("水上雅丹", True, 1, "day"),
+            ),
+        )
+
+        updated = service.update_draft_item(
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            plan_code=plan.plan_code,
+            item_index=1,
+            visit_date=date(2026, 8, 21),
+            requires_reservation=False,
+        )
+        skipped = service.update_draft_item(
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            plan_code=plan.plan_code,
+            item_index=2,
+            visit_status="skip",
+        )
+
+        self.assertFalse(updated.items[0].requires_reservation)
+        self.assertEqual(updated.items[0].visit_date, date(2026, 8, 21))
+        self.assertIsNone(updated.items[0].booking_date)
+        self.assertEqual(skipped.items[1].status, "skipped")
+        self.assertFalse(skipped.items[1].requires_reservation)
+        rendered = service.format_draft(skipped)
+        self.assertIn("游览日期：2026-08-21", rendered)
+        self.assertIn("状态：不去参观", rendered)
+
+    def test_draft_items_batch_update_is_atomic_and_uses_names(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        plan = service.create_draft(
+            self.image,
+            (
+                self.item("嘉峪关", True, 3, "day"),
+                self.item("水上雅丹", True, 1, "day"),
+            ),
+        )
+
+        updated = service.update_draft_items(
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            plan_code=plan.plan_code,
+            updates=(
+                {
+                    "attraction_name": "嘉峪关",
+                    "visit_date": date(2026, 8, 21),
+                    "requires_reservation": False,
+                },
+                {
+                    "attraction_name": "水上雅丹",
+                    "visit_status": "skip",
+                },
+            ),
+        )
+
+        self.assertFalse(updated.items[0].requires_reservation)
+        self.assertEqual(updated.items[0].visit_date, date(2026, 8, 21))
+        self.assertEqual(updated.items[0].status, "ready")
+        self.assertEqual(updated.items[1].status, "skipped")
+
+        with self.assertRaisesRegex(ValueError, "不存在的景点"):
+            service.update_draft_items(
+                platform="qq_official",
+                group_id="group-a",
+                creator_id="member-a",
+                plan_code=plan.plan_code,
+                updates=(
+                    {
+                        "attraction_name": "嘉峪关",
+                        "requires_reservation": True,
+                    },
+                    {
+                        "attraction_name": "不存在的景点",
+                        "visit_status": "skip",
+                    },
+                ),
+            )
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertFalse(loaded.items[0].requires_reservation)
+        self.assertEqual(loaded.items[1].status, "skipped")
+
     def test_not_scheduled_item_uses_explicit_manual_decision_status(self):
         resolver = FakeItineraryResolver({
             "嘉峪关": VisitDateResolution((), "not_scheduled"),

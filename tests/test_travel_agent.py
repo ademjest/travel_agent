@@ -263,6 +263,43 @@ class TravelAgentTests(unittest.TestCase):
         self.assertEqual(result.reply, "明天晴，预报发布时间 10:00。")
         self.assertEqual(len(client.completions.requests), 3)
 
+    def test_draft_edit_claim_is_rejected_until_update_tool_succeeds(self):
+        client = FakeClient([
+            completion(assistant_message(content="预约草稿已经修改。")),
+            completion(assistant_message(tool_calls=[
+                tool_call(
+                    "call-update",
+                    "update_reservation_draft_items",
+                    (
+                        '{"plan_code":"R-20260811-001",'
+                        '"updates":[{"attraction_name":"嘉峪关",'
+                        '"visit_date":"2026-08-21",'
+                        '"requires_reservation":false}]}'
+                    ),
+                )
+            ])),
+            completion(assistant_message(content="嘉峪关项目已经更新。")),
+        ])
+        calls = []
+        agent = TravelAgent(
+            self.settings,
+            lambda name, arguments: calls.append((name, arguments)) or "已更新",
+            client=client,
+        )
+
+        result = agent.run(
+            "把 R-20260811-001 的嘉峪关日期补为 2026-08-21，改为无需预约"
+        )
+
+        self.assertEqual(result.reply, "嘉峪关项目已经更新。")
+        self.assertEqual(calls[0][0], "update_reservation_draft_items")
+        exposed_tools = client.completions.requests[0]["tools"]
+        self.assertEqual(
+            [tool["function"]["name"] for tool in exposed_tools],
+            ["update_reservation_draft_items"],
+        )
+        self.assertEqual(len(client.completions.requests), 3)
+
     def test_client_uses_longer_timeout_and_one_retry(self):
         with patch("agents.travel_agent.OpenAI") as openai:
             TravelAgent(

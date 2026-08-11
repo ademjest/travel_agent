@@ -10,9 +10,10 @@ from tools.agent_tools import (
     DRIVING_ROUTE_TOOL,
     RESERVATION_TOOL_NAMES,
     ROUTE_TRAFFIC_TOOL,
+    UPDATE_RESERVATION_DRAFT_ITEMS_TOOL,
     WEATHER_FORECAST_TOOL,
 )
-from core.commands import parse_command
+from core.commands import PLAN_CODE, parse_command
 
 
 Intent = Literal[
@@ -74,6 +75,15 @@ _RESERVATION_IMAGE_SIGNALS = (
     "根据图片制定预约",
     "按这张攻略",
 )
+_RESERVATION_DRAFT_EDIT_SIGNALS = (
+    "无需预约",
+    "不去",
+    "不参观",
+    "日期补为",
+    "日期改为",
+    "修改日期",
+    "补充日期",
+)
 
 
 def decide_travel_action(user_message: str) -> TravelDecision:
@@ -83,10 +93,18 @@ def decide_travel_action(user_message: str) -> TravelDecision:
     if not intents:
         intents = ("general",)
 
+    draft_edit = (
+        "reservation" in intents
+        and _contains(text, *_RESERVATION_DRAFT_EDIT_SIGNALS)
+    )
     allowed_tools = tuple(dict.fromkeys(
         tool
         for intent in intents
-        for tool in TOOL_BY_INTENT[intent]
+        for tool in (
+            (UPDATE_RESERVATION_DRAFT_ITEMS_TOOL,)
+            if intent == "reservation" and draft_edit
+            else TOOL_BY_INTENT[intent]
+        )
     ))
     required_groups = []
     for intent in intents:
@@ -95,7 +113,11 @@ def decide_travel_action(user_message: str) -> TravelDecision:
     if "reservation" in intents:
         if _contains(text, *_RESERVATION_IMAGE_SIGNALS):
             required_groups.append((CREATE_RESERVATION_DRAFT_TOOL,))
-        elif _contains(text, *_RESERVATION_ACTION_SIGNALS):
+        elif draft_edit:
+            required_groups.append((UPDATE_RESERVATION_DRAFT_ITEMS_TOOL,))
+        elif (
+                _contains(text, *_RESERVATION_ACTION_SIGNALS)
+                or re.search(PLAN_CODE, text)):
             required_groups.append(RESERVATION_TOOL_NAMES)
 
     route_intents = set(intents) & {"route", "traffic"}
@@ -138,7 +160,9 @@ def _command_intents(command_name: str) -> tuple[Intent, ...]:
 
 def _natural_intents(text: str) -> tuple[Intent, ...]:
     detected: list[Intent] = []
-    if _contains(text, "预约", "提醒", "景点票", "门票"):
+    if (
+            _contains(text, "预约", "提醒", "景点票", "门票")
+            or re.search(PLAN_CODE, text)):
         detected.append("reservation")
 
     traffic = _contains(text, "路况", "拥堵", "堵车", "车流", "通行")
@@ -157,7 +181,18 @@ def _natural_intents(text: str) -> tuple[Intent, ...]:
     if current or (weather and not future):
         detected.append("weather")
 
-    if _contains(text, "文档", "行程单", "计划书", "资料", "住宿安排"):
+    if _contains(
+            text,
+            "文档",
+            "文件",
+            "行程单",
+            "计划书",
+            "资料",
+            "住宿安排",
+            "表格",
+            "xlsx",
+            "excel",
+            "docx"):
         detected.append("document")
     return tuple(dict.fromkeys(detected))
 

@@ -18,6 +18,10 @@ class GroupTriggerPolicy:
         if parse_command(event.content).name != "unknown":
             return True
 
+        decision = decide_travel_action(event.content)
+        if decision.intent != "general":
+            return True
+
         if any(
                 DocumentService.is_document_attachment(attachment)
                 for attachment in event.attachments):
@@ -39,4 +43,4 @@ class GroupTriggerPolicy:
         if workflow_active:
             return True
 
-        return "reservation" in decide_travel_action(event.content).intents
+        return "reservation" in decision.intents

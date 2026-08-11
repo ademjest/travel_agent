@@ -11,6 +11,8 @@ WEATHER_FORECAST_TOOL = "get_weather_forecast"
 DRIVING_ROUTE_TOOL = "get_driving_route"
 ROUTE_TRAFFIC_TOOL = "get_route_traffic"
 CREATE_RESERVATION_DRAFT_TOOL = "create_reservation_draft_from_image"
+UPDATE_RESERVATION_DRAFT_ITEM_TOOL = "update_reservation_draft_item"
+UPDATE_RESERVATION_DRAFT_ITEMS_TOOL = "update_reservation_draft_items"
 
 TRAVEL_TOOL_NAMES = (
     CURRENT_WEATHER_TOOL,
@@ -26,6 +28,8 @@ RESERVATION_TOOL_NAMES = (
     "confirm_reservation_plan",
     "cancel_reservation_plan",
     "complete_reservation_item_date",
+    UPDATE_RESERVATION_DRAFT_ITEM_TOOL,
+    UPDATE_RESERVATION_DRAFT_ITEMS_TOOL,
     "add_reservation_item",
     "set_reservation_reminder_times",
     "modify_reservation_item_date",
@@ -178,6 +182,59 @@ TOOLS = [
             "visit_date": ISO_DATE,
         },
         ("plan_code", "item_index", "visit_date"),
+    ),
+    _function_tool(
+        UPDATE_RESERVATION_DRAFT_ITEM_TOOL,
+        (
+            "修改未确认预约草稿中的一个景点项目。可修改游览日期、"
+            "是否需要预约，或把景点标记为不去参观。"
+        ),
+        {
+            "plan_code": PLAN_CODE,
+            "item_index": {"type": "integer", "minimum": 1},
+            "visit_date": ISO_DATE,
+            "requires_reservation": {"type": "boolean"},
+            "visit_status": {
+                "type": "string",
+                "enum": ["visit", "skip"],
+                "description": "visit 表示参观；skip 表示不去参观。",
+            },
+        },
+        ("plan_code", "item_index"),
+    ),
+    _function_tool(
+        UPDATE_RESERVATION_DRAFT_ITEMS_TOOL,
+        (
+            "一次修改未确认预约草稿中的一个或多个景点。直接使用用户提供的"
+            "景点名称，不需要先调用列表工具查询项目序号。所有修改会整体成功或整体失败。"
+        ),
+        {
+            "plan_code": PLAN_CODE,
+            "updates": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "attraction_name": {
+                            "type": "string",
+                            "description": "草稿中已有的景点名称。",
+                        },
+                        "visit_date": ISO_DATE,
+                        "requires_reservation": {"type": "boolean"},
+                        "visit_status": {
+                            "type": "string",
+                            "enum": ["visit", "skip"],
+                            "description": "skip 表示不去参观。",
+                        },
+                    },
+                    "required": ["attraction_name"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        ("plan_code", "updates"),
     ),
     _function_tool(
         "add_reservation_item",

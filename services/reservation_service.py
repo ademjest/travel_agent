@@ -813,8 +813,13 @@ class ReservationService:
             lines.append(f"{item.item_index}. {item.attraction_name}")
             if item.confidence < 0.85:
                 lines.append("   识别置信度较低，请人工核对")
+            if item.status == "skipped":
+                lines.append("   状态：不去参观")
+                continue
             if not item.requires_reservation:
                 lines.append("   无需预约，仅保存信息")
+                if item.visit_date:
+                    lines.append(f"   游览日期：{item.visit_date.isoformat()}")
                 continue
             if item.status == "not_scheduled":
                 lines.append("   游览日期：未确定")
@@ -893,6 +898,175 @@ class ReservationService:
         if not changed:
             raise ValueError("预约计划当前无法修改")
         return self.store.get_reservation_plan(platform, group_id, plan_code)
+
+    def update_draft_item(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            item_index: int,
+            visit_date: date | None = None,
+            requires_reservation: bool | None = None,
+            visit_status: Literal["visit", "skip"] | None = None):
+        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
+        if plan is None or plan.creator_id != creator_id:
+            raise ValueError("未找到可修改的预约计划")
+        if plan.status != "draft":
+            raise ValueError("预约计划当前无法修改")
+        item = next(
+            (
+                value
+                for value in plan.items
+                if value.item_index == item_index
+            ),
+            None,
+        )
+        if item is None:
+            raise ValueError("未找到预约项目")
+        values = self._draft_item_update_values(
+            item,
+            visit_date,
+            requires_reservation,
+            visit_status,
+        )
+
+        changed = self.store.update_reservation_draft_item(
+            platform=platform,
+            group_id=group_id,
+            creator_id=creator_id,
+            plan_code=plan_code,
+            item_index=item_index,
+            **values,
+        )
+        if not changed:
+            raise ValueError("预约计划当前无法修改")
+        return self.store.get_reservation_plan(platform, group_id, plan_code)
+
+    def update_draft_items(
+            self,
+            platform: str,
+            group_id: str,
+            creator_id: str,
+            plan_code: str,
+            updates: Sequence[Mapping[str, object]]):
+        plan = self.store.get_reservation_plan(platform, group_id, plan_code)
+        if plan is None or plan.creator_id != creator_id:
+            raise ValueError("未找到可修改的预约计划")
+        if plan.status != "draft":
+            raise ValueError("预约计划当前无法修改")
+        if not updates:
+            raise ValueError("至少需要提供一项草稿修改")
+
+        items_by_name = {}
+        for item in plan.items:
+            name = item.attraction_name.strip()
+            if name in items_by_name:
+                raise ValueError(f"草稿中存在重名景点：{name}")
+            items_by_name[name] = item
+
+        prepared = []
+        seen_names = set()
+        for update in updates:
+            attraction_name = str(update.get("attraction_name") or "").strip()
+            if not attraction_name:
+                raise ValueError("缺少景点名称")
+            if attraction_name in seen_names:
+                raise ValueError(f"景点重复修改：{attraction_name}")
+            seen_names.add(attraction_name)
+            item = items_by_name.get(attraction_name)
+            if item is None:
+                raise ValueError(f"草稿中未找到景点：{attraction_name}")
+            values = self._draft_item_update_values(
+                item,
+                update.get("visit_date"),
+                update.get("requires_reservation"),
+                update.get("visit_status"),
+            )
+            prepared.append({"item_index": item.item_index, **values})
+
+        changed = self.store.update_reservation_draft_items(
+            platform=platform,
+            group_id=group_id,
+            creator_id=creator_id,
+            plan_code=plan_code,
+            updates=prepared,
+        )
+        if not changed:
+            raise ValueError("预约计划当前无法修改")
+        return self.store.get_reservation_plan(platform, group_id, plan_code)
+
+    @staticmethod
+    def _draft_item_update_values(
+            item,
+            visit_date: date | None,
+            requires_reservation: bool | None,
+            visit_status: Literal["visit", "skip"] | None
+    ) -> dict[str, object]:
+        if visit_status not in {None, "visit", "skip"}:
+            raise ValueError("visit_status 必须是 visit 或 skip")
+        if requires_reservation is not None and not isinstance(
+                requires_reservation,
+                bool):
+            raise ValueError("requires_reservation 必须是布尔值")
+        if visit_date is not None and not isinstance(visit_date, date):
+            raise ValueError("visit_date 必须是日期")
+
+        if visit_status == "skip":
+            return {
+                "requires_reservation": False,
+                "visit_date": None,
+                "booking_date": None,
+                "date_candidates": (),
+                "custom_reminder_times": (),
+                "reminder_policy": "none",
+                "status": "skipped",
+            }
+
+        target_requires = (
+            item.requires_reservation
+            if requires_reservation is None
+            else requires_reservation
+        )
+        target_visit_date = visit_date or item.visit_date
+        date_candidates = (
+            (target_visit_date,)
+            if target_visit_date
+            else item.date_candidates
+        )
+        if target_requires:
+            if item.advance_unit == "none" or item.advance_value < 1:
+                raise ValueError("该项目缺少有效的提前预约规则")
+            booking_date = (
+                calculate_booking_date(
+                    target_visit_date,
+                    item.advance_value,
+                    item.advance_unit,
+                )
+                if target_visit_date
+                else None
+            )
+            custom_times = item.custom_reminder_times
+            reminder_policy = (
+                item.reminder_policy
+                if item.reminder_policy != "none"
+                else "default"
+            )
+            status = "ready" if target_visit_date else "needs_input"
+        else:
+            booking_date = None
+            custom_times = ()
+            reminder_policy = "none"
+            status = "ready"
+        return {
+            "requires_reservation": target_requires,
+            "visit_date": target_visit_date,
+            "booking_date": booking_date,
+            "date_candidates": date_candidates,
+            "custom_reminder_times": custom_times,
+            "reminder_policy": reminder_policy,
+            "status": status,
+        }
 
     def add_manual_item(
             self,

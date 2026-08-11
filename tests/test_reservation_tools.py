@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -35,6 +36,7 @@ class FakeReservationService:
         self.store = store
         self.created = []
         self.finished = []
+        self.updated = []
 
     def create_draft(self, image, items, source_event_id=""):
         self.created.append((image, items, source_event_id))
@@ -45,6 +47,14 @@ class FakeReservationService:
 
     def finish_workflow(self, platform, group_id, creator_id):
         self.finished.append((platform, group_id, creator_id))
+
+    def update_draft_item(self, **kwargs):
+        self.updated.append(kwargs)
+        return SimpleNamespace(plan_code=kwargs["plan_code"], items=())
+
+    def update_draft_items(self, **kwargs):
+        self.updated.append(kwargs)
+        return SimpleNamespace(plan_code=kwargs["plan_code"], items=())
 
 
 class FakeTravelService:
@@ -84,6 +94,56 @@ class ReservationCreationToolTests(unittest.TestCase):
 
     def test_creation_tool_is_registered(self):
         self.assertIn(CREATE_RESERVATION_DRAFT_TOOL, TOOLS_BY_NAME)
+
+    def test_draft_update_tool_is_registered_and_executes(self):
+        self.assertIn("update_reservation_draft_item", TOOLS_BY_NAME)
+
+        result = self.router.execute(
+            "update_reservation_draft_item",
+            {
+                "plan_code": "R-20260811-001",
+                "item_index": 6,
+                "visit_date": "2026-08-21",
+                "requires_reservation": False,
+            },
+            self.context(()),
+        )
+
+        self.assertEqual(result, "预约计划 R-20260811-001")
+        self.assertEqual(len(self.reservation_service.updated), 1)
+        self.assertEqual(
+            self.reservation_service.updated[0]["visit_date"],
+            date(2026, 8, 21),
+        )
+
+    def test_batch_draft_update_tool_executes_once_by_attraction_name(self):
+        self.assertIn("update_reservation_draft_items", TOOLS_BY_NAME)
+
+        result = self.router.execute(
+            "update_reservation_draft_items",
+            {
+                "plan_code": "R-20260811-001",
+                "updates": [
+                    {
+                        "attraction_name": "嘉峪关",
+                        "visit_date": "2026-08-21",
+                        "requires_reservation": False,
+                    },
+                    {
+                        "attraction_name": "水上雅丹",
+                        "visit_status": "skip",
+                    },
+                ],
+            },
+            self.context(()),
+        )
+
+        self.assertEqual(result, "预约计划 R-20260811-001")
+        self.assertEqual(len(self.reservation_service.updated), 1)
+        updates = self.reservation_service.updated[0]["updates"]
+        self.assertEqual(updates[0]["attraction_name"], "嘉峪关")
+        self.assertEqual(updates[0]["visit_date"], date(2026, 8, 21))
+        self.assertEqual(updates[1]["visit_status"], "skip")
 
     def test_creation_tool_uses_current_attachment_and_is_idempotent(self):
         attachment = ChatAttachment(

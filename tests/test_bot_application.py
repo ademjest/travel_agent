@@ -488,6 +488,88 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             for message in self.transport.messages
         ))
 
+    async def test_onebot_document_reports_progress_and_processing_status(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        class SlowDocumentService(FakeDocumentService):
+            def ingest_attachments(
+                    inner_self,
+                    group_id,
+                    sender_id,
+                    attachments):
+                inner_self.calls.append((group_id, sender_id, attachments))
+                started.set()
+                release.wait(timeout=2)
+                return DocumentIngestResult(
+                    handled=True,
+                    reply="已保存旅行文档：plan.xlsx",
+                    memory_content="上传旅行文档：plan.xlsx",
+                )
+
+        document_service = SlowDocumentService()
+        worker = OutboxWorker("onebot", self.store, self.transport)
+        application = TravelBotApplication(
+            store=self.store,
+            travel_service=self.travel_service,
+            travel_agent=self.travel_agent,
+            document_service=document_service,
+            reservation_service=self.reservation_service,
+            tool_router=self.tool_router,
+            upload_binding_service=self.upload_service,
+            outbox_worker=worker,
+            reply_renderer=FakeRenderer(),
+            reminder_scheduler=object(),
+            group_allowed=lambda group_id: group_id == "group-a",
+        )
+        document_event = ChatEvent(
+            platform="onebot",
+            channel="group",
+            event_id="onebot-document",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(ChatAttachment(
+                filename="plan.xlsx",
+                url="https://example.test/plan.xlsx",
+                content_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+            ),),
+        )
+
+        task = asyncio.create_task(application.handle(document_event))
+        try:
+            self.assertTrue(await asyncio.to_thread(started.wait, 1))
+            self.assertIn(
+                "正在下载并解析",
+                self.transport.messages[0].payload["content"],
+            )
+
+            await application.handle(ChatEvent(
+                platform="onebot",
+                channel="group",
+                event_id="onebot-document-question",
+                scope_id="group-a",
+                sender_id="member-a",
+                content="能看到我上传的 xlsx 文档吗",
+            ))
+
+            self.assertTrue(any(
+                "仍在解析" in message.payload["content"]
+                for message in self.transport.messages
+            ))
+            self.assertEqual(self.travel_agent.calls, [])
+        finally:
+            release.set()
+            await task
+
+        self.assertTrue(any(
+            "已保存旅行文档：plan.xlsx" in message.payload["content"]
+            for message in self.transport.messages
+        ))
+
     async def test_multiple_images_are_rejected_without_model_call(self):
         attachments = tuple(
             ChatAttachment(
