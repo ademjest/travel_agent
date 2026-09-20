@@ -32,12 +32,26 @@ class ReminderScheduler:
 
     async def scan_once(self, now: datetime | None = None) -> int:
         current = now or self.clock()
+        scheduled_queued = await asyncio.to_thread(self.store.scheduled_queries.enqueue_due,
+                                                   self.platform, current, self.group_allowed)
+        watch_queued = await asyncio.to_thread(self.store.policy_watches.enqueue_due, self.platform, current, self.group_allowed)
+        personal_rows = await asyncio.to_thread(self.store.reminders.due, self.platform, current)
+        personal_queued = 0
+        for row in personal_rows:
+            scheduled = datetime.fromisoformat(row['scheduled_at_utc']).astimezone(BEIJING_TZ)
+            text = f"提醒你：{row['title']}\n原定时间：{scheduled:%Y-%m-%d %H:%M}（北京时间）"
+            if current > datetime.fromisoformat(row['scheduled_at_utc']):
+                text += '\n这是到期提醒；如有延迟，以上述原定时间为准。'
+            payload = self.renderer.render_reminder(row['owner_id'], text)
+            personal_queued += bool(await asyncio.to_thread(
+                self.store.reminders.enqueue, row, payload, text, current,
+                allowed=self.group_allowed(row['group_id'])))
         rows = await asyncio.to_thread(
             self.store.list_due_reservation_reminders,
             self.platform,
             current,
         )
-        queued = 0
+        queued = personal_queued + scheduled_queued + watch_queued
         local_today = current.astimezone(BEIJING_TZ).date()
         for row in rows:
             if row.visit_date < local_today:

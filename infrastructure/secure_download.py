@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import time
 from collections.abc import Callable, Iterable
 from urllib.parse import urljoin, urlparse
 
@@ -68,7 +69,9 @@ def download_https(
         max_redirects: int = MAX_REDIRECTS,
         allowed_content_types: set[str] | None = None,
         size_error: str = "文件超过大小限制",
-        type_error: str = "附件格式不受支持") -> tuple[bytes, str]:
+        type_error: str = "附件格式不受支持",
+        deadline_seconds: float | None = None) -> tuple[bytes, str]:
+    started_at = time.monotonic()
     if declared_size > max_bytes:
         raise ValueError(size_error)
     current_url = str(url or "").strip()
@@ -117,6 +120,8 @@ def download_https(
             chunks = []
             total = 0
             for chunk in response.iter_content(DOWNLOAD_CHUNK_BYTES):
+                if deadline_seconds is not None and time.monotonic() - started_at > deadline_seconds:
+                    raise ValueError('附件下载超过总时间限制')
                 if not chunk:
                     continue
                 total += len(chunk)

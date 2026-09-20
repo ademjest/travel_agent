@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Literal, Protocol
 
 
@@ -30,6 +31,7 @@ class OutgoingMessage:
     target_id: str
     reply_to_id: str
     payload: dict[str, Any]
+    delivery_key: str = ""
 
 
 @dataclass(frozen=True)
@@ -38,11 +40,13 @@ class ChatAttachment:
     url: str
     content_type: str = ""
     size: int = 0
+    local_path: str = ''
+    local_sha256: str = ''
 
 
 @dataclass(frozen=True)
 class ChatEvent:
-    platform: Literal["qq_official", "onebot"]
+    platform: Literal["qq_official", "onebot", "web"]
     channel: Literal["group", "private"]
     event_id: str
     scope_id: str
@@ -50,6 +54,7 @@ class ChatEvent:
     content: str
     reply_to_id: str = ""
     attachments: tuple[ChatAttachment, ...] = ()
+    occurred_at: datetime | None = None
 
     @property
     def event_key(self) -> str:
@@ -61,7 +66,7 @@ class ChatEvent:
 
 
 class MessageTransport(Protocol):
-    async def send(self, message: OutgoingMessage) -> None:
+    async def send(self, message: OutgoingMessage) -> str | None:
         raise NotImplementedError
 
 

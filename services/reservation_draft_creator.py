@@ -60,6 +60,7 @@ class ReservationDraftCreator:
             result.image,
             extraction_items,
             source_event_id=event_id,
+            creator_id=creator_id,
         )
         reply = self.reservation_service.format_draft(plan)
         if result.extraction is None:

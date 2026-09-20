@@ -87,11 +87,13 @@ class DeploymentConfigTests(unittest.TestCase):
 
     def test_napcat_docs_cover_group_file_event_requirements(self):
         readme = self.readme_path.read_text(encoding="utf-8")
+        self.assertIn("docs/guides/qq.md", readme)
+        guide = (self.root / "docs" / "guides" / "qq.md").read_text(encoding="utf-8")
 
-        self.assertIn("group_upload", readme)
-        self.assertIn("/get_group_file_url", readme)
-        self.assertIn("X-Signature", readme)
-        self.assertIn("其他普通群聊和普通图片只保存为上下文", readme)
+        self.assertIn("group_upload", guide)
+        self.assertIn("/get_group_file_url", guide)
+        self.assertIn("X-Signature", guide)
+        self.assertIn("其他普通群聊和普通图片只保存为上下文", guide)
 
     def test_retention_cleanup_only_deletes_old_chat_messages(self):
         with tempfile.TemporaryDirectory() as directory:

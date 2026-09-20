@@ -1,0 +1,6 @@
+-r requirements-core.txt
+fastapi
+httpx
+uvicorn
+python-multipart
+Pillow

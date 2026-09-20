@@ -5,8 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt requirements-onebot.txt ./
-RUN pip install --no-cache-dir -r requirements-onebot.txt
+COPY requirements.txt requirements-core.txt requirements-onebot.txt constraints-py311.txt ./
+RUN pip install --no-cache-dir -r requirements-onebot.txt -c constraints-py311.txt
 
 COPY adapters ./adapters
 COPY agents ./agents

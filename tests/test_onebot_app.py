@@ -79,6 +79,18 @@ class FakeUploadService:
         return PrivateUploadResult(reply="private")
 
 
+class InlineAdapterInbox:
+    """These tests isolate adapter/HTTP contracts; test_inbox covers the real queued runtime."""
+    def __init__(self, store, adapter):
+        self.adapter = adapter
+
+    async def submit(self, payload):
+        return await self.adapter.handle(payload)
+
+    async def run(self):
+        await asyncio.Event().wait()
+
+
 class OneBotAppTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -110,7 +122,7 @@ class OneBotAppTests(unittest.TestCase):
             reminder_scheduler=self.scheduler,
             group_allowed=self.settings.allows_group,
         )
-        app = create_onebot_app(self.settings, application, self.store)
+        app = create_onebot_app(self.settings, application, self.store, inbox_factory=InlineAdapterInbox)
         self.client = TestClient(app)
         self.headers = {"Authorization": "Bearer inbound-token"}
 
@@ -227,6 +239,7 @@ class OneBotAppTests(unittest.TestCase):
         self.assertIn(payload["status"], {"ok", "degraded"})
         self.assertIn("onebot-outbox", payload["tasks"])
         self.assertIn("outbox", payload["storage"])
+        self.assertEqual(payload['semantic_compiler'], {'enabled': False, 'mode': 'disabled'})
         rendered = str(payload)
         self.assertNotIn("outbound-token", rendered)
         self.assertNotIn("inbound-token", rendered)

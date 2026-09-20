@@ -8,6 +8,7 @@ from infrastructure.amap_client import (
 )
 from core.commands import HELP_TEXT, parse_command
 from core.settings import Settings
+from datetime import datetime, timezone
 
 
 RELIABLE_TRAFFIC_COVERAGE_RATIO = 0.7
@@ -248,6 +249,29 @@ class TravelService:
             return "工具错误：尚未配置 AMAP_API_KEY。"
 
         try:
+            if name == 'search_travel_places':
+                city, keywords = arguments.get('city', '').strip(), arguments.get('keywords', '').strip()
+                if not city or not keywords:
+                    return '工具错误：请提供城市和要找的场所。'
+                places = self.amap.search_places(city, keywords)
+                lines = [f'【高德地点查询】{city} · {keywords}']
+                if not places:
+                    lines.append('未找到匹配地点，请缩小区域或更换名称。')
+                for index, place in enumerate(places, 1):
+                    lines.append(f"{index}. {place['name']}｜{place.get('address', '地址未提供')}｜{place.get('type', '')}｜POI ID: {place.get('id', '')}")
+                lines.extend((f'查询时间：{datetime.now(timezone.utc).isoformat()}',
+                              '地点资料不代表营业中、实时房价、余票或库存；出发前请核对官方信息。'))
+                return '\n'.join(lines)
+            if name in {'get_walking_route', 'get_transit_route'}:
+                origin, destination = arguments.get('origin', '').strip(), arguments.get('destination', '').strip()
+                if not origin or not destination:
+                    return '工具错误：缺少 origin 或 destination。'
+                mode = 'walking' if name == 'get_walking_route' else 'transit'
+                route = self.amap.non_driving_route(origin, destination, mode=mode, city=arguments.get('city', ''))
+                return '\n'.join((f"【高德{'步行' if mode == 'walking' else '公共交通'}方案】",
+                    f"{route['origin']} → {route['destination']}",
+                    f"约 {_format_distance(route['distance_meters'])}，预计 {_format_duration(route['duration_seconds'])}",
+                    *route['instructions'], '方案与班次可能变化，请结合出发时间再次核对。'))
             if name == "get_current_weather":
                 location = arguments.get("location", "").strip()
                 if not location:

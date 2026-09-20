@@ -1310,6 +1310,8 @@ class ReservationManagementTests(ReservationDraftTests):
             )
         }
 
+        with self.assertRaisesRegex(ValueError, "核对"):
+            service.confirm_plan("qq_official", "group-a", "member-a", plan.plan_code)
         confirmed = service.confirm_plan(
             "qq_official", "group-a", "member-a", plan.plan_code
         )

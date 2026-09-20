@@ -128,7 +128,7 @@ class FakeReservationService:
             self._workflow_key(platform, group_id, creator_id)
         )
 
-    def create_draft(self, image, items, source_event_id=""):
+    def create_draft(self, image, items, source_event_id="", creator_id=None):
         self.created.append((image, items, source_event_id))
         return SimpleNamespace(plan_code="R-20260722-001", items=())
 

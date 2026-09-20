@@ -1,6 +1,2 @@
 qq-botpy
-python-dotenv
-requests
-openai
-python-docx
-openpyxl
+-r requirements-core.txt

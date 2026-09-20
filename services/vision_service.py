@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from core.web_lifecycle import publish_files
+
 import base64
 import hashlib
 import json
@@ -15,6 +17,7 @@ from openai import OpenAI
 from core.data_paths import image_root as default_image_root
 from infrastructure.memory_store import MemoryStore, ReservationImageRecord
 from infrastructure.secure_download import download_https, resolve_host
+from infrastructure.attachment_cache import read_cached_attachment
 from services.reservation_service import (
     ReservationExtractionItem,
     normalize_extraction_item,
@@ -211,30 +214,29 @@ class ReservationImageService:
         digest = hashlib.sha256(image_bytes).hexdigest()
         extension = CONTENT_TYPE_EXTENSIONS[content_type]
         destination = self.image_root / digest[:2] / f"{digest}{extension}"
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        if not destination.exists():
-            temporary = destination.with_name(
-                f"{destination.name}.{uuid.uuid4().hex}.part"
-            )
-            try:
-                with temporary.open("wb") as handle:
-                    handle.write(image_bytes)
-                os.replace(temporary, destination)
-            finally:
-                if temporary.exists():
-                    temporary.unlink()
+        temporary = destination.with_name(f"{destination.name}.{uuid.uuid4().hex}.part")
+        with publish_files(self.store, platform, group_id, (destination, temporary)):
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if not destination.exists():
+                try:
+                    with temporary.open("wb") as handle:
+                        handle.write(image_bytes)
+                    os.replace(temporary, destination)
+                finally:
+                    if temporary.exists():
+                        temporary.unlink()
 
-        image, is_new = self.store.create_reservation_image(
-            storage_scope_id=storage_scope_id,
-            platform=platform,
-            group_id=group_id,
-            uploader_id=uploader_id,
-            sha256=digest,
-            file_path=str(destination),
-            content_type=content_type,
-            byte_size=len(image_bytes),
-            model_id=(self.extractor.model_id if self.extractor else ""),
-        )
+            image, is_new = self.store.create_reservation_image(
+                storage_scope_id=storage_scope_id,
+                platform=platform,
+                group_id=group_id,
+                uploader_id=uploader_id,
+                sha256=digest,
+                file_path=str(destination),
+                content_type=content_type,
+                byte_size=len(image_bytes),
+                model_id=(self.extractor.model_id if self.extractor else ""),
+            )
         if not is_new:
             if image.status == "extracted":
                 extraction = ImageVisionExtractor._parse(
@@ -301,6 +303,12 @@ class ReservationImageService:
         return ImageProcessingResult(completed, extraction)
 
     def _download(self, attachment: object) -> tuple[bytes, str]:
+        if getattr(attachment, 'local_path', ''):
+            cached = read_cached_attachment(attachment, self.store.database_path, max_bytes=MAX_IMAGE_BYTES)
+            content_type = str(getattr(attachment, 'content_type', ''))
+            if content_type not in CONTENT_TYPE_EXTENSIONS:
+                raise ValueError('图片格式必须是 JPEG、PNG 或 WebP。')
+            return cached, content_type
         url = str(getattr(attachment, "url", "") or "")
         declared_size = int(getattr(attachment, "size", 0) or 0)
         return download_https(

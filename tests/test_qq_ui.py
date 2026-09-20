@@ -35,7 +35,7 @@ class QQGroupUiTests(unittest.TestCase):
             with self.subTest(content=content):
                 payload = build_group_message_payload(content, "plain help")
                 self.assertEqual(payload["msg_type"], 2)
-                self.assertIn("青甘自驾助手", payload["markdown"]["content"])
+                self.assertIn("彼岸旅行助手", payload["markdown"]["content"])
                 self.assertIn(
                     "确认前不会发送提醒",
                     payload["markdown"]["content"],

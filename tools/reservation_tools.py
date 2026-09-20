@@ -4,8 +4,11 @@ from datetime import date
 from typing import Mapping
 
 from core.event_idempotency import event_operation_key
+from core.execution_scope import ensure_execution_active
+from core.tool_result import ToolResult
 from services.reservation_service import (
     ReservationService,
+    ReservationConfirmationRequired,
     parse_beijing_datetime_list,
 )
 from services.reservation_draft_creator import ReservationDraftCreator
@@ -60,6 +63,7 @@ class ReservationToolExecutor:
             name: str,
             arguments: Mapping[str, object],
             context: AgentToolContext) -> str:
+        ensure_execution_active()
         if name not in RESERVATION_TOOL_NAMES:
             raise ValueError(f"未知预约工具 {name}")
 
@@ -69,7 +73,8 @@ class ReservationToolExecutor:
             name,
             normalized_arguments,
         )
-        cached = self.service.store.get_event_tool_result(operation_key)
+        cacheable = name not in {"list_reservation_plans", "refresh_reservation_plan"}
+        cached = self.service.store.get_event_tool_result(operation_key) if cacheable else None
         if cached is not None:
             return cached
 
@@ -79,6 +84,8 @@ class ReservationToolExecutor:
             context,
             operation_key,
         )
+        if not cacheable:
+            return result
         return self.service.store.save_event_tool_result(
             operation_key,
             context.event_id,
@@ -294,6 +301,24 @@ class AgentToolRouter:
             reservation_service,
             draft_creator,
         )
+
+    def execute_result(
+            self,
+            name: str,
+            arguments: Mapping[str, object],
+            context: AgentToolContext | None = None) -> ToolResult:
+        resource_id = str(arguments.get("plan_code") or arguments.get("item_code") or "")
+        if name in RESERVATION_TOOL_NAMES and context is not None:
+            try:
+                text = self.reservation_tools.execute(name, arguments, context)
+            except ReservationConfirmationRequired as exc:
+                return ToolResult("needs_input", name, resource_id, data=str(exc), error_code="review_required")
+            except (ValueError, PermissionError) as exc:
+                return ToolResult("failed", name, resource_id, data=str(exc),
+                                  error_code="permission_denied" if isinstance(exc, PermissionError) else "invalid_state_or_arguments")
+        else:
+            text = self.execute(name, arguments, context)
+        return ToolResult.from_text(name, text, resource_id)
 
     def execute(
             self,

@@ -366,7 +366,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
 
         sent = api.group_messages[0]
         self.assertEqual(sent["msg_type"], 2)
-        self.assertIn("青甘自驾助手", sent["markdown"]["content"])
+        self.assertIn("彼岸旅行助手", sent["markdown"]["content"])
         self.assertIn("keyboard", sent)
         self.assertNotIn("content", sent)
 

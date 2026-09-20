@@ -17,6 +17,7 @@ from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
 
 from infrastructure.memory_store import MemoryStore
 from infrastructure.secure_download import download_https, resolve_host
+from infrastructure.attachment_cache import read_cached_attachment
 
 
 MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
@@ -183,6 +184,8 @@ class DocumentService:
         )
 
     def _download_attachment(self, attachment) -> bytes:
+        if getattr(attachment, 'local_path', ''):
+            return read_cached_attachment(attachment, self.memory_store.database_path, max_bytes=MAX_DOCUMENT_BYTES)
         url = str(getattr(attachment, "url", "") or "")
         declared_size = int(getattr(attachment, "size", 0) or 0)
         data, unused_content_type = download_https(

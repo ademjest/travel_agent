@@ -1,0 +1,7 @@
+python-dotenv
+requests
+urllib3
+openai
+python-docx
+openpyxl
+tzdata

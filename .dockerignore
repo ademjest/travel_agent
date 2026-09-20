@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.git
+data
+*.log
+*.log.*
+**/__pycache__
+frontend/node_modules
+evals/results-*.json
+**/*.db

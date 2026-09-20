@@ -63,6 +63,13 @@ class ContextBuilderTests(unittest.TestCase):
         self.assertIn("青海湖集合", context.group_context)
         self.assertNotIn("不应出现的群消息", context.group_context)
 
+    def test_low_relevance_document_fallback_is_labeled_and_has_document_id(self):
+        doc = self.store.add_document('group-a', 'member-a', 'notes.md', 'unrelated-doc',
+                                      '青海湖景色介绍', ['青海湖景色介绍'])
+        context = self.store.build_document_context('group-a', '火箭发动机')
+        self.assertIn('相关性较低', context)
+        self.assertIn(f'文档#{doc.document_id}', context)
+
     def test_speaker_attribution_is_preserved(self):
         self.save_message(
             "a1",

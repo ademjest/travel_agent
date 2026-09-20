@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import re
+import threading
+import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
 import requests
+from core.execution_scope import ensure_execution_active
 
 
 AMAP_BASE_URL = "https://restapi.amap.com"
@@ -12,7 +15,9 @@ REQUEST_TIMEOUT = 10
 
 
 class AmapError(RuntimeError):
-    pass
+    def __init__(self, message, *, code=''):
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -131,8 +136,13 @@ class AmapClient:
             raise ValueError("AMAP_API_KEY is required")
         self.api_key = api_key
         self.http_get = http_get
+        self._place_lock = threading.Lock()
+        self._next_place_request_at = 0.0
+        self._route_lock = threading.Lock()
+        self._next_route_request_at = 0.0
 
     def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
+        ensure_execution_active()
         query = {**params, "key": self.api_key, "output": "JSON"}
         try:
             response = self.http_get(
@@ -152,7 +162,7 @@ class AmapClient:
         if str(data.get("status")) != "1":
             info = data.get("info") or "未知错误"
             infocode = data.get("infocode") or ""
-            raise AmapError(f"高德接口返回错误：{info} {infocode}".strip())
+            raise AmapError(f"高德接口返回错误：{info} {infocode}".strip(), code=str(infocode))
 
         return data
 
@@ -241,6 +251,66 @@ class AmapClient:
             report_time=str(live.get("reporttime") or "未知"),
         )
 
+    def search_places(self, city: str, keywords: str) -> tuple[dict[str, str], ...]:
+        for attempt in range(3):
+            with self._place_lock:
+                delay = max(0.0, self._next_place_request_at - time.monotonic())
+                if delay:
+                    time.sleep(delay)
+                self._next_place_request_at = time.monotonic() + 1.05
+                try:
+                    data = self._get('/v3/place/text', {'city': city, 'keywords': keywords,
+                        'citylimit': 'true', 'offset': 5, 'page': 1, 'extensions': 'base'})
+                except AmapError as exc:
+                    if exc.code != '10021' or attempt == 2:
+                        raise
+                    self._next_place_request_at = time.monotonic() + (attempt + 1) * 1.2
+                    continue
+            break
+        results = []
+        for poi in _as_list(data.get('pois'))[:5]:
+            result = {key: value for key in ('id', 'name', 'address', 'location', 'type', 'tel')
+                      if isinstance((value := poi.get(key)), str)}
+            if result.get('name'):
+                results.append(result)
+        return tuple(results)
+
+    def non_driving_route(self, origin: str, destination: str, *, mode: str, city: str = '') -> dict:
+        if mode not in {'walking', 'transit'}:
+            raise ValueError('Unsupported route mode')
+        origin_location, destination_location = self.geocode(origin), self.geocode(destination)
+        return self.non_driving_route_locations(origin_location, destination_location, mode=mode, city=city)
+
+    def non_driving_route_locations(self, origin_location: Location, destination_location: Location, *, mode: str, city: str = '') -> dict:
+        params = {'origin': origin_location.coordinates, 'destination': destination_location.coordinates}
+        if mode == 'transit':
+            if not city:
+                raise AmapError('公共交通查询需要明确城市')
+            params.update(city=city, cityd=city, strategy=0, extensions='base')
+        path = '/v3/direction/walking' if mode == 'walking' else '/v3/direction/transit/integrated'
+        data = self._get(path, params)
+        route = data.get('route') or {}
+        options = _as_list(route.get('paths' if mode == 'walking' else 'transits'))
+        if not options:
+            raise AmapError('没有找到对应交通方式的路线，请核对起终点与城市')
+        option = options[0]
+        instructions = []
+        if mode == 'walking':
+            instructions = [str(step.get('instruction') or '') for step in _as_list(option.get('steps'))[:12]]
+        else:
+            for segment in _as_list(option.get('segments'))[:10]:
+                walking = segment.get('walking') or {}
+                distance = _to_int(walking.get('distance'))
+                if distance:
+                    instructions.append(f'步行约 {distance} 米')
+                for line in _as_list((segment.get('bus') or {}).get('buslines'))[:1]:
+                    departure = (line.get('departure_stop') or {}).get('name', '')
+                    arrival = (line.get('arrival_stop') or {}).get('name', '')
+                    instructions.append(f"{line.get('name', '')}：{departure} → {arrival}")
+        return {'mode': mode, 'origin': origin_location.address, 'destination': destination_location.address,
+                'distance_meters': _to_int(option.get('distance') or route.get('distance')),
+                'duration_seconds': _to_int(option.get('duration')), 'instructions': tuple(filter(None, instructions))}
+
     def weather_forecast(self, place: str) -> WeatherForecast:
         location = self.geocode(place)
         if not location.adcode:
@@ -280,6 +350,9 @@ class AmapClient:
     def driving_route(self, origin: str, destination: str) -> RouteSummary:
         origin_location = self.geocode(origin)
         destination_location = self.geocode(destination)
+        return self.driving_route_locations(origin_location, destination_location)
+
+    def driving_route_locations(self, origin_location: Location, destination_location: Location) -> RouteSummary:
         data = self._get(
             "/v5/direction/driving",
             {
@@ -293,7 +366,7 @@ class AmapClient:
         route = data.get("route") or {}
         paths = _as_list(route.get("paths"))
         if not paths:
-            raise AmapError(f"没有找到 {origin} 到 {destination} 的驾车路线")
+            raise AmapError(f"没有找到 {origin_location.query} 到 {destination_location.query} 的驾车路线")
 
         path = paths[0]
         cost = path.get("cost") or {}
@@ -343,3 +416,33 @@ class AmapClient:
             traffic_distances=traffic_distances,
             traffic_segments=tuple(traffic_segments),
         )
+
+    def route_for_pois(self, origin: dict, destination: dict, *, mode: str, city: str) -> dict:
+        if mode not in {'walking', 'transit', 'driving'}:
+            raise ValueError('Unsupported route mode')
+        locations = []
+        for place in (origin, destination):
+            try:
+                longitude, latitude = _parse_coordinate_pair(place.get('location'))
+                if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
+                    raise ValueError('invalid coordinate')
+            except (ValueError, TypeError):
+                raise AmapError(f"地点 {place.get('name', '')} 缺少有效坐标，不能可靠查询交通段。") from None
+            locations.append(Location(place['name'], place['name'], longitude, latitude, ''))
+        for attempt in range(3):
+            with self._route_lock:
+                delay = max(0.0, self._next_route_request_at - time.monotonic())
+                if delay:
+                    time.sleep(delay)
+                self._next_route_request_at = time.monotonic() + 1.05
+                try:
+                    if mode == 'driving':
+                        result = self.driving_route_locations(*locations)
+                        return {'mode': mode, 'origin': origin['name'], 'destination': destination['name'],
+                                'distance_meters': result.distance_meters, 'duration_seconds': result.duration_seconds,
+                                'instructions': ('高德推荐驾车路线',)}
+                    return self.non_driving_route_locations(*locations, mode=mode, city=city)
+                except AmapError as exc:
+                    if exc.code != '10021' or attempt == 2:
+                        raise
+                    self._next_route_request_at = time.monotonic() + (attempt + 1) * 1.2

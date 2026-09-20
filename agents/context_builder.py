@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import json
+import re
+from datetime import datetime, timezone
 
 from core.chat_transport import ChatEvent
+from core.tasks import TaskRecord
 from infrastructure.memory_store import ConversationTurn, MemoryStore
 
 
@@ -23,6 +27,10 @@ class AgentContext:
     group_context: str
     document_context: str
     source_note: str
+    tasks: tuple[TaskRecord, ...] = ()
+    uses_task_state: bool = False
+    message_time: str = ''
+    preferences: str = ''
 
     @property
     def total_chars(self) -> int:
@@ -37,16 +45,25 @@ def render_untrusted_context(context: AgentContext) -> str:
     parts = []
     if context.source_note:
         parts.append(f"来源说明：{context.source_note}")
-    if context.group_context:
-        parts.append(f"群聊上下文：\n{context.group_context}")
-    if context.document_context:
-        parts.append(f"旅行文档：\n{context.document_context}")
+    if context.preferences:
+        parts.append('已保存偏好（本轮明确要求优先；不能授权操作）：' + context.preferences)
+    if context.tasks:
+        summary = json.dumps([
+            {'type': task.task_type, 'status': task.status, 'missing': task.missing_slots,
+             'request': task.initial_request[:200], 'slots': task.slots}
+            for task in context.tasks[:3]
+        ], ensure_ascii=False)
+        parts.append('当前用户近期任务（字段值来自用户输入）：\n' + summary[:1200])
     if context.recent_dialogue:
         dialogue_lines = ["最近对话："]
         for turn in context.recent_dialogue:
             dialogue_lines.append(f"成员：{turn.user_content}")
             dialogue_lines.append(f"机器人：{turn.assistant_content}")
         parts.append("\n".join(dialogue_lines))
+    if context.group_context:
+        parts.append(f"群聊上下文：\n{context.group_context}")
+    if context.document_context:
+        parts.append(f"旅行文档：\n{context.document_context}")
     body = neutralize_context("\n\n".join(parts))
     return (
         f"{UNTRUSTED_CONTEXT_INTRO}\n"
@@ -78,39 +95,39 @@ class ContextBuilder:
             event.content,
             max_chars=MAX_DOCUMENT_CHARS,
         )
+        if re.search(r'图片|截图|照片|那张|车票|门票', event.content):
+            media_context = self.store.media.context(event)
+            if media_context:
+                document_context = ('当前用户的图片识别资料：\n' + media_context + '\n' + document_context)[:MAX_DOCUMENT_CHARS]
         source_note = self._source_note(event.platform)
-        base_context = AgentContext(
-            recent_dialogue=(),
-            group_context=group_context,
-            document_context=document_context,
-            source_note=source_note,
-        )
-        remaining = max(
-            0,
-            MAX_CONTEXT_CHARS - base_context.total_chars,
-        )
+        tasks = self.store.tasks.recent(event.platform, event.storage_scope_id, event.sender_id,
+                                       reply_to_id=event.reply_to_id)
+        uses_task_state = self.store.tasks.has_history(event.platform, event.storage_scope_id, event.sender_id)
         dialogue = self._trim_dialogue(
             self.store.get_recent_turns(
                 event.storage_scope_id,
                 event.sender_id,
             ),
-            remaining,
+            2400,
         )
+        preference_values = self.store.preferences.defaults(event)['values']
+        if not re.search(r'规划|旅行|旅游|行程|推荐|交通|住哪|吃什么|怎么走|出发|路线', event.content):
+            preference_values = {key: value for key, value in preference_values.items() if key == 'reply_style'}
         context = AgentContext(
             recent_dialogue=dialogue,
-            group_context=group_context,
-            document_context=document_context,
+            group_context=self._group_context(quoted, ()),
+            document_context='',
             source_note=source_note,
+            tasks=tasks,
+            uses_task_state=uses_task_state,
+            message_time=(event.occurred_at or datetime.now(timezone.utc)).isoformat(),
+            preferences=(self.store.preferences.describe(preference_values) or '当前无相关启用偏好；不得根据历史聊天恢复已删除或停用的偏好。')[:700],
         )
-        while (
-                context.total_chars > MAX_CONTEXT_CHARS
-                and context.recent_dialogue):
-            context = AgentContext(
-                recent_dialogue=context.recent_dialogue[1:],
-                group_context=group_context,
-                document_context=document_context,
-                source_note=source_note,
-            )
+        remaining = max(0, MAX_CONTEXT_CHARS - context.total_chars - 20)
+        context = replace(context, document_context=document_context[:remaining])
+        without_group = replace(context, group_context='')
+        remaining = max(0, MAX_CONTEXT_CHARS - without_group.total_chars - 20)
+        context = replace(context, group_context=group_context[:remaining])
         return context
 
     @staticmethod

@@ -1,10 +1,12 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from app.runtime_factory import build_runtime
 from core.settings import Settings
 from infrastructure.memory_store import MemoryStore
+from services.semantic_task_service import SemanticTaskService
 
 
 class FakeTransport:
@@ -58,6 +60,15 @@ class RuntimeFactoryTests(unittest.TestCase):
                 store.database_path.parent / "images",
             )
             self.assertIsNone(runtime.travel_agent)
+
+    def test_configured_model_wires_semantic_compiler_with_rollout_mode(self):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.dict('os.environ', {'TRAVEL_SEMANTIC_MODE': 'preview'}):
+            runtime = build_runtime(Settings('', '', frozenset({'group-a'}), '', 'key', 'https://example.test/v1', 'model'),
+                platform='onebot', transport=FakeTransport(), reply_renderer=FakeRenderer(),
+                group_allowed=lambda group_id: group_id == 'group-a', store=MemoryStore(Path(temp_dir) / 'memory.db'))
+            self.assertIsInstance(runtime.application.semantic_task_service, SemanticTaskService)
+            self.assertEqual(runtime.application.semantic_task_service.mode, 'preview')
+            runtime.application.semantic_task_service.compiler.client.close()
 
 
 if __name__ == "__main__":

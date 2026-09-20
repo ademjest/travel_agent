@@ -10,6 +10,10 @@ CURRENT_WEATHER_TOOL = "get_current_weather"
 WEATHER_FORECAST_TOOL = "get_weather_forecast"
 DRIVING_ROUTE_TOOL = "get_driving_route"
 ROUTE_TRAFFIC_TOOL = "get_route_traffic"
+PLACE_SEARCH_TOOL = 'search_travel_places'
+WALKING_ROUTE_TOOL = 'get_walking_route'
+TRANSIT_ROUTE_TOOL = 'get_transit_route'
+ASK_USER_TOOL = 'request_missing_input'
 CREATE_RESERVATION_DRAFT_TOOL = "create_reservation_draft_from_image"
 UPDATE_RESERVATION_DRAFT_ITEM_TOOL = "update_reservation_draft_item"
 UPDATE_RESERVATION_DRAFT_ITEMS_TOOL = "update_reservation_draft_items"
@@ -19,6 +23,9 @@ TRAVEL_TOOL_NAMES = (
     WEATHER_FORECAST_TOOL,
     DRIVING_ROUTE_TOOL,
     ROUTE_TRAFFIC_TOOL,
+    PLACE_SEARCH_TOOL,
+    WALKING_ROUTE_TOOL,
+    TRANSIT_ROUTE_TOOL,
 )
 
 RESERVATION_TOOL_NAMES = (
@@ -92,6 +99,20 @@ REMINDER_TIMES = {
 
 
 TOOLS = [
+    _function_tool(ASK_USER_TOOL,
+        '缺少城市或起终点等必要信息时结束本轮并追问。只询问缺失字段，不能声称业务已完成。',
+        {'question': {'type': 'string'}, 'missing_fields': {'type': 'array', 'minItems': 1, 'maxItems': 4,
+            'items': {'type': 'string', 'enum': ['location', 'city', 'origin', 'destination']}}},
+        ('question', 'missing_fields')),
+    _function_tool(PLACE_SEARCH_TOOL,
+        '在明确城市中查询景点、博物馆、餐馆或酒店地点。只返回地点资料，不提供实时房价、余票或库存。',
+        {'city': {'type': 'string', 'description': '用户明确的目的地城市'},
+         'keywords': {'type': 'string', 'description': '要查找的场所名或类别，例如博物馆、酒店'}},
+        ('city', 'keywords')),
+    _function_tool(WALKING_ROUTE_TOOL, '查询明确起终点之间的步行路线和预计耗时。',
+        {'origin': STRING, 'destination': STRING}, ('origin', 'destination')),
+    _function_tool(TRANSIT_ROUTE_TOOL, '查询同一城市内的公交、地铁方案和步行换乘，不是驾车路线。',
+        {'origin': STRING, 'destination': STRING, 'city': STRING}, ('origin', 'destination', 'city')),
     _function_tool(
         CURRENT_WEATHER_TOOL,
         "查询一个中国地点当前的行政区级实时天气。",

@@ -38,7 +38,7 @@ class FakeReservationService:
         self.finished = []
         self.updated = []
 
-    def create_draft(self, image, items, source_event_id=""):
+    def create_draft(self, image, items, source_event_id="", creator_id=None):
         self.created.append((image, items, source_event_id))
         return SimpleNamespace(plan_code="R-20260802-001", items=())
 

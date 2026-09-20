@@ -1,0 +1,608 @@
+{
+  "mode": "real_model_fixed_tools",
+  "corpus_sha256": "ba12384376946990319df29b7bbf00a195d51330e48a69ca9825ba1d4571bcd4",
+  "model": "gpt-5.5",
+  "reference_time": "2030-09-09T02:00:00+00:00",
+  "results": [
+    {
+      "id": "trigger-04",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-08",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.563,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-12",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.641,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "当前没有近期任务。已设置的提醒请说“查看我的提醒”。"
+      ]
+    },
+    {
+      "id": "trigger-16",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.671,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "还没有保存的行程。可以说“帮我规划武汉三天行程”。"
+      ]
+    },
+    {
+      "id": "trigger-20",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.641,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "还没有保存的行程。可以说“帮我规划武汉三天行程”。"
+      ]
+    },
+    {
+      "id": "conversation-04",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 12.859,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1931,
+        "completion_tokens": 97,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：武汉现在天气晴，气温 25℃。\n\n依据：\n- 查询地点：武汉\n- 当前天气：晴\n- 温度：25℃\n- 数据发布时间：2030-09-09 10:00\n\n局限：\n- 这是行政区级实时天气数据，不代表具体街区或景点的微气候。"
+      ]
+    },
+    {
+      "id": "conversation-08",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 8.375,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1935,
+        "completion_tokens": 88,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：西宁现在天气晴，气温 25℃。\n\n依据：行政区级实时天气数据  \n数据时间：2030-09-09 10:00（北京时间）  \n局限：这是西宁市行政区级天气，不代表具体街区或景点的微气候。"
+      ]
+    },
+    {
+      "id": "conversation-12",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 10.172,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1931,
+        "completion_tokens": 98,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：北京现在天气晴，气温 25℃。\n\n依据：\n- 查询地点：北京\n- 天气：晴\n- 温度：25℃\n- 数据发布时间：2030-09-09 10:00\n\n局限：\n- 当前天气为行政区级实时天气数据，不代表具体街区或景点的微气候。"
+      ]
+    },
+    {
+      "id": "conversation-16",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 7.906,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1931,
+        "completion_tokens": 95,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：成都现在天气晴，气温 25℃。\n\n依据：\n- 查询地点：成都\n- 天气：晴\n- 温度：25℃\n- 数据发布时间：2030-09-09 10:00\n\n局限：这是行政区级当前天气数据，不代表具体街区或景点的微气候。"
+      ]
+    },
+    {
+      "id": "conversation-20",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 6.875,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1931,
+        "completion_tokens": 97,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：杭州现在天气晴，气温 25℃。\n\n依据：\n- 查询地点：杭州\n- 天气：晴\n- 温度：25℃\n- 数据发布时间：2030-09-09 10:00（北京时间）\n\n局限：这是行政区级实时天气数据，不代表具体街区或景点的微气候。"
+      ]
+    },
+    {
+      "id": "reminder-04",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.579,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。",
+        "已修改：2030-09-10 09:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-08",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 5.844,
+      "usage": {
+        "calls": 1,
+        "prompt_tokens": 226,
+        "completion_tokens": 79,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你预约湖北省博物馆，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-12",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.562,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "2030-09-10 几点提醒你带身份证？",
+        "已设置：2030-09-10 10:00（北京时间）提醒你带身份证，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-16",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.469,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-20",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.594,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。",
+        "已取消提醒：买10月1日车票。"
+      ]
+    },
+    {
+      "id": "reminder-24",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.593,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你收拾行李，到时在本群 @ 你。",
+        "已修改：2030-09-10 09:00（北京时间）提醒你收拾行李，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "policy-04",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "页面含暂停预约或闭馆信息，请先核对开放安排，暂不创建开约提醒。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-08",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.61,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 5 天，每日 00:00 放票。\n对应提醒时刻：2030-09-26 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n页面同时含季节或节假日说明，需要你核对该规则适用于所选参观日期。\n目前没有创建提醒。核对适用后可回复“按这个规则设置提醒”，或提供更明确的官方说明链接。",
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 5 天，每日 00:00 放票。\n对应提醒时刻：2030-09-26 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-12",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.469,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆：页面中的个人入馆规则为最多提前 7 天，每日 00:00 放票。\n来源：https://fixture.example/policy\n\n本次只查询规则，没有创建提醒或提交预约。"
+      ]
+    },
+    {
+      "id": "policy-16",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.469,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 10 天，每日 00:00 放票。\n对应提醒时刻：2030-09-21 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-20",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.468,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "没有读到可明确计算的个人入馆预约窗口，不能把团队或讲解预约规则代入。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "trip-04",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 16.016,
+      "usage": {
+        "calls": 3,
+        "prompt_tokens": 3529,
+        "completion_tokens": 439,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n室内安排：第2天\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；室内备选\n- 下午：评测美术馆3｜评测街3号；室内备选\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-08",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 11.843,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1833,
+        "completion_tokens": 292,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；兴趣匹配\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；兴趣匹配\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；兴趣匹配\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "已取消行程。"
+      ]
+    },
+    {
+      "id": "trip-12",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 12.047,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1833,
+        "completion_tokens": 345,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；兴趣匹配\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；兴趣匹配\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；兴趣匹配\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；兴趣匹配\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n第 1 天 · 2030-10-02\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；兴趣匹配\n第 2 天 · 2030-10-03\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；兴趣匹配\n第 3 天 · 2030-10-04\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；兴趣匹配\n第 4 天 · 2030-10-05\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；兴趣匹配\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-16",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 14.797,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1834,
+        "completion_tokens": 403,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-20",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 16.047,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1846,
+        "completion_tokens": 442,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点；提醒预约\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。\n湖北省博物馆：参观 2030-10-01，拟定 2030-09-26 00:00（北京时间）提醒；来源 https://fixture.example/policy"
+      ]
+    },
+    {
+      "id": "recovery-04",
+      "category": "recovery",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 11.203,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1917,
+        "completion_tokens": 141,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：西宁现在天气晴，气温 25℃。\n\n依据：\n- 查询地点：西宁\n- 当前天气：晴\n- 温度：25℃\n- 数据发布时间：2030-09-09 10:00\n\n建议：\n- 白天晴朗，外出注意防晒、补水。\n- 早晚可能温差较大，如有长时间户外活动可备一件薄外套。\n\n局限：\n- 这是行政区级实时天气数据，不代表具体景点或街区的微气候。"
+      ]
+    },
+    {
+      "id": "recovery-08",
+      "category": "recovery",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 6.64,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1913,
+        "completion_tokens": 101,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：北京现在天气晴，气温 25℃。\n\n依据：\n- 地点：北京\n- 天气：晴\n- 温度：25℃\n- 数据发布时间：2030-09-09 10:00（北京时间）\n\n局限：该数据为行政区级当前天气，不能代表某个具体街区或景点的微气候。"
+      ]
+    },
+    {
+      "id": "recovery-12",
+      "category": "recovery",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 7.047,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 1923,
+        "completion_tokens": 96,
+        "usage_missing": 0
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "结论：成都现在天气晴，气温 25℃。\n\n依据：\n- 查询地点：成都\n- 天气：晴\n- 温度：25℃\n- 发布时间：2030-09-09 10:00\n\n局限：该结果为行政区级当前天气数据，不代表具体街区或景点的微气候。"
+      ]
+    }
+  ],
+  "summary": {
+    "total": 29,
+    "passed": 29,
+    "model_calls": 28,
+    "prompt_tokens": 26513,
+    "completion_tokens": 2813,
+    "usage_missing": 0,
+    "p50_seconds": 0.671,
+    "p95_seconds": 14.797
+  }
+}

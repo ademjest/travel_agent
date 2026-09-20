@@ -26,12 +26,14 @@ class OutboxWorker:
             store: MemoryStore,
             transport: MessageTransport,
             clock: Callable[[], datetime] | None = None,
-            max_attempts: int = MAX_OUTBOX_ATTEMPTS):
+            max_attempts: int = MAX_OUTBOX_ATTEMPTS,
+            group_allowed: Callable[[str], bool] | None = None):
         self.platform = platform
         self.store = store
         self.transport = transport
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.max_attempts = max_attempts
+        self.group_allowed = group_allowed or (lambda group_id: True)
 
     async def dispatch_due_once(self, now: datetime | None = None) -> int:
         listing_time = now or self.clock()
@@ -50,12 +52,24 @@ class OutboxWorker:
             )
             if token is None:
                 continue
+            if await asyncio.to_thread(self.store.expire_outbox_if_needed, row.outbox_id, token, now or self.clock()):
+                continue
+            if row.channel == 'group' and not self.group_allowed(row.target_id):
+                await asyncio.to_thread(self.store.mark_outbox_failed, row.outbox_id, token,
+                    'group_not_allowed', now or self.clock(), self.max_attempts, True)
+                continue
+            if row.event_id.startswith('reminder:'):
+                valid = await asyncio.to_thread(self.store.reminders.delivery_is_current, row.event_id)
+                if not valid or not self.group_allowed(row.target_id):
+                    await asyncio.to_thread(self.store.reminders.stop_delivery, row.outbox_id, token)
+                    continue
             try:
-                await self.transport.send(OutgoingMessage(
+                platform_message_id = await self.transport.send(OutgoingMessage(
                     channel=row.channel,
                     target_id=row.target_id,
                     reply_to_id=row.reply_to_id,
                     payload=row.payload,
+                    delivery_key=f"web:outbox:{row.outbox_id}" if self.platform == 'web' else '',
                 ))
             except DeliveryError as exc:
                 if exc.delivered:
@@ -97,6 +111,9 @@ class OutboxWorker:
                     exc.retryable,
                 )
             except Exception as exc:
+                if self.platform == 'web' and getattr(exc, 'status_code', None) == 410:
+                    await asyncio.to_thread(self.store.reminders.stop_delivery, row.outbox_id, token)
+                    continue
                 failed_at = now or self.clock()
                 retry_at = failed_at + retry_delay(row.attempt_count + 1)
                 await asyncio.to_thread(
@@ -121,6 +138,7 @@ class OutboxWorker:
                     row.outbox_id,
                     token,
                     sent_at,
+                    platform_message_id=platform_message_id,
                 )
                 if sent:
                     delivered += 1

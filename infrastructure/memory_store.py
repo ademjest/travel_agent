@@ -5,7 +5,7 @@ import re
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Mapping, Sequence
@@ -138,6 +138,7 @@ class ReservationItemRecord:
     custom_reminder_times: tuple[datetime, ...]
     reminder_policy: str
     status: str
+    date_source: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -150,6 +151,8 @@ class ReservationPlanRecord:
     creator_id: str
     status: str
     items: tuple[ReservationItemRecord, ...]
+    plan_version: int = 0
+    source_conflicts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -194,6 +197,26 @@ class MemoryStore:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._document_fts_available = False
         self._initialize()
+        from infrastructure.task_repository import TaskRepository
+        self.tasks = TaskRepository(self)
+        from infrastructure.reminder_repository import ReminderRepository
+        self.reminders = ReminderRepository(self)
+        from infrastructure.policy_repository import PolicyRepository
+        self.policies = PolicyRepository(self)
+        from infrastructure.trip_repository import TripRepository
+        self.trips = TripRepository(self)
+        from infrastructure.inbox_repository import InboxRepository
+        self.inbox = InboxRepository(self)
+        from infrastructure.media_repository import MediaRepository
+        self.media = MediaRepository(self)
+        from infrastructure.scheduled_query_repository import ScheduledQueryRepository
+        self.scheduled_queries = ScheduledQueryRepository(self)
+        from infrastructure.policy_watch_repository import PolicyWatchRepository
+        self.policy_watches = PolicyWatchRepository(self)
+        from infrastructure.preference_repository import PreferenceRepository
+        self.preferences = PreferenceRepository(self)
+        from infrastructure.research_repository import ResearchRepository
+        self.research = ResearchRepository(self)
 
     @contextmanager
     def _connect(self):
@@ -202,8 +225,10 @@ class MemoryStore:
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA journal_mode = WAL")
         try:
-            yield connection
-            connection.commit()
+            from core.execution_scope import connection_for_scope
+            scoped_connection = connection_for_scope(connection, self.database_path)
+            yield scoped_connection
+            scoped_connection.commit()
         except Exception:
             connection.rollback()
             raise
@@ -513,6 +538,30 @@ class MemoryStore:
                     "PRAGMA table_info(reservation_plans)"
                 ).fetchall()
             }
+            if "plan_version" not in reservation_plan_columns:
+                connection.execute(
+                    "ALTER TABLE reservation_plans ADD COLUMN "
+                    "plan_version INTEGER NOT NULL DEFAULT 0"
+                )
+            # Every item mutation advances the version in its own transaction.
+            for operation, row_name in (("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")):
+                connection.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS reservation_version_{operation.lower()}
+                    AFTER {operation} ON reservation_items
+                    BEGIN
+                        UPDATE reservation_plans SET plan_version = plan_version + 1
+                        WHERE id = {row_name}.plan_id;
+                    END
+                """)
+            connection.execute("""
+                CREATE TRIGGER IF NOT EXISTS reservation_version_status
+                AFTER UPDATE OF status ON reservation_plans
+                WHEN NEW.status != OLD.status
+                BEGIN
+                    UPDATE reservation_plans SET plan_version = plan_version + 1
+                    WHERE id = NEW.id;
+                END
+            """)
             if "refresh_revision" not in reservation_plan_columns:
                 connection.execute(
                     "ALTER TABLE reservation_plans ADD COLUMN "
@@ -535,6 +584,20 @@ class MemoryStore:
                     "PRAGMA table_info(reservation_items)"
                 ).fetchall()
             }
+            if "date_source_json" not in reservation_item_columns:
+                connection.execute(
+                    "ALTER TABLE reservation_items ADD COLUMN "
+                    "date_source_json TEXT NOT NULL DEFAULT '{}'"
+                )
+            connection.execute("""
+                CREATE TRIGGER IF NOT EXISTS reservation_manual_date_source
+                AFTER UPDATE OF visit_date ON reservation_items
+                WHEN NEW.visit_date IS NOT NULL AND NEW.date_source_json = OLD.date_source_json
+                BEGIN
+                    UPDATE reservation_items
+                    SET date_source_json = '{"origin":"manual"}' WHERE id = NEW.id;
+                END
+            """)
             if "refresh_revision" not in reservation_item_columns:
                 connection.execute(
                     "ALTER TABLE reservation_items ADD COLUMN "
@@ -842,7 +905,9 @@ class MemoryStore:
             reply_to_id: str,
             payload: dict[str, object],
             memory_content: str | None,
-            now: datetime | None = None) -> int:
+            now: datetime | None = None,
+            *,
+            assistant_text: str | None = None) -> int:
         prepared_at = now or datetime.now(timezone.utc)
         lease_expires_at = prepared_at + EVENT_PROCESSING_LEASE
         payload_json = json.dumps(
@@ -850,7 +915,7 @@ class MemoryStore:
             ensure_ascii=False,
             sort_keys=True,
         )
-        prepared_reply = self._payload_reply_text(payload)
+        prepared_reply = assistant_text if assistant_text is not None else self._payload_reply_text(payload)
         with self._connect() as connection:
             event = connection.execute(
                 """
@@ -927,6 +992,16 @@ class MemoryStore:
 
     @staticmethod
     def _payload_reply_text(payload: dict[str, object]) -> str:
+        message = payload.get("message")
+        if isinstance(message, str):
+            return message
+        if isinstance(message, list):
+            return "".join(
+                segment["data"]["text"] for segment in message
+                if isinstance(segment, dict) and segment.get("type") == "text"
+                and isinstance(segment.get("data"), dict)
+                and isinstance(segment["data"].get("text"), str)
+            )
         content = payload.get("content")
         if isinstance(content, str):
             return content
@@ -936,6 +1011,43 @@ class MemoryStore:
             if isinstance(markdown_content, str):
                 return markdown_content
         return ""
+
+    def expire_outbox_if_needed(self, outbox_id, token, now):
+        with self._connect() as connection:
+            connection.execute('BEGIN IMMEDIATE')
+            row = connection.execute("SELECT event_id, created_at FROM outbox_messages WHERE id=? AND status='sending' AND claim_token=?",
+                                     (outbox_id, token)).fetchone()
+            if not row:
+                return False
+            event_id = row['event_id']
+            expired = False
+            if event_id.startswith('reminder:'):
+                occurrence = connection.execute('SELECT scheduled_at_utc FROM reminder_occurrences WHERE outbox_event_id=?', (event_id,)).fetchone()
+                expired = bool(occurrence and datetime.fromisoformat(occurrence['scheduled_at_utc']) < now-timedelta(hours=24))
+            elif event_id.startswith('scheduled-query:'):
+                query = connection.execute('SELECT due_at FROM scheduled_queries WHERE output_event_id=?', (event_id,)).fetchone()
+                expired = datetime.fromisoformat(query['due_at'] if query else row['created_at']) < now-timedelta(hours=24)
+            elif event_id.startswith('reservation-reminder:'):
+                item = connection.execute('''SELECT i.visit_date FROM reservation_reminders r JOIN reservation_items i
+                    ON i.id=r.reservation_item_id WHERE r.outbox_event_id=?''', (event_id,)).fetchone()
+                expired = bool(item and item['visit_date'] and date.fromisoformat(item['visit_date']) < now.astimezone(ZoneInfo('Asia/Shanghai')).date())
+            elif event_id.startswith('policy-watch:'):
+                source = connection.execute('SELECT created_at FROM processed_events WHERE event_id=?', (event_id,)).fetchone()
+                expired = bool(source and datetime.fromisoformat(source['created_at']) < now-timedelta(hours=24))
+            else:
+                task = connection.execute('''SELECT t.task_type, p.created_at FROM task_event_results e
+                    JOIN travel_tasks t ON t.task_id=e.task_id JOIN processed_events p ON p.event_id=e.event_id
+                    WHERE e.event_id=?''', (event_id,)).fetchone()
+                if task and task['task_type'] in {'weather', 'forecast', 'traffic', 'route', 'walking', 'transit'}:
+                    expired = datetime.fromisoformat(task['created_at']) < now-timedelta(hours=24)
+            if not expired:
+                return False
+            connection.execute("UPDATE outbox_messages SET status='cancelled', last_error='delivery_expired', claim_token=NULL, lease_expires_at=NULL WHERE id=?", (outbox_id,))
+            connection.execute("UPDATE processed_events SET status='completed', prepared_reply=NULL, prepared_memory_content=NULL, claim_token=NULL, lease_expires_at=NULL WHERE event_id=?", (event_id,))
+            connection.execute("UPDATE reminder_occurrences SET status='missed', last_error='delivery_expired' WHERE outbox_event_id=?", (event_id,))
+            connection.execute("UPDATE scheduled_queries SET status='missed' WHERE output_event_id=?", (event_id,))
+            connection.execute("UPDATE reservation_reminders SET status='expired', last_error='visit_date_passed' WHERE outbox_event_id=?", (event_id,))
+        return True
 
     def list_due_outbox(
             self,
@@ -1172,7 +1284,9 @@ class MemoryStore:
             self,
             outbox_id: int,
             claim_token: str,
-            now: datetime | None = None) -> bool:
+            now: datetime | None = None,
+            *,
+            platform_message_id: str | None = None) -> bool:
         sent_at = now or datetime.now(timezone.utc)
         with self._connect() as connection:
             row = connection.execute(
@@ -1210,6 +1324,13 @@ class MemoryStore:
             if cursor.rowcount != 1:
                 return False
 
+            if platform_message_id:
+                connection.execute("""
+                    INSERT OR IGNORE INTO outbound_message_links
+                    (platform, scope_id, message_id, event_id, owner_id) VALUES (?, ?, ?, ?, ?)
+                """, (row['platform'], storage_scope_id(str(row['platform']), str(row['target_id'])),
+                      platform_message_id, row['event_id'], row['sender_id']))
+
             connection.execute(
                 """
                 UPDATE reservation_reminders
@@ -1222,7 +1343,7 @@ class MemoryStore:
                 (sent_at.isoformat(), row["event_id"]),
             )
 
-            if row["channel"] == "group":
+            if row["channel"] == "group" and not str(row['event_id']).startswith(('reminder:', 'inbox-notice:', 'scheduled-query:', 'policy-watch:')):
                 connection.execute(
                     """
                     INSERT OR IGNORE INTO conversation_turns (
@@ -1699,9 +1820,9 @@ class MemoryStore:
                     connection.execute(
                         """
                         UPDATE reservation_items
-                        SET public_code = ? WHERE id = ?
+                        SET public_code = ?, date_source_json = ? WHERE id = ?
                         """,
-                        (f"A-{item_id:06d}", item_id),
+                        (f"A-{item_id:06d}", json.dumps(item.get("date_source", {}), ensure_ascii=False), item_id),
                     )
         loaded = self.get_reservation_plan(
             platform,
@@ -1718,6 +1839,7 @@ class MemoryStore:
             group_id: str,
             plan_code: str) -> ReservationPlanRecord | None:
         with self._connect() as connection:
+            connection.execute("BEGIN")
             plan = connection.execute(
                 """
                 SELECT * FROM reservation_plans
@@ -1743,6 +1865,7 @@ class MemoryStore:
             group_id=str(plan["group_id"]),
             creator_id=str(plan["creator_id"]),
             status=str(plan["status"]),
+            plan_version=int(plan["plan_version"]),
             items=tuple(
                 self._reservation_item(row)
                 for row in item_rows
@@ -2031,6 +2154,7 @@ class MemoryStore:
                         date_candidates_json = ?,
                         status = ?,
                         refresh_revision = ?,
+                        date_source_json = ?,
                         updated_at = ?
                     WHERE plan_id = ?
                       AND id = ?
@@ -2045,6 +2169,7 @@ class MemoryStore:
                         date_candidates_json,
                         update["status"],
                         refresh_revision,
+                        json.dumps(update.get("date_source", {}), ensure_ascii=False),
                         updated_at.isoformat(),
                         int(plan["id"]),
                         int(current["id"]),
@@ -2135,8 +2260,9 @@ class MemoryStore:
             )
             item_id = int(cursor.lastrowid)
             connection.execute(
-                "UPDATE reservation_items SET public_code = ? WHERE id = ?",
-                (f"A-{item_id:06d}", item_id),
+                "UPDATE reservation_items SET public_code = ?, "
+                "date_source_json = ? WHERE id = ?",
+                (f"A-{item_id:06d}", '{"origin":"manual"}', item_id),
             )
         return True
 
@@ -2194,7 +2320,8 @@ class MemoryStore:
             creator_id: str,
             plan_code: str,
             reminders_by_item: dict[int, tuple[object, ...]],
-            now: datetime | None = None) -> ReservationPlanRecord:
+            now: datetime | None = None,
+            expected_version: int | None = None) -> ReservationPlanRecord:
         confirmed_at = now or datetime.now(timezone.utc)
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -2214,6 +2341,8 @@ class MemoryStore:
             elif plan["status"] != "draft":
                 raise ValueError("预约计划当前不能确认")
             else:
+                if expected_version is not None and int(plan["plan_version"]) != expected_version:
+                    raise ValueError("预约计划版本已变化，请查看最新草稿后重新确认")
                 incomplete = connection.execute(
                     """
                     SELECT 1 FROM reservation_items
@@ -2894,6 +3023,7 @@ class MemoryStore:
             date_candidates=date_candidates,
             custom_reminder_times=custom_reminder_times,
             reminder_policy=str(row["reminder_policy"]),
+            date_source=json.loads(row["date_source_json"]),
             status=str(row["status"]),
         )
 
@@ -3868,7 +3998,9 @@ class MemoryStore:
             )
             self._append_context_part(
                 parts,
-                "与当前问题相关的文档片段：",
+                ("与当前问题相关的文档片段：" if any(
+                    term in row['content'].lower() for row in selected for term in query_terms)
+                 else "未找到明确相关片段；以下是最新文档参考，相关性较低："),
                 relevant_limit,
                 allow_truncate=True,
             )
@@ -3881,7 +4013,7 @@ class MemoryStore:
                 if available <= 0:
                     break
                 header = (
-                    f"[{row['filename']} / 片段 {row['chunk_index'] + 1}]"
+                    f"[文档#{row['document_id']} {row['filename']} / 片段 {row['chunk_index'] + 1}]"
                 )
                 per_entry = max(1, available // remaining_entries)
                 excerpt_limit = max(1, per_entry - len(header) - 1)

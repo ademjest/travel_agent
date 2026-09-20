@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import nullcontext
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -58,6 +59,12 @@ class MaintenanceService:
         self.last_error = ""
 
     def run_once(self, now: datetime | None = None) -> dict[str, object]:
+        lifecycle = getattr(self.store, 'web_lifecycle', None)
+        with lifecycle.file_lock if lifecycle else nullcontext():
+            return self._run_once(now)
+
+    def _run_once(self, now: datetime | None = None) -> dict[str, object]:
+        lifecycle = getattr(self.store, 'web_lifecycle', None)
         current = now or self.clock()
         policy = self.policy
         result = self.store.purge_retained_data(
@@ -80,11 +87,58 @@ class MaintenanceService:
             if not path.is_relative_to(self.image_root):
                 continue
             try:
-                path.unlink(missing_ok=True)
-            except OSError:
+                if lifecycle:
+                    if not lifecycle.remove_unreferenced(path):
+                        continue
+                else:
+                    path.unlink(missing_ok=True)
+            except (OSError, ValueError):
                 continue
             deleted_files += 1
         result["image_files"] = deleted_files
+        cutoff = current - timedelta(days=policy.event_days)
+        deleted_jobs, asset_paths, retained_paths = self.store.inbox.purge(cutoff)
+        cache_root = (self.store.database_path.parent / 'inbox-assets').resolve()
+        retained = {Path(value).resolve() for value in retained_paths}
+        candidates = {Path(value).resolve() for value in asset_paths}
+        if cache_root.exists():
+            for path in cache_root.rglob('*'):
+                if path.is_file() and path.suffix in {'.asset', '.part'}:
+                    resolved = path.resolve()
+                    if resolved not in retained and datetime.fromtimestamp(path.stat().st_mtime, timezone.utc) < cutoff:
+                        candidates.add(resolved)
+        deleted_assets = 0
+        for path in candidates:
+            if path.is_relative_to(cache_root) and path not in retained:
+                try:
+                    if lifecycle:
+                        if not lifecycle.remove_unreferenced(path):
+                            continue
+                    else:
+                        path.unlink(missing_ok=True)
+                    deleted_assets += 1
+                except (OSError, ValueError):
+                    pass
+        result.update(inbox_jobs=deleted_jobs, inbox_asset_files=deleted_assets)
+        media_count, media_paths = self.store.media.purge(current - timedelta(days=policy.image_days))
+        media_root = (self.store.database_path.parent / 'media').resolve()
+        deleted_media = 0
+        for raw in media_paths:
+            path = Path(raw).resolve()
+            if path.is_relative_to(media_root):
+                try:
+                    if lifecycle:
+                        if not lifecycle.remove_unreferenced(path):
+                            continue
+                    else:
+                        path.unlink(missing_ok=True)
+                    deleted_media += 1
+                except (OSError, ValueError):
+                    pass
+        result.update(media_observations=media_count, media_files=deleted_media)
+        with self.store._connect() as connection:
+            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='model_calls'").fetchone():
+                result['model_calls'] = connection.execute('DELETE FROM model_calls WHERE started_at < ?', (cutoff.isoformat(),)).rowcount
         self.last_run_at = current
         self.last_result = result
         self.last_error = ""

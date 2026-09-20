@@ -67,7 +67,7 @@ def build_command_keyboard() -> dict[str, Any]:
 
 
 def build_help_markdown() -> str:
-    return """# 🚙 青甘自驾助手
+    return """# 🧭 彼岸旅行助手
 
 天气、路线和实时拥堵路段，都可以在群里快捷查询。
 
@@ -80,6 +80,9 @@ def build_help_markdown() -> str:
 - 📎 `上传文档`
 
 ## 景点预约提醒
+
+普通个人提醒无需图片：例如 `明天上午十点提醒我抢高铁票`。
+可用 `查看我的提醒`、`把刚才那条改成九点半`、`取消那条提醒` 管理。
 
 - 先发送 `制定预约`，再发送一张预约攻略图片；也可在图片消息中直接填写 `制定预约`
 - 攻略图片支持 JPEG、PNG 或 WebP，单张最大 5 MB

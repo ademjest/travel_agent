@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import calendar
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal, Mapping, Protocol, Sequence
 from zoneinfo import ZoneInfo
@@ -54,6 +54,7 @@ ResolutionReason = Literal[
 class VisitDateResolution:
     dates: tuple[date, ...]
     reason: ResolutionReason
+    source: dict = field(default_factory=dict, compare=False)
 
 
 @dataclass(frozen=True)
@@ -539,11 +540,13 @@ class ReservationItineraryResolver:
         resolutions = {}
         for attraction_name in attraction_names:
             positive_dates = set()
+            evidence = []
             negative_seen = False
             for segment in segments:
                 match = cls._segment_match(segment, attraction_name)
                 if match == "positive":
                     positive_dates.update(segment.dates)
+                    evidence.extend(segment.lines)
                 elif match == "negative":
                     negative_seen = True
 
@@ -556,7 +559,10 @@ class ReservationItineraryResolver:
                 reason = "not_scheduled"
             else:
                 reason = "not_found"
-            resolutions[attraction_name] = VisitDateResolution(dates, reason)
+            resolutions[attraction_name] = VisitDateResolution(dates, reason, {
+                "origin": "document", "document_id": document.document_id,
+                "filename": document.filename, "evidence": "\n".join(evidence)[:1000],
+            })
         return resolutions
 
     def resolve(
@@ -589,6 +595,10 @@ class ReservationItineraryResolver:
                 best_resolutions = resolutions
 
         return best_resolutions if best_resolutions is not None else empty
+
+
+class ReservationConfirmationRequired(ValueError):
+    """A newly resolved or conflicting draft must be shown before confirmation."""
 
 
 class ReservationService:
@@ -640,7 +650,8 @@ class ReservationService:
             image: object,
             extraction_items: Sequence[ReservationExtractionItem],
             now: datetime | None = None,
-            source_event_id: str = ""):
+            source_event_id: str = "",
+            creator_id: str | None = None):
         required_names = tuple(dict.fromkeys(
             extraction.attraction_name
             for extraction in extraction_items
@@ -693,6 +704,7 @@ class ReservationService:
                 "visit_date": visit_date,
                 "booking_date": booking_date,
                 "date_candidates": candidates,
+                "date_source": resolution.source,
                 "custom_reminder_times": (),
                 "reminder_policy": "default",
                 "status": status,
@@ -702,7 +714,7 @@ class ReservationService:
             image_id=image.image_id,
             platform=image.platform,
             group_id=image.group_id,
-            creator_id=image.uploader_id,
+            creator_id=creator_id if creator_id is not None else image.uploader_id,
             items=tuple(draft_items),
             now=now,
             source_event_id=source_event_id,
@@ -741,16 +753,28 @@ class ReservationService:
             and item.visit_date is None
             and item.status in {"needs_input", "not_scheduled"}
         )
-        if not items:
-            return ReservationRefreshResult(plan, 0)
-
         documents = self.store.list_document_contents(
             storage_scope_id(platform, group_id)
         )
         resolutions = self.itinerary_resolver.resolve(
             documents,
-            tuple(item.attraction_name for item in items),
+            tuple(item.attraction_name for item in plan.items if item.requires_reservation),
         )
+        conflicts = []
+        for existing in plan.items:
+            resolved = resolutions.get(existing.attraction_name)
+            if (existing.visit_date and resolved and resolved.dates
+                    and existing.date_source.get("origin") != "manual"
+                    and existing.visit_date not in resolved.dates):
+                conflicts.append(
+                    f"{existing.item_index}. {existing.attraction_name}：保留 {existing.visit_date}；"
+                    f"文档 {resolved.source.get('filename', '行程')} 建议 "
+                    + "、".join(str(value) for value in resolved.dates)
+                )
+        if conflicts:
+            return ReservationRefreshResult(replace(plan, source_conflicts=tuple(conflicts)), 0)
+        if not items:
+            return ReservationRefreshResult(plan, 0)
         updates = []
         for item in items:
             resolution = resolutions.get(
@@ -779,6 +803,7 @@ class ReservationService:
                 "visit_date": visit_date,
                 "booking_date": booking_date,
                 "date_candidates": resolution.dates,
+                "date_source": resolution.source,
                 "status": status,
                 "refresh_revision": refresh_revision,
             })
@@ -798,7 +823,10 @@ class ReservationService:
         return ReservationRefreshResult(refreshed, changed)
 
     def format_draft(self, plan: object) -> str:
-        lines = [f"预约计划 {plan.plan_code}", ""]
+        lines = [f"预约计划 {plan.plan_code}（版本 {plan.plan_version}）", ""]
+        if plan.source_conflicts:
+            lines.extend(("行程来源冲突，尚未自动合并：", *plan.source_conflicts,
+                          "请用补充预约命令逐项确定日期（保留原日期也请明确填写）。"))
         if not plan.items:
             lines.extend([
                 "图片已保存，但未提取到景点。",
@@ -829,6 +857,12 @@ class ReservationService:
                 "   游览日期："
                 + (item.visit_date.isoformat() if item.visit_date else "未确定")
             )
+            if item.visit_date:
+                source = item.date_source
+                label = (f"文档 #{source.get('document_id')} {source.get('filename')}"
+                         if source.get("origin") == "document"
+                         else "人工指定" if source.get("origin") == "manual" else "历史记录/来源未知")
+                lines.append(f"   日期来源：{label}")
             if item.booking_date:
                 lines.append(
                     f"   建议预约日期：{item.booking_date.isoformat()}"
@@ -1144,12 +1178,12 @@ class ReservationService:
             group_id: str,
             creator_id: str,
             plan_code: str):
-        plan = self.refresh_plan(
-            platform,
-            group_id,
-            creator_id,
-            plan_code,
-        ).plan
+        refresh = self.refresh_plan(platform, group_id, creator_id, plan_code)
+        plan = refresh.plan
+        if plan.source_conflicts:
+            raise ReservationConfirmationRequired(self.format_draft(plan))
+        if refresh.updated_count:
+            raise ReservationConfirmationRequired("确认前已补齐新日期，请核对以下草稿后再次确认。\n" + self.format_draft(plan))
         reminders = {}
         for item in plan.items:
             if item.requires_reservation:
@@ -1165,6 +1199,7 @@ class ReservationService:
             creator_id,
             plan_code,
             reminders,
+            expected_version=plan.plan_version,
         )
 
     def list_plans(
@@ -1201,7 +1236,9 @@ class ReservationService:
             return "当前没有预约提醒"
         lines = []
         for plan in plans:
-            lines.append(f"{plan.plan_code}（{plan.status}）")
+            lines.append(f"{plan.plan_code}（{plan.status}，版本 {plan.plan_version}）")
+            if plan.source_conflicts:
+                lines.extend(("行程来源冲突，请逐项补充日期后确认：", *plan.source_conflicts))
             for item in plan.items:
                 visit = (
                     item.visit_date.isoformat()
