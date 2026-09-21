@@ -48,7 +48,8 @@ def main():
             assert '武汉' in send('查询天气 武汉', 'weather')
             route = send('武汉站到湖北省博物馆坐地铁怎么走？', 'transit')
             assert '地铁' in route or '公共交通' in route
-            start = (datetime.now()+timedelta(days=30)).strftime('%Y年%m月%d日')
+            start_date = datetime.now()+timedelta(days=30)
+            start = f'{start_date.year}年{start_date.month:02d}月{start_date.day:02d}日'
             send(f'帮我规划{start}开始的武汉2天行程，使用公共交通，必去湖北省博物馆。', 'trip')
             context = client.get(f'/api/conversations/{conversation}/context').json()
             assert context['trips'], 'Trip was not persisted.'

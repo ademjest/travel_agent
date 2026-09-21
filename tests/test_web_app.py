@@ -116,7 +116,7 @@ class WebTests(unittest.TestCase):
         self.run_job()
         self.assertIn('10月1日', self.messages()[-1]['content'])
         attachment = service.analyze.call_args.args[1][0]
-        self.assertTrue(Path(attachment.local_path).is_relative_to(Path(self.temp.name)))
+        self.assertTrue(Path(attachment.local_path).resolve().is_relative_to(Path(self.temp.name).resolve()))
         self.assertEqual(attachment.url, '')
 
     def test_platform_filtered_claim_does_not_take_onebot_work(self):
@@ -273,8 +273,8 @@ class WebTests(unittest.TestCase):
             fetch_text=lambda url: page[0], clock=lambda: now)
         service = PolicyWatchService(self.store, resolver, clock=lambda: now)
         self.runtime.application.policy_watch_service = service
-        ending = (now+timedelta(days=5)).strftime('%Y年%m月%d日')
-        self.send('监测湖北省博物馆预约规则，到'+ending)
+        ending = now+timedelta(days=5)
+        self.send(f'监测湖北省博物馆预约规则，到{ending.year}年{ending.month:02d}月{ending.day:02d}日')
         self.run_job()
         watch = self.repo.context(self.identity)['policy_watches'][0]
         now = datetime.fromisoformat(watch['next_check_at'])

@@ -162,7 +162,7 @@ class ConversationDeletionTests(unittest.TestCase):
 
     def test_file_permission_failure_is_visible_and_resumes_from_persisted_manifest(self):
         uploaded = self.upload()
-        path = self.root / self.repo.upload(uploaded)['relative_path']
+        path = (self.root / self.repo.upload(uploaded)['relative_path']).resolve()
         self.delete()
         original = Path.unlink
         def locked(candidate, *args, **kwargs):
@@ -281,7 +281,8 @@ class ConversationDeletionTests(unittest.TestCase):
         resolver = BookingPolicyResolver(sources={'湖北省博物馆':'https://museum.example/policy'},
             fetch_text=lambda url:'湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。')
         self.runtime.application.policy_watch_service = PolicyWatchService(self.store,resolver)
-        self.send('监测湖北省博物馆预约规则，到'+(now+timedelta(days=3)).strftime('%Y年%m月%d日'),key='watch')
+        ending = now+timedelta(days=3)
+        self.send(f'监测湖北省博物馆预约规则，到{ending.year}年{ending.month:02d}月{ending.day:02d}日',key='watch')
         asyncio.run(self.worker.run_once())
         asyncio.run(self.runtime.reminder_scheduler.scan_once(now+timedelta(hours=2)))
         self.delete(); self.finish()
