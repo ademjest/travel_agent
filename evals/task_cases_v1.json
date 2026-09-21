@@ -1,0 +1,4763 @@
+{
+  "version": 1,
+  "reference_time": "2030-09-09T02:00:00+00:00",
+  "note": "Synthetic future clock and tool snapshots. Offline scripts validate execution contracts, not model quality.",
+  "cases": [
+    {
+      "id": "trigger-01",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天一起吃饭",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-02",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "这份文件我晚点发",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-03",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "大家早上好",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-04",
+      "category": "trigger",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "收到啦",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-05",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "谢谢大家",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-06",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "今天好累",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-07",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "路上慢点",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-08",
+      "category": "trigger",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "我先下线了",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-09",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "晚安",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-10",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "午饭吃什么呀",
+          "at": false,
+          "status": "observed"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-11",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "查看任务",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-12",
+      "category": "trigger",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "我的任务",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-13",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "查看任务进度",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-14",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "查看我的提醒",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-15",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "我的提醒",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-16",
+      "category": "trigger",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "查看行程",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-17",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "我的行程",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-18",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "查看定时查询",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-19",
+      "category": "trigger",
+      "split": "development",
+      "steps": [
+        {
+          "text": "查看规则监测",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "trigger-20",
+      "category": "trigger",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "查看我的行程",
+          "at": false,
+          "status": "handled"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": []
+      }
+    },
+    {
+      "id": "conversation-01",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "武汉"
+      }
+    },
+    {
+      "id": "conversation-02",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "武汉",
+          "at": true,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "武汉"
+      }
+    },
+    {
+      "id": "conversation-03",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ]
+        },
+        {
+          "text": "那明天呢",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_weather_forecast",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather",
+          "get_weather_forecast"
+        ],
+        "location": "武汉"
+      }
+    },
+    {
+      "id": "conversation-04",
+      "category": "conversation",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "明天一起吃饭",
+          "at": false,
+          "status": "observed"
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "武汉"
+      }
+    },
+    {
+      "id": "conversation-05",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "西宁"
+      }
+    },
+    {
+      "id": "conversation-06",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "西宁",
+          "at": true,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "西宁"
+      }
+    },
+    {
+      "id": "conversation-07",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ]
+        },
+        {
+          "text": "那明天呢",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_weather_forecast",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather",
+          "get_weather_forecast"
+        ],
+        "location": "西宁"
+      }
+    },
+    {
+      "id": "conversation-08",
+      "category": "conversation",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "明天一起吃饭",
+          "at": false,
+          "status": "observed"
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "西宁"
+      }
+    },
+    {
+      "id": "conversation-09",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "北京"
+      }
+    },
+    {
+      "id": "conversation-10",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "北京",
+          "at": true,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "北京"
+      }
+    },
+    {
+      "id": "conversation-11",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ]
+        },
+        {
+          "text": "那明天呢",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_weather_forecast",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather",
+          "get_weather_forecast"
+        ],
+        "location": "北京"
+      }
+    },
+    {
+      "id": "conversation-12",
+      "category": "conversation",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "明天一起吃饭",
+          "at": false,
+          "status": "observed"
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "北京"
+      }
+    },
+    {
+      "id": "conversation-13",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "成都"
+      }
+    },
+    {
+      "id": "conversation-14",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "成都",
+          "at": true,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "成都"
+      }
+    },
+    {
+      "id": "conversation-15",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ]
+        },
+        {
+          "text": "那明天呢",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_weather_forecast",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather",
+          "get_weather_forecast"
+        ],
+        "location": "成都"
+      }
+    },
+    {
+      "id": "conversation-16",
+      "category": "conversation",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "明天一起吃饭",
+          "at": false,
+          "status": "observed"
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "成都"
+      }
+    },
+    {
+      "id": "conversation-17",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "杭州"
+      }
+    },
+    {
+      "id": "conversation-18",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "杭州",
+          "at": true,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "杭州"
+      }
+    },
+    {
+      "id": "conversation-19",
+      "category": "conversation",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ]
+        },
+        {
+          "text": "那明天呢",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_weather_forecast",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather",
+          "get_weather_forecast"
+        ],
+        "location": "杭州"
+      }
+    },
+    {
+      "id": "conversation-20",
+      "category": "conversation",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "明天一起吃饭",
+          "at": false,
+          "status": "observed"
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "杭州"
+      }
+    },
+    {
+      "id": "reminder-01",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我抢高铁票",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "抢高铁票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-02",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天提醒我抢高铁票",
+          "at": true
+        },
+        {
+          "text": "上午十点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "抢高铁票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-03",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "提醒我明天上午十点抢高铁票",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "action": "create",
+                "title": "抢高铁票",
+                "time_text": "明天上午十点",
+                "question": ""
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "抢高铁票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-04",
+      "category": "reminder",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我抢高铁票",
+          "at": true
+        },
+        {
+          "text": "把刚才那条改成上午九点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "抢高铁票",
+        "due": "2030-09-10T01:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-05",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我抢高铁票",
+          "at": true
+        },
+        {
+          "text": "取消这条提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "title": "抢高铁票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-06",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我预约湖北省博物馆",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "预约湖北省博物馆",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-07",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天提醒我预约湖北省博物馆",
+          "at": true
+        },
+        {
+          "text": "上午十点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "预约湖北省博物馆",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-08",
+      "category": "reminder",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "提醒我明天上午十点预约湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "action": "create",
+                "title": "预约湖北省博物馆",
+                "time_text": "明天上午十点",
+                "question": ""
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "预约湖北省博物馆",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-09",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我预约湖北省博物馆",
+          "at": true
+        },
+        {
+          "text": "把刚才那条改成上午九点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "预约湖北省博物馆",
+        "due": "2030-09-10T01:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-10",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我预约湖北省博物馆",
+          "at": true
+        },
+        {
+          "text": "取消这条提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "title": "预约湖北省博物馆",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-11",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我带身份证",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "带身份证",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-12",
+      "category": "reminder",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "明天提醒我带身份证",
+          "at": true
+        },
+        {
+          "text": "上午十点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "带身份证",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-13",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "提醒我明天上午十点带身份证",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "action": "create",
+                "title": "带身份证",
+                "time_text": "明天上午十点",
+                "question": ""
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "带身份证",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-14",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我带身份证",
+          "at": true
+        },
+        {
+          "text": "把刚才那条改成上午九点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "带身份证",
+        "due": "2030-09-10T01:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-15",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我带身份证",
+          "at": true
+        },
+        {
+          "text": "取消这条提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "title": "带身份证",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-16",
+      "category": "reminder",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我买10月1日车票",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "买10月1日车票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-17",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天提醒我买10月1日车票",
+          "at": true
+        },
+        {
+          "text": "上午十点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "买10月1日车票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-18",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "提醒我明天上午十点买10月1日车票",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "action": "create",
+                "title": "买10月1日车票",
+                "time_text": "明天上午十点",
+                "question": ""
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "买10月1日车票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-19",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我买10月1日车票",
+          "at": true
+        },
+        {
+          "text": "把刚才那条改成上午九点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "买10月1日车票",
+        "due": "2030-09-10T01:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-20",
+      "category": "reminder",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我买10月1日车票",
+          "at": true
+        },
+        {
+          "text": "取消这条提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "title": "买10月1日车票",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-21",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我收拾行李",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "收拾行李",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-22",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天提醒我收拾行李",
+          "at": true
+        },
+        {
+          "text": "上午十点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "收拾行李",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-23",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "提醒我明天上午十点收拾行李",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "action": "create",
+                "title": "收拾行李",
+                "time_text": "明天上午十点",
+                "question": ""
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "收拾行李",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-24",
+      "category": "reminder",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我收拾行李",
+          "at": true
+        },
+        {
+          "text": "把刚才那条改成上午九点",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "title": "收拾行李",
+        "due": "2030-09-10T01:00:00+00:00"
+      }
+    },
+    {
+      "id": "reminder-25",
+      "category": "reminder",
+      "split": "development",
+      "steps": [
+        {
+          "text": "明天上午十点提醒我收拾行李",
+          "at": true
+        },
+        {
+          "text": "取消这条提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "title": "收拾行李",
+        "due": "2030-09-10T02:00:00+00:00"
+      }
+    },
+    {
+      "id": "policy-01",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前3天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 3,
+        "policy_mode": "create"
+      }
+    },
+    {
+      "id": "policy-02",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前3天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "查询湖北省博物馆预约规则",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 3,
+        "policy_mode": "query"
+      }
+    },
+    {
+      "id": "policy-03",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前3天。每日0点开始放票。节假日另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        },
+        {
+          "text": "按这个规则设置提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 3,
+        "policy_mode": "caveat"
+      }
+    },
+    {
+      "id": "policy-04",
+      "category": "policy",
+      "split": "holdout",
+      "policy": "湖北省博物馆\n个人入馆预约可提前3天。每日0点开始放票。暂停预约。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 3,
+        "policy_mode": "suspended"
+      }
+    },
+    {
+      "id": "policy-05",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n请关注开放信息，预约范围另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 3,
+        "policy_mode": "unknown"
+      }
+    },
+    {
+      "id": "policy-06",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 5,
+        "policy_mode": "create"
+      }
+    },
+    {
+      "id": "policy-07",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "查询湖北省博物馆预约规则",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 5,
+        "policy_mode": "query"
+      }
+    },
+    {
+      "id": "policy-08",
+      "category": "policy",
+      "split": "holdout",
+      "policy": "湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。节假日另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        },
+        {
+          "text": "按这个规则设置提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 5,
+        "policy_mode": "caveat"
+      }
+    },
+    {
+      "id": "policy-09",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。暂停预约。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 5,
+        "policy_mode": "suspended"
+      }
+    },
+    {
+      "id": "policy-10",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n请关注开放信息，预约范围另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 5,
+        "policy_mode": "unknown"
+      }
+    },
+    {
+      "id": "policy-11",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前7天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 7,
+        "policy_mode": "create"
+      }
+    },
+    {
+      "id": "policy-12",
+      "category": "policy",
+      "split": "holdout",
+      "policy": "湖北省博物馆\n个人入馆预约可提前7天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "查询湖北省博物馆预约规则",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 7,
+        "policy_mode": "query"
+      }
+    },
+    {
+      "id": "policy-13",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前7天。每日0点开始放票。节假日另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        },
+        {
+          "text": "按这个规则设置提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 7,
+        "policy_mode": "caveat"
+      }
+    },
+    {
+      "id": "policy-14",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前7天。每日0点开始放票。暂停预约。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 7,
+        "policy_mode": "suspended"
+      }
+    },
+    {
+      "id": "policy-15",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n请关注开放信息，预约范围另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 7,
+        "policy_mode": "unknown"
+      }
+    },
+    {
+      "id": "policy-16",
+      "category": "policy",
+      "split": "holdout",
+      "policy": "湖北省博物馆\n个人入馆预约可提前10天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 10,
+        "policy_mode": "create"
+      }
+    },
+    {
+      "id": "policy-17",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前10天。每日0点开始放票。",
+      "steps": [
+        {
+          "text": "查询湖北省博物馆预约规则",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 10,
+        "policy_mode": "query"
+      }
+    },
+    {
+      "id": "policy-18",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前10天。每日0点开始放票。节假日另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        },
+        {
+          "text": "按这个规则设置提醒",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "policy_days": 10,
+        "policy_mode": "caveat"
+      }
+    },
+    {
+      "id": "policy-19",
+      "category": "policy",
+      "split": "development",
+      "policy": "湖北省博物馆\n个人入馆预约可提前10天。每日0点开始放票。暂停预约。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 10,
+        "policy_mode": "suspended"
+      }
+    },
+    {
+      "id": "policy-20",
+      "category": "policy",
+      "split": "holdout",
+      "policy": "湖北省博物馆\n请关注开放信息，预约范围另行通知。",
+      "steps": [
+        {
+          "text": "我想10月1日去湖北省博物馆，开约时提醒我",
+          "at": true
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "policy_days": 10,
+        "policy_mode": "unknown"
+      }
+    },
+    {
+      "id": "trip-01",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉2天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "2天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 2,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-02",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉2天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "2天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "把行程改到10月2日开始",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 2,
+        "start": "2030-10-02",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-03",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉2天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "2天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "取消行程",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 0,
+        "days": 2,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-04",
+      "category": "trip",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉2天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "2天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "第二天改为室内",
+          "at": false,
+          "responses": [
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 2,
+        "start": "2030-10-01",
+        "indoor": true
+      }
+    },
+    {
+      "id": "trip-05",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉2天行程，每天2处景点，必去湖北省博物馆，并提醒预约",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "2天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "trips": 1,
+        "days": 2,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-06",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉3天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "3天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 3,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-07",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉3天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "3天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "把行程改到10月2日开始",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 3,
+        "start": "2030-10-02",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-08",
+      "category": "trip",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉3天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "3天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "取消行程",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 0,
+        "days": 3,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-09",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉3天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "3天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "第二天改为室内",
+          "at": false,
+          "responses": [
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 3,
+        "start": "2030-10-01",
+        "indoor": true
+      }
+    },
+    {
+      "id": "trip-10",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉3天行程，每天2处景点，必去湖北省博物馆，并提醒预约",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "3天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "trips": 1,
+        "days": 3,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-11",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉4天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "4天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 4,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-12",
+      "category": "trip",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉4天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "4天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "把行程改到10月2日开始",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 4,
+        "start": "2030-10-02",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-13",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉4天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "4天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "取消行程",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 0,
+        "days": 4,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-14",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉4天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "4天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "第二天改为室内",
+          "at": false,
+          "responses": [
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 4,
+        "start": "2030-10-01",
+        "indoor": true
+      }
+    },
+    {
+      "id": "trip-15",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉4天行程，每天2处景点，必去湖北省博物馆，并提醒预约",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "4天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "trips": 1,
+        "days": 4,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-16",
+      "category": "trip",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉5天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "5天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 5,
+                    "activities": [
+                      {
+                        "poi_id": "8",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "9",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 5,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-17",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉5天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "5天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 5,
+                    "activities": [
+                      {
+                        "poi_id": "8",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "9",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "把行程改到10月2日开始",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 5,
+        "start": "2030-10-02",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-18",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉5天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "5天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 5,
+                    "activities": [
+                      {
+                        "poi_id": "8",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "9",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "取消行程",
+          "at": false
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 0,
+        "days": 5,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "trip-19",
+      "category": "trip",
+      "split": "development",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉5天行程，每天2处景点，必去湖北省博物馆",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "5天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 5,
+                    "activities": [
+                      {
+                        "poi_id": "8",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "9",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "text": "第二天改为室内",
+          "at": false,
+          "responses": [
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 5,
+                    "activities": [
+                      {
+                        "poi_id": "8",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "9",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [],
+        "trips": 1,
+        "days": 5,
+        "start": "2030-10-01",
+        "indoor": true
+      }
+    },
+    {
+      "id": "trip-20",
+      "category": "trip",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "帮我规划10月1日开始的武汉5天行程，每天2处景点，必去湖北省博物馆，并提醒预约",
+          "at": true,
+          "responses": [
+            {
+              "json": {
+                "destination": "武汉",
+                "duration_text": "5天",
+                "start_date_text": "10月1日",
+                "preferences": [
+                  "每天2处景点"
+                ],
+                "must_visit": [
+                  "湖北省博物馆"
+                ],
+                "budget_text": "",
+                "transport_text": ""
+              }
+            },
+            {
+              "json": {
+                "days": [
+                  {
+                    "day_index": 1,
+                    "activities": [
+                      {
+                        "poi_id": "0",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "1",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 2,
+                    "activities": [
+                      {
+                        "poi_id": "2",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "3",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 3,
+                    "activities": [
+                      {
+                        "poi_id": "4",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "5",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 4,
+                    "activities": [
+                      {
+                        "poi_id": "6",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "7",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  },
+                  {
+                    "day_index": 5,
+                    "activities": [
+                      {
+                        "poi_id": "8",
+                        "period": "上午",
+                        "reason": "文化参观"
+                      },
+                      {
+                        "poi_id": "9",
+                        "period": "下午",
+                        "reason": "文化参观"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "reminders": 1,
+        "calls": [],
+        "trips": 1,
+        "days": 5,
+        "start": "2030-10-01",
+        "indoor": false
+      }
+    },
+    {
+      "id": "recovery-01",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "武汉"
+      }
+    },
+    {
+      "id": "recovery-02",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "control": "restart"
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "武汉"
+      }
+    },
+    {
+      "id": "recovery-03",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "user": "other",
+          "status": "observed"
+        },
+        {
+          "text": "武汉",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "武汉"
+              }
+            },
+            {
+              "text": "武汉：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "武汉"
+      }
+    },
+    {
+      "id": "recovery-04",
+      "category": "recovery",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "西宁"
+      }
+    },
+    {
+      "id": "recovery-05",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "control": "restart"
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "西宁"
+      }
+    },
+    {
+      "id": "recovery-06",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "user": "other",
+          "status": "observed"
+        },
+        {
+          "text": "西宁",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "西宁"
+              }
+            },
+            {
+              "text": "西宁：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "西宁"
+      }
+    },
+    {
+      "id": "recovery-07",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "北京"
+      }
+    },
+    {
+      "id": "recovery-08",
+      "category": "recovery",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "control": "restart"
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "北京"
+      }
+    },
+    {
+      "id": "recovery-09",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "user": "other",
+          "status": "observed"
+        },
+        {
+          "text": "北京",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "北京"
+              }
+            },
+            {
+              "text": "北京：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "北京"
+      }
+    },
+    {
+      "id": "recovery-10",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "成都"
+      }
+    },
+    {
+      "id": "recovery-11",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "control": "restart"
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "成都"
+      }
+    },
+    {
+      "id": "recovery-12",
+      "category": "recovery",
+      "split": "holdout",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "user": "other",
+          "status": "observed"
+        },
+        {
+          "text": "成都",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "成都"
+              }
+            },
+            {
+              "text": "成都：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "成都"
+      }
+    },
+    {
+      "id": "recovery-13",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "杭州"
+      }
+    },
+    {
+      "id": "recovery-14",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "control": "restart"
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "杭州"
+      }
+    },
+    {
+      "id": "recovery-15",
+      "category": "recovery",
+      "split": "development",
+      "steps": [
+        {
+          "text": "现在天气怎么样",
+          "at": true
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "user": "other",
+          "status": "observed"
+        },
+        {
+          "text": "杭州",
+          "at": false,
+          "responses": [
+            {
+              "tool": "get_current_weather",
+              "arguments": {
+                "location": "杭州"
+              }
+            },
+            {
+              "text": "杭州：晴。来源为评测天气快照。"
+            }
+          ],
+          "message_id": "answer"
+        }
+      ],
+      "expect": {
+        "reminders": 0,
+        "calls": [
+          "get_current_weather"
+        ],
+        "location": "杭州"
+      }
+    }
+  ]
+}

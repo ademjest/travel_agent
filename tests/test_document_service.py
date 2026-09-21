@@ -1,16 +1,18 @@
 import io
 import tempfile
+import threading
 import unittest
 from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from zipfile import ZipFile
 
 from docx import Document
 from openpyxl import Workbook
 
-from document_service import DocumentService
-from memory_store import MemoryStore
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentService
 
 
 def make_docx_bytes():
@@ -38,6 +40,7 @@ def make_xlsx_bytes():
         True,
         datetime(2026, 8, 17, 7, 30),
     ])
+    itinerary.append([46250, "原始 Excel 日期序列号"])
     itinerary.merge_cells("A4:B4")
     itinerary["A4"] = "集合地点：西宁"
 
@@ -76,6 +79,8 @@ class DocumentServiceTests(unittest.TestCase):
         self.assertIn("[工作表：每日行程]", text)
         self.assertIn("日期 | 行程 | 人数 | 确认 | 出发时间", text)
         self.assertIn("2026-08-17", text)
+        self.assertIn("2026-08-16 | 原始 Excel 日期序列号", text)
+        self.assertNotIn("46250", text)
         self.assertIn("2026-08-17 07:30", text)
         self.assertIn("西宁 → 青海湖 → 茶卡盐湖 → 都兰", text)
         self.assertIn("4 | TRUE", text)
@@ -96,8 +101,11 @@ class DocumentServiceTests(unittest.TestCase):
             worksheets=[worksheet],
             close=Mock(),
         )
-        with patch(
-                "document_service.load_workbook",
+        with patch.object(
+                DocumentService,
+                "_validate_office_archive",
+                return_value=None), patch(
+                "services.document_service.load_workbook",
                 return_value=workbook) as load:
             text = self.service._extract_text("plan.xlsx", b"xlsx")
 
@@ -109,6 +117,17 @@ class DocumentServiceTests(unittest.TestCase):
     def test_corrupt_xlsx_is_rejected_without_partial_text(self):
         with self.assertRaisesRegex(ValueError, "Excel 文件.*无法读取"):
             self.service._extract_text("broken.xlsx", b"not-a-workbook")
+
+    def test_office_archive_uncompressed_limit_is_enforced(self):
+        buffer = io.BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            archive.writestr("word/document.xml", b"x" * 20)
+
+        with patch(
+                "services.document_service.MAX_ARCHIVE_UNCOMPRESSED_BYTES",
+                10):
+            with self.assertRaisesRegex(ValueError, "解压后"):
+                self.service._extract_text("large.docx", buffer.getvalue())
 
     def test_ingests_docx_attachment(self):
         attachment = SimpleNamespace(
@@ -260,6 +279,51 @@ class DocumentServiceTests(unittest.TestCase):
             "我们整体怎么安排？",
         )
         self.assertIn("8月17日前往大柴旦", context)
+
+    def test_document_is_searchable_while_summary_is_still_running(self):
+        store = MemoryStore(Path(self.temp_dir.name) / "slow-summary.db")
+        started = threading.Event()
+        release = threading.Event()
+
+        def summarize(filename, text):
+            started.set()
+            release.wait(timeout=2)
+            return "行程摘要"
+
+        service = DocumentService(store, summarizer=summarize)
+        attachment = SimpleNamespace(
+            filename="plan.docx",
+            url="https://example.test/plan.docx",
+            size=100,
+        )
+        result = {}
+
+        def ingest():
+            result["value"] = service.ingest_attachments(
+                "group-slow-summary",
+                "member",
+                [attachment],
+            )
+
+        with patch.object(
+                service,
+                "_download_attachment",
+                return_value=make_docx_bytes()):
+            thread = threading.Thread(target=ingest)
+            thread.start()
+            try:
+                self.assertTrue(started.wait(timeout=1))
+                context = store.build_document_context(
+                    "group-slow-summary",
+                    "茶卡住哪里",
+                )
+                self.assertIn("茶卡镇", context)
+            finally:
+                release.set()
+                thread.join(timeout=2)
+
+        self.assertFalse(thread.is_alive())
+        self.assertIn("已生成长期行程摘要", result["value"].reply)
 
 
 if __name__ == "__main__":

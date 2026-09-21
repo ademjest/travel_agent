@@ -4,9 +4,12 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from chat_transport import ChatAttachment
-from memory_store import MemoryStore
-from vision_service import ImageVisionExtractor, ReservationImageService
+from core.chat_transport import ChatAttachment
+from infrastructure.memory_store import MemoryStore
+from services.vision_service import (
+    ImageVisionExtractor,
+    ReservationImageService,
+)
 
 
 class FakeResponse:
@@ -29,7 +32,7 @@ class FakeSession:
         self.responses = list(responses)
         self.calls = []
 
-    def get(self, url, stream, timeout):
+    def get(self, url, stream, timeout, allow_redirects=False):
         self.calls.append((url, stream, timeout))
         return self.responses.pop(0)
 
@@ -95,6 +98,7 @@ class VisionServiceTests(unittest.TestCase):
             extractor=extractor,
             image_root=self.image_root,
             session=session,
+            resolver=lambda hostname: ("93.184.216.34",),
         ), session, extractor.client
 
     def test_jpeg_png_and_webp_are_accepted(self):
@@ -198,6 +202,7 @@ class VisionServiceTests(unittest.TestCase):
             ImageVisionExtractor("vision-model", client=client),
             self.image_root,
             session=session,
+            resolver=lambda hostname: ("93.184.216.34",),
         )
         attachment = ChatAttachment(
             filename="image.jpg",
@@ -234,12 +239,27 @@ class VisionServiceTests(unittest.TestCase):
         self.assertEqual(result.extraction.items[0].attraction_name, "莫高窟")
         self.assertEqual(len(client.chat.completions.calls), 2)
 
+    def test_vision_payload_rejects_non_boolean_reservation_flag(self):
+        payload = json.loads(extraction_json())
+        payload["items"][0]["requires_reservation"] = "false"
+
+        with self.assertRaisesRegex(ValueError, "boolean"):
+            ImageVisionExtractor._parse(json.dumps(payload, ensure_ascii=False))
+
+    def test_vision_payload_rejects_excessive_item_count(self):
+        payload = json.loads(extraction_json())
+        payload["items"] = payload["items"] * 51
+
+        with self.assertRaisesRegex(ValueError, "too many"):
+            ImageVisionExtractor._parse(json.dumps(payload, ensure_ascii=False))
+
     def test_second_invalid_json_marks_image_failed(self):
         service, session, client = self.build_service(
             FakeResponse(b"image", "image/webp"),
             ["not json", "still not json"],
         )
-        with self.assertLogs("vision_service", level="WARNING"):
+        with self.assertLogs(
+                "services.vision_service", level="WARNING"):
             result = service.process_attachment(
                 "group-a",
                 "qq_official",
@@ -258,7 +278,8 @@ class VisionServiceTests(unittest.TestCase):
             FakeResponse(b"image", "image/jpeg"),
             [TimeoutError("model timeout")],
         )
-        with self.assertLogs("vision_service", level="WARNING"):
+        with self.assertLogs(
+                "services.vision_service", level="WARNING"):
             result = service.process_attachment(
                 "group-a",
                 "qq_official",
@@ -320,6 +341,7 @@ class VisionServiceTests(unittest.TestCase):
             ImageVisionExtractor("vision-model", client=client),
             self.image_root,
             session=session,
+            resolver=lambda hostname: ("93.184.216.34",),
         )
         attachment = ChatAttachment(
             filename="image.jpg",

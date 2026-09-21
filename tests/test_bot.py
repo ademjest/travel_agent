@@ -6,17 +6,17 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from bot import (
+from run_bot import (
     QQOfficialReplyRenderer,
     QQOfficialTransport,
     TravelRiskBot,
 )
-from bot_application import TravelBotApplication
-from chat_transport import ChatEvent, OutgoingMessage
-from document_service import DocumentIngestResult
-from memory_store import MemoryStore
-from outbox_worker import OutboxWorker
-from upload_binding import PrivateUploadResult
+from app.bot_application import TravelBotApplication
+from core.chat_transport import ChatEvent, DeliveryError, OutgoingMessage
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentIngestResult
+from services.outbox_worker import OutboxWorker
+from services.upload_binding import PrivateUploadResult
 
 
 class FakeSettings:
@@ -72,6 +72,42 @@ class QQOfficialTransportTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(api.group_messages[0]["msg_id"], "message-1")
 
+    async def test_duplicate_reply_is_reported_as_already_delivered(self):
+        api = FakeApi(group_failures=1)
+        transport = QQOfficialTransport(api)
+        api.post_group_message = AsyncMock(
+            side_effect=RuntimeError("消息被去重，请检查请求msgseq")
+        )
+
+        with self.assertRaises(DeliveryError) as raised:
+            await transport.send(OutgoingMessage(
+                channel="group",
+                target_id="group-a",
+                reply_to_id="message-1",
+                payload={"msg_type": 0, "content": "被动回复"},
+            ))
+
+        self.assertTrue(raised.exception.delivered)
+        self.assertEqual(raised.exception.code, "qq_duplicate")
+
+    async def test_expired_reply_is_reported_as_permanent_failure(self):
+        api = FakeApi(group_failures=1)
+        transport = QQOfficialTransport(api)
+        api.post_group_message = AsyncMock(
+            side_effect=RuntimeError("回复消息msg_id已过期")
+        )
+
+        with self.assertRaises(DeliveryError) as raised:
+            await transport.send(OutgoingMessage(
+                channel="group",
+                target_id="group-a",
+                reply_to_id="message-1",
+                payload={"msg_type": 0, "content": "被动回复"},
+            ))
+
+        self.assertFalse(raised.exception.retryable)
+        self.assertEqual(raised.exception.code, "qq_reply_expired")
+
 
 class QQOfficialReplyRendererTests(unittest.TestCase):
     def test_official_reminder_renderer_mentions_recipient(self):
@@ -104,8 +140,8 @@ class FakeUploadBindingService:
         self.issue_calls = []
         self.private_calls = []
 
-    def issue_binding(self, group_openid, member_openid):
-        self.issue_calls.append((group_openid, member_openid))
+    def issue_binding(self, group_openid, member_openid, **kwargs):
+        self.issue_calls.append((group_openid, member_openid, kwargs))
         return "一次性绑定码：QG-ABC234"
 
     def handle_private_message(
@@ -215,9 +251,10 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             os.environ,
             {"APP_GIT_REF": "main", "APP_GIT_SHA": "f6f0617abcdef"},
         ):
-            with patch("bot.logger.info") as info, patch(
-                "bot.asyncio.create_task"
-            ) as create_task:
+            with patch(
+                    "run_bot.logger.info") as info, patch(
+                    "run_bot.asyncio.create_task"
+                ) as create_task:
                 create_task.side_effect = (
                     lambda coroutine, **kwargs: coroutine.close()
                 )
@@ -243,7 +280,8 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         )
         running_task = SimpleNamespace(done=lambda: False)
 
-        with patch("bot.asyncio.create_task") as create_task:
+        with patch(
+                "run_bot.asyncio.create_task") as create_task:
             def keep_running(coroutine, **kwargs):
                 coroutine.close()
                 return running_task
@@ -274,7 +312,8 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
             memory_content=None,
         )
 
-        with patch("bot.asyncio.create_task") as create_task:
+        with patch(
+                "run_bot.asyncio.create_task") as create_task:
             create_task.side_effect = (
                 lambda coroutine, **kwargs: coroutine.close()
             )
@@ -300,8 +339,8 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_group_at_message_create(message)
 
         self.assertEqual(
-            self.bot.upload_binding_service.issue_calls,
-            [("group-a", "member-a")],
+            self.bot.upload_binding_service.issue_calls[0][:2],
+            ("group-a", "member-a"),
         )
         self.assertIn("QG-ABC234", api.group_messages[0]["content"])
         self.assertEqual(api.group_messages[0]["msg_type"], 0)
@@ -327,7 +366,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
 
         sent = api.group_messages[0]
         self.assertEqual(sent["msg_type"], 2)
-        self.assertIn("青甘自驾助手", sent["markdown"]["content"])
+        self.assertIn("彼岸旅行助手", sent["markdown"]["content"])
         self.assertIn("keyboard", sent)
         self.assertNotIn("content", sent)
 

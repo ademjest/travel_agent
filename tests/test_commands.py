@@ -1,6 +1,6 @@
 import unittest
 
-from commands import build_reply, normalize_command, parse_command
+from core.commands import build_reply, normalize_command, parse_command
 
 
 class CommandTests(unittest.TestCase):
@@ -104,6 +104,10 @@ class CommandTests(unittest.TestCase):
 
     def test_reservation_management_commands(self):
         cases = {
+            "制定预约": ("reservation_start", ()),
+            "开始制定预约": ("reservation_start", ()),
+            "退出制定预约": ("reservation_stop", ()),
+            "取消制定预约": ("reservation_stop", ()),
             "查看预约提醒": ("reservation_list", ()),
             "修改预约提醒 A-000123 游览日期 2026-08-21": (
                 "reservation_modify_date",
@@ -128,6 +132,29 @@ class CommandTests(unittest.TestCase):
             with self.subTest(content=content):
                 command = parse_command(content)
                 self.assertEqual((command.name, command.args), expected)
+
+    def test_reservation_refresh_command(self):
+        command = parse_command("刷新预约 R-20260723-001")
+
+        self.assertEqual(command.name, "reservation_refresh")
+        self.assertEqual(command.args, ("R-20260723-001",))
+
+    def test_invalid_natural_confirmation_gets_deterministic_guidance(self):
+        command = parse_command("确认创建预约提醒")
+
+        self.assertEqual(command.name, "reservation_confirm_help")
+        self.assertEqual(command.args, ())
+
+    def test_invalid_reservation_dates_are_rejected(self):
+        cases = (
+            "补充预约 R-20260722-001 2 2026-02-31",
+            "新增预约 R-20260722-001 莫高窟 2026-99-99 提前1月",
+            "修改预约提醒 A-000123 游览日期 2026-13-01",
+        )
+        for content in cases:
+            with self.subTest(content=content):
+                command = parse_command(content)
+                self.assertIn("日期无效", command.error)
 
     def test_invalid_reservation_time_is_left_for_strict_service_validation(self):
         command = parse_command("设置提醒 R-20260722-001 1 明早七点")

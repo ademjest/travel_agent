@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 from openpyxl import Workbook
 
-from document_service import DocumentService
-from memory_store import MemoryStore
-from reservation_service import (
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentService
+from services.reservation_service import (
     ReservationService,
     calculate_booking_date,
     normalize_extraction_item,
@@ -25,8 +25,13 @@ def make_acceptance_xlsx():
     worksheet.title = "每日行程"
     worksheet.append(["日期", "行程"])
     worksheet.append([
-        date(2026, 8, 17),
-        "西宁 → 青海湖 → 茶卡盐湖 → 都兰",
+        46251,
+        (
+            "11:30到青海湖二郎剑景区\n"
+            "12:30从青海湖二郎剑景区出发\n"
+            "15:30到茶卡盐湖天空壹号停车场\n"
+            "16:30从茶卡盐湖天空壹号停车场出发"
+        ),
     ])
     workbook.save(buffer)
     workbook.close()
@@ -184,6 +189,57 @@ class ReservationAcceptanceTests(unittest.TestCase):
             self.assertEqual(
                 tuple(item.booking_date for item in draft.items),
                 (date(2026, 8, 16), date(2026, 8, 16)),
+            )
+
+    def test_existing_draft_refreshes_after_later_xlsx_upload(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(Path(temp_dir) / "late-xlsx.db")
+            image, unused = store.create_reservation_image(
+                storage_scope_id="group-late",
+                platform="qq_official",
+                group_id="group-late",
+                uploader_id="member-a",
+                sha256="9" * 64,
+                file_path="data/images/99/late.jpg",
+                content_type="image/jpeg",
+                byte_size=100,
+                model_id="fake-model",
+            )
+            item = normalize_extraction_item({
+                "attraction_name": "青海湖",
+                "requires_reservation": True,
+                "advance_value": 1,
+                "advance_unit": "day",
+                "confidence": 0.99,
+            })
+            service = ReservationService(store)
+            draft = service.create_draft(image, (item,))
+            self.assertEqual(draft.items[0].status, "needs_input")
+
+            documents = DocumentService(store)
+            attachment = SimpleNamespace(
+                filename="青甘行程.xlsx",
+                url="https://example.test/青甘行程.xlsx",
+                size=100,
+            )
+            with patch.object(
+                    documents,
+                    "_download_attachment",
+                    return_value=make_acceptance_xlsx()):
+                documents.ingest_attachments(
+                    "group-late", "member-a", [attachment]
+                )
+
+            listed = service.list_plans(
+                "qq_official", "group-late", "member-a"
+            )
+            self.assertEqual(
+                listed[0].items[0].visit_date,
+                date(2026, 8, 17),
+            )
+            self.assertEqual(
+                listed[0].items[0].booking_date,
+                date(2026, 8, 16),
             )
 
 

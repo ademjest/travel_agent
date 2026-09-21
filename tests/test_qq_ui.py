@@ -1,6 +1,6 @@
 import unittest
 
-from qq_ui import build_command_keyboard, build_group_message_payload
+from adapters.qq_ui import build_command_keyboard, build_group_message_payload
 
 
 class QQGroupUiTests(unittest.TestCase):
@@ -27,19 +27,29 @@ class QQGroupUiTests(unittest.TestCase):
                 self.assertTrue(action["data"])
                 self.assertTrue(action["unsupport_tips"])
         self.assertIn("查看预约提醒", commands)
+        self.assertIn("制定预约", commands)
+        self.assertIn("刷新预约 ", commands)
 
     def test_help_and_menu_use_markdown_with_keyboard(self):
         for content in ("帮助", "/帮助", "菜单", "旅行面板"):
             with self.subTest(content=content):
                 payload = build_group_message_payload(content, "plain help")
                 self.assertEqual(payload["msg_type"], 2)
-                self.assertIn("青甘自驾助手", payload["markdown"]["content"])
+                self.assertIn("彼岸旅行助手", payload["markdown"]["content"])
                 self.assertIn(
                     "确认前不会发送提醒",
                     payload["markdown"]["content"],
                 )
                 self.assertIn(
+                    "制定预约",
+                    payload["markdown"]["content"],
+                )
+                self.assertIn(
                     "查看预约提醒",
+                    payload["markdown"]["content"],
+                )
+                self.assertIn(
+                    "刷新预约 R-20260722-001",
                     payload["markdown"]["content"],
                 )
                 self.assertIn("keyboard", payload)

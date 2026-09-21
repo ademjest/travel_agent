@@ -1,10 +1,15 @@
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 from pathlib import Path
+from threading import Event
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from memory_store import MemoryStore, StoredDocumentContent
-from reservation_service import (
+from core.commands import parse_command
+from infrastructure.memory_store import MemoryStore, StoredDocumentContent
+from services.reservation_service import (
     ReservationExtractionItem,
     ReservationItineraryResolver,
     ReservationService,
@@ -105,6 +110,16 @@ class ReservationRuleTests(unittest.TestCase):
                 "confidence": 0.9,
             })
 
+    def test_string_false_is_rejected_as_non_boolean(self):
+        with self.assertRaisesRegex(ValueError, "boolean"):
+            normalize_extraction_item({
+                "attraction_name": "黑独山",
+                "requires_reservation": "false",
+                "advance_value": 0,
+                "advance_unit": "none",
+                "confidence": 1,
+            })
+
     def test_custom_time_requires_complete_absolute_beijing_time(self):
         with self.assertRaisesRegex(ValueError, "YYYY-MM-DD HH:MM"):
             parse_beijing_datetime_list("明早七点")
@@ -176,6 +191,255 @@ class ReservationItineraryResolverTests(unittest.TestCase):
                 for resolution in resolutions.values()
                 for candidate in resolution.dates
             ),
+        )
+
+    def test_resolves_timeline_arrivals_from_realistic_xlsx_text(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="青甘大环线自驾行程安排.xlsx",
+            chunks=((
+                "[工作表：Sheet1]\n"
+                "日期 | 行程\n"
+                "2026-08-17 | 7:00起床\n"
+                "9:30到日月山景区北门\n"
+                "10:30从日月山景区南门出发\n"
+                "11:30到青海湖二郎剑景区\n"
+                "12:30从青海湖二郎剑景区出发\n"
+                "15:30到茶卡盐湖天空壹号停车场\n"
+                "16:30从茶卡盐湖天空壹号停车场出发\n"
+                "2026-08-18 | 11:30到察尔汗盐湖游客中心停车场\n"
+                "15:00从察尔汗盐湖游客中心出发\n"
+                "2026-08-19 | 8:20到大柴旦翡翠湖停车场\n"
+                "9:00从大柴旦翡翠湖出发\n"
+                "12:00到黑独山胭脂山景区地上停车场\n"
+                "16:00从黑独山胭脂山出发\n"
+                "2026-08-20 | 8:20到莫高窟景区停车场\n"
+                "18:00从莫高窟景区出发\n"
+                "18:20到鸣沙山月牙泉东门游客中心\n"
+                "20:30返回敦煌市区\n"
+                "2026-08-21 | 13:00到嘉峪关城楼外围，远观不进景区\n"
+                "14:00从嘉峪关出发"
+            ),),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            (
+                "青海湖",
+                "翡翠湖",
+                "莫高窟",
+                "鸣沙山",
+                "嘉峪关",
+                "察尔汗盐湖",
+                "茶卡盐湖",
+                "水上雅丹",
+            ),
+        )
+
+        self.assertEqual(resolutions["青海湖"].dates, (date(2026, 8, 17),))
+        self.assertEqual(resolutions["茶卡盐湖"].dates, (date(2026, 8, 17),))
+        self.assertEqual(
+            resolutions["察尔汗盐湖"].dates,
+            (date(2026, 8, 18),),
+        )
+        self.assertEqual(resolutions["翡翠湖"].dates, (date(2026, 8, 19),))
+        self.assertEqual(resolutions["莫高窟"].dates, (date(2026, 8, 20),))
+        self.assertEqual(resolutions["鸣沙山"].dates, (date(2026, 8, 20),))
+        self.assertEqual(resolutions["嘉峪关"].reason, "not_scheduled")
+        self.assertEqual(resolutions["水上雅丹"].reason, "not_found")
+
+    def test_route_origin_is_not_counted_as_a_second_visit_date(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.md",
+            chunks=(
+                "2026-08-16 | 西宁 → 青海湖\n"
+                "2026-08-17 | 青海湖 → 茶卡盐湖\n"
+                "2026-08-18 | 茶卡盐湖 -> 翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 16),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_route_position_ignores_activity_text_for_a_later_stop(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.xlsx",
+            chunks=(
+                "2026-08-16 | 行程 | 西宁 → 青海湖 | 下午游览青海湖\n"
+                "2026-08-17 | 行程 | 青海湖 → 茶卡盐湖 | "
+                "下午游览茶卡盐湖\n"
+                "2026-08-18 | 行程 | 茶卡盐湖 -> 翡翠湖 | "
+                "上午游览翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 16),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_route_matching_ignores_lodging_and_notes_cells(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.xlsx",
+            chunks=(
+                "2026-08-16 | 行程 | 西宁 -> 青海湖 | "
+                "住宿 | 茶卡盐湖酒店\n"
+                "2026-08-17 | 行程 | 青海湖 -> 茶卡盐湖 | "
+                "住宿 | 都兰",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 16),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
+        )
+
+    def test_negative_activity_only_applies_to_its_attraction(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="route.xlsx",
+            chunks=(
+                "2026-08-17 | 行程 | 西宁 -> 青海湖 -> 茶卡盐湖 | "
+                "下午不游览茶卡盐湖\n"
+                "2026-08-18 | 行程 | 茶卡盐湖 -> 翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].reason,
+            "not_scheduled",
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_non_route_lodging_cell_is_not_a_daily_heading(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="lodging.xlsx",
+            chunks=("2026-08-17 | 住宿 | 青海湖酒店",),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖",),
+        )["青海湖"]
+
+        self.assertEqual(resolution, VisitDateResolution((), "not_found"))
+
+    def test_first_non_route_schedule_cell_remains_a_daily_heading(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="schedule.xlsx",
+            chunks=("2026-08-17 | 青海湖 | 都兰",),
+        )
+
+        resolution = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖",),
+        )["青海湖"]
+
+        self.assertEqual(resolution.dates, (date(2026, 8, 17),))
+
+    def test_conjunction_separates_positive_and_negative_activities(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="activities.xlsx",
+            chunks=(
+                "2026-08-17 | 下午游览青海湖但不游览茶卡盐湖\n"
+                "2026-08-18 | 上午游览翡翠湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖", "翡翠湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].reason,
+            "not_scheduled",
+        )
+        self.assertEqual(
+            resolutions["翡翠湖"].dates,
+            (date(2026, 8, 18),),
+        )
+
+    def test_explicit_activity_schedules_the_first_route_location(self):
+        document = StoredDocumentContent(
+            document_id=1,
+            filename="activity.md",
+            chunks=(
+                "2026-08-17 | 下午游览青海湖 → 茶卡盐湖",
+            ),
+        )
+
+        resolutions = ReservationItineraryResolver().resolve(
+            (document,),
+            ("青海湖", "茶卡盐湖"),
+        )
+
+        self.assertEqual(
+            resolutions["青海湖"].dates,
+            (date(2026, 8, 17),),
+        )
+        self.assertEqual(
+            resolutions["茶卡盐湖"].dates,
+            (date(2026, 8, 17),),
         )
 
     def test_keeps_multiple_positive_dates_for_manual_confirmation(self):
@@ -428,6 +692,28 @@ class ReservationDraftTests(unittest.TestCase):
         reply = service.format_draft(plan)
         self.assertIn("新增预约", reply)
 
+    def test_replayed_image_event_reuses_original_draft(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        first = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+            source_event_id="qq_official:group:group-a:image-event",
+        )
+        second = service.create_draft(
+            self.image,
+            (self.item("莫高窟", True, 1, "month"),),
+            source_event_id="qq_official:group:group-a:image-event",
+        )
+
+        self.assertEqual(second.plan_id, first.plan_id)
+        self.assertEqual(
+            tuple(item.attraction_name for item in second.items),
+            ("青海湖",),
+        )
+
     def test_manual_add_and_date_completion_recalculate_booking_date(self):
         service = ReservationService(
             self.store,
@@ -462,6 +748,105 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(completed.items[0].status, "ready")
         self.assertEqual(completed.items[0].booking_date, date(2026, 8, 15))
 
+    def test_draft_items_can_change_requirement_date_and_visit_status(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        plan = service.create_draft(
+            self.image,
+            (
+                self.item("嘉峪关", True, 1, "day"),
+                self.item("水上雅丹", True, 1, "day"),
+            ),
+        )
+
+        updated = service.update_draft_item(
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            plan_code=plan.plan_code,
+            item_index=1,
+            visit_date=date(2026, 8, 21),
+            requires_reservation=False,
+        )
+        skipped = service.update_draft_item(
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            plan_code=plan.plan_code,
+            item_index=2,
+            visit_status="skip",
+        )
+
+        self.assertFalse(updated.items[0].requires_reservation)
+        self.assertEqual(updated.items[0].visit_date, date(2026, 8, 21))
+        self.assertIsNone(updated.items[0].booking_date)
+        self.assertEqual(skipped.items[1].status, "skipped")
+        self.assertFalse(skipped.items[1].requires_reservation)
+        rendered = service.format_draft(skipped)
+        self.assertIn("游览日期：2026-08-21", rendered)
+        self.assertIn("状态：不去参观", rendered)
+
+    def test_draft_items_batch_update_is_atomic_and_uses_names(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        plan = service.create_draft(
+            self.image,
+            (
+                self.item("嘉峪关", True, 3, "day"),
+                self.item("水上雅丹", True, 1, "day"),
+            ),
+        )
+
+        updated = service.update_draft_items(
+            platform="qq_official",
+            group_id="group-a",
+            creator_id="member-a",
+            plan_code=plan.plan_code,
+            updates=(
+                {
+                    "attraction_name": "嘉峪关",
+                    "visit_date": date(2026, 8, 21),
+                    "requires_reservation": False,
+                },
+                {
+                    "attraction_name": "水上雅丹",
+                    "visit_status": "skip",
+                },
+            ),
+        )
+
+        self.assertFalse(updated.items[0].requires_reservation)
+        self.assertEqual(updated.items[0].visit_date, date(2026, 8, 21))
+        self.assertEqual(updated.items[0].status, "ready")
+        self.assertEqual(updated.items[1].status, "skipped")
+
+        with self.assertRaisesRegex(ValueError, "不存在的景点"):
+            service.update_draft_items(
+                platform="qq_official",
+                group_id="group-a",
+                creator_id="member-a",
+                plan_code=plan.plan_code,
+                updates=(
+                    {
+                        "attraction_name": "嘉峪关",
+                        "requires_reservation": True,
+                    },
+                    {
+                        "attraction_name": "不存在的景点",
+                        "visit_status": "skip",
+                    },
+                ),
+            )
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertFalse(loaded.items[0].requires_reservation)
+        self.assertEqual(loaded.items[1].status, "skipped")
+
     def test_not_scheduled_item_uses_explicit_manual_decision_status(self):
         resolver = FakeItineraryResolver({
             "嘉峪关": VisitDateResolution((), "not_scheduled"),
@@ -481,6 +866,288 @@ class ReservationDraftTests(unittest.TestCase):
             "行程未安排该景点，需要手动决定",
             service.format_draft(plan),
         )
+
+    def test_refresh_plan_resolves_unresolved_items_from_latest_documents(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 1)
+        self.assertEqual(result.plan.items[0].visit_date, date(2026, 8, 17))
+        self.assertEqual(result.plan.items[0].booking_date, date(2026, 8, 16))
+
+    def test_refresh_plan_preserves_manual_ready_date(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        service.complete_item_date(
+            "qq_official",
+            "group-a",
+            "member-a",
+            plan.plan_code,
+            1,
+            date(2026, 8, 20),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 0)
+        self.assertEqual(result.plan.items[0].visit_date, date(2026, 8, 20))
+
+    def test_refresh_plan_keeps_ambiguous_candidates_for_manual_choice(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("莫高窟", True, 1, "month"),),
+        )
+        resolver.resolutions = {
+            "莫高窟": VisitDateResolution(
+                (date(2026, 8, 20), date(2026, 8, 21)),
+                "ambiguous",
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.plan.items[0].status, "needs_input")
+        self.assertEqual(
+            result.plan.items[0].date_candidates,
+            (date(2026, 8, 20), date(2026, 8, 21)),
+        )
+
+    def test_refresh_plan_promotes_newly_scheduled_item_to_ready(self):
+        resolver = FakeItineraryResolver({
+            "嘉峪关": VisitDateResolution((), "not_scheduled")
+        })
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("嘉峪关", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "嘉峪关": VisitDateResolution(
+                (date(2026, 8, 21),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 1)
+        self.assertEqual(result.plan.items[0].status, "ready")
+        self.assertEqual(result.plan.items[0].visit_date, date(2026, 8, 21))
+
+    def test_newer_noop_refresh_blocks_older_overwrite(self):
+        class FixedDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                value = cls(2030, 1, 1, tzinfo=timezone.utc)
+                return value if tz is None else value.astimezone(tz)
+
+        slow_started = Event()
+        release_slow = Event()
+
+        class BlockingResolver:
+            def resolve(self, documents, attraction_names):
+                slow_started.set()
+                if not release_slow.wait(timeout=2):
+                    raise TimeoutError("slow refresh was not released")
+                return {
+                    name: VisitDateResolution(
+                        (date(2026, 8, 17), date(2026, 8, 18)),
+                        "ambiguous",
+                    )
+                    for name in attraction_names
+                }
+
+        current_resolution = {
+            "lake": VisitDateResolution(
+                (date(2026, 8, 20), date(2026, 8, 21)),
+                "ambiguous",
+            )
+        }
+        draft_service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver(current_resolution),
+        )
+        plan = draft_service.create_draft(
+            self.image,
+            (self.item("lake", True, 1, "day"),),
+        )
+        slow_service = ReservationService(
+            self.store,
+            itinerary_resolver=BlockingResolver(),
+        )
+        fast_service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver(current_resolution),
+        )
+
+        with patch("infrastructure.memory_store.datetime", FixedDatetime):
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                slow_future = executor.submit(
+                    slow_service.refresh_plan,
+                    "qq_official",
+                    "group-a",
+                    "member-a",
+                    plan.plan_code,
+                )
+                self.assertTrue(slow_started.wait(timeout=2))
+                try:
+                    fast_result = fast_service.refresh_plan(
+                        "qq_official",
+                        "group-a",
+                        "member-a",
+                        plan.plan_code,
+                    )
+                finally:
+                    release_slow.set()
+                slow_result = slow_future.result(timeout=2)
+
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertEqual(fast_result.updated_count, 0)
+        self.assertEqual(slow_result.updated_count, 0)
+        self.assertEqual(
+            loaded.items[0].date_candidates,
+            (date(2026, 8, 20), date(2026, 8, 21)),
+        )
+
+    def test_newer_refresh_revision_wins_after_older_commit(self):
+        older_started = Event()
+        release_older = Event()
+        newer_started = Event()
+        release_newer = Event()
+
+        class InitiallyBlockingResolver:
+            def __init__(self, dates, started, release):
+                self.dates = dates
+                self.started = started
+                self.release = release
+                self.calls = 0
+
+            def resolve(self, documents, attraction_names):
+                self.calls += 1
+                if self.calls == 1:
+                    self.started.set()
+                    if not self.release.wait(timeout=2):
+                        raise TimeoutError("refresh was not released")
+                return {
+                    name: VisitDateResolution(
+                        self.dates,
+                        "ambiguous",
+                    )
+                    for name in attraction_names
+                }
+
+        draft_service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({
+                "lake": VisitDateResolution(
+                    (date(2026, 8, 20), date(2026, 8, 21)),
+                    "ambiguous",
+                )
+            }),
+        )
+        plan = draft_service.create_draft(
+            self.image,
+            (self.item("lake", True, 1, "day"),),
+        )
+        older_resolver = InitiallyBlockingResolver(
+            (date(2026, 8, 17), date(2026, 8, 18)),
+            older_started,
+            release_older,
+        )
+        newer_resolver = InitiallyBlockingResolver(
+            (date(2026, 8, 20), date(2026, 8, 21)),
+            newer_started,
+            release_newer,
+        )
+        newer_service = ReservationService(
+            self.store,
+            itinerary_resolver=newer_resolver,
+        )
+        older_service = ReservationService(
+            self.store,
+            itinerary_resolver=older_resolver,
+        )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            older_future = executor.submit(
+                older_service.refresh_plan,
+                "qq_official",
+                "group-a",
+                "member-a",
+                plan.plan_code,
+            )
+            self.assertTrue(older_started.wait(timeout=2))
+            newer_future = executor.submit(
+                newer_service.refresh_plan,
+                "qq_official",
+                "group-a",
+                "member-a",
+                plan.plan_code,
+            )
+            self.assertTrue(newer_started.wait(timeout=2))
+            try:
+                release_older.set()
+                older_result = older_future.result(timeout=2)
+            finally:
+                release_newer.set()
+            newer_result = newer_future.result(timeout=2)
+
+        loaded = self.store.get_reservation_plan(
+            "qq_official", "group-a", plan.plan_code
+        )
+        self.assertEqual(older_result.updated_count, 1)
+        self.assertEqual(newer_result.updated_count, 1)
+        self.assertEqual(newer_resolver.calls, 1)
+        self.assertEqual(
+            loaded.items[0].date_candidates,
+            (date(2026, 8, 20), date(2026, 8, 21)),
+        )
+
+    def test_refresh_plan_rejects_another_creator(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+
+        with self.assertRaisesRegex(PermissionError, "创建者"):
+            service.refresh_plan(
+                "qq_official", "group-a", "member-b", plan.plan_code
+            )
 
 
 class ReservationManagementTests(ReservationDraftTests):
@@ -610,6 +1277,152 @@ class ReservationManagementTests(ReservationDraftTests):
             2,
         )
 
+    def test_list_plans_refreshes_draft_before_formatting(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        plans = service.list_plans("qq_official", "group-a", "member-a")
+
+        refreshed = next(
+            item for item in plans if item.plan_code == plan.plan_code
+        )
+        self.assertEqual(refreshed.items[0].status, "ready")
+
+    def test_confirmation_refreshes_draft_before_creating_reminders(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+
+        with self.assertRaisesRegex(ValueError, "核对"):
+            service.confirm_plan("qq_official", "group-a", "member-a", plan.plan_code)
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(confirmed.status, "confirmed")
+        reminders = self.store.list_reservation_reminders(
+            "qq_official", "group-a", "member-a"
+        )
+        self.assertEqual(len(reminders), 2)
+
+    def test_refresh_plan_does_not_change_confirmed_plan(self):
+        resolver = FakeItineraryResolver({
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 16),), "resolved"
+            )
+        })
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 18),), "resolved"
+            )
+        }
+
+        result = service.refresh_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertEqual(result.updated_count, 0)
+        self.assertEqual(result.plan.status, "confirmed")
+        self.assertEqual(
+            result.plan.items[0].visit_date,
+            confirmed.items[0].visit_date,
+        )
+
+    def test_explicit_refresh_command_returns_updated_draft(self):
+        resolver = FakeItineraryResolver({})
+        service = ReservationService(self.store, itinerary_resolver=resolver)
+        plan = service.create_draft(
+            self.image,
+            (self.item("青海湖", True, 1, "day"),),
+        )
+        resolver.resolutions = {
+            "青海湖": VisitDateResolution(
+                (date(2026, 8, 17),), "resolved"
+            )
+        }
+        event = SimpleNamespace(
+            platform="qq_official",
+            scope_id="group-a",
+            sender_id="member-a",
+        )
+
+        reply = service.handle_command(
+            parse_command(f"刷新预约 {plan.plan_code}"),
+            event,
+        )
+
+        self.assertIn("刷新 1 个项目", reply)
+        self.assertIn("2026-08-17", reply)
+
+    def test_confirmation_help_command_returns_exact_syntax(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        event = SimpleNamespace(
+            platform="qq_official",
+            scope_id="group-a",
+            sender_id="member-a",
+        )
+
+        reply = service.handle_command(
+            parse_command("确认创建预约提醒"),
+            event,
+        )
+
+        self.assertIn("查看预约提醒", reply)
+        self.assertIn("确认预约 R-YYYYMMDD-NNN", reply)
+
+    def test_reservation_workflow_commands_start_and_stop_image_collection(self):
+        service = ReservationService(
+            self.store,
+            itinerary_resolver=FakeItineraryResolver({}),
+        )
+        event = SimpleNamespace(
+            platform="qq_official",
+            scope_id="group-a",
+            sender_id="member-a",
+        )
+
+        started = service.handle_command(parse_command("制定预约"), event)
+
+        self.assertIn("预约攻略图片", started)
+        self.assertTrue(service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
+
+        stopped = service.handle_command(parse_command("退出制定预约"), event)
+
+        self.assertIn("已退出", stopped)
+        self.assertFalse(service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
+
     def test_non_creator_cannot_view_modify_or_cancel(self):
         service, plan = self.ready_plan()
         confirmed = service.confirm_plan(
@@ -688,6 +1501,23 @@ class ReservationManagementTests(ReservationDraftTests):
             (),
         )
 
+    def test_repeated_item_cancellation_is_idempotent(self):
+        service, plan = self.ready_plan()
+        confirmed = service.confirm_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        item_code = confirmed.items[0].public_code
+
+        first = service.cancel_item(
+            "qq_official", "group-a", "member-a", item_code
+        )
+        second = service.cancel_item(
+            "qq_official", "group-a", "member-a", item_code
+        )
+
+        self.assertEqual(first.item.item_id, second.item.item_id)
+        self.assertEqual(second.item.status, "cancelled")
+
     def test_cancel_plan_cancels_every_item_and_reminder(self):
         service, plan = self.ready_plan()
         service.confirm_plan(
@@ -707,6 +1537,19 @@ class ReservationManagementTests(ReservationDraftTests):
         self.assertTrue(
             all(item.status == "cancelled" for item in cancelled.items)
         )
+
+    def test_repeated_plan_cancellation_is_idempotent(self):
+        service, plan = self.ready_plan()
+
+        first = service.cancel_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+        second = service.cancel_plan(
+            "qq_official", "group-a", "member-a", plan.plan_code
+        )
+
+        self.assertFalse(first)
+        self.assertFalse(second)
 
 
 if __name__ == "__main__":

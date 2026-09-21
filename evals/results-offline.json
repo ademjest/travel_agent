@@ -1,0 +1,2504 @@
+{
+  "mode": "scripted_model_contracts",
+  "corpus_sha256": "ba12384376946990319df29b7bbf00a195d51330e48a69ca9825ba1d4571bcd4",
+  "model": "script-v1",
+  "reference_time": "2030-09-09T02:00:00+00:00",
+  "results": [
+    {
+      "id": "trigger-01",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.359,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-02",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.344,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-03",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.344,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-04",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.359,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-05",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.344,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-06",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.375,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-07",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.359,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-08",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.344,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-09",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.36,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-10",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.344,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": []
+    },
+    {
+      "id": "trigger-11",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "当前没有近期任务。已设置的提醒请说“查看我的提醒”。"
+      ]
+    },
+    {
+      "id": "trigger-12",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.438,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "当前没有近期任务。已设置的提醒请说“查看我的提醒”。"
+      ]
+    },
+    {
+      "id": "trigger-13",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.422,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "当前没有近期任务。已设置的提醒请说“查看我的提醒”。"
+      ]
+    },
+    {
+      "id": "trigger-14",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.422,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "你还没有通用提醒。可以说“明天上午十点提醒我抢高铁票”。"
+      ]
+    },
+    {
+      "id": "trigger-15",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.485,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "你还没有通用提醒。可以说“明天上午十点提醒我抢高铁票”。"
+      ]
+    },
+    {
+      "id": "trigger-16",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "还没有保存的行程。可以说“帮我规划武汉三天行程”。"
+      ]
+    },
+    {
+      "id": "trigger-17",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "还没有保存的行程。"
+      ]
+    },
+    {
+      "id": "trigger-18",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "本页没有定时查询。"
+      ]
+    },
+    {
+      "id": "trigger-19",
+      "category": "trigger",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.406,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "当前没有规则监测。"
+      ]
+    },
+    {
+      "id": "trigger-20",
+      "category": "trigger",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.422,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "还没有保存的行程。可以说“帮我规划武汉三天行程”。"
+      ]
+    },
+    {
+      "id": "conversation-01",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.641,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "武汉：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-02",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.641,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "武汉：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-03",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.813,
+      "usage": {
+        "calls": 4,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 4
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        },
+        {
+          "name": "get_weather_forecast",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "武汉：晴。来源为评测天气快照。",
+        "武汉：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-04",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "武汉：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-05",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "西宁：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-06",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "西宁：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-07",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.844,
+      "usage": {
+        "calls": 4,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 4
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        },
+        {
+          "name": "get_weather_forecast",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "西宁：晴。来源为评测天气快照。",
+        "西宁：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-08",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "西宁：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-09",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "北京：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-10",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.641,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "北京：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-11",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.812,
+      "usage": {
+        "calls": 4,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 4
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        },
+        {
+          "name": "get_weather_forecast",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "北京：晴。来源为评测天气快照。",
+        "北京：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-12",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "北京：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-13",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "成都：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-14",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "成都：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-15",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.829,
+      "usage": {
+        "calls": 4,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 4
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        },
+        {
+          "name": "get_weather_forecast",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "成都：晴。来源为评测天气快照。",
+        "成都：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-16",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.64,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "成都：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-17",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.641,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "杭州：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-18",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.61,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "杭州：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-19",
+      "category": "conversation",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.828,
+      "usage": {
+        "calls": 4,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 4
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        },
+        {
+          "name": "get_weather_forecast",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "杭州：晴。来源为评测天气快照。",
+        "杭州：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "conversation-20",
+      "category": "conversation",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.64,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "杭州：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "reminder-01",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.422,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-02",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.562,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "2030-09-10 几点提醒你抢高铁票？",
+        "已设置：2030-09-10 10:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-03",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.469,
+      "usage": {
+        "calls": 1,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 1
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-04",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.547,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。",
+        "已修改：2030-09-10 09:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-05",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.547,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你抢高铁票，到时在本群 @ 你。",
+        "已取消提醒：抢高铁票。"
+      ]
+    },
+    {
+      "id": "reminder-06",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.438,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你预约湖北省博物馆，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-07",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.531,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "2030-09-10 几点提醒你预约湖北省博物馆？",
+        "已设置：2030-09-10 10:00（北京时间）提醒你预约湖北省博物馆，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-08",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 1,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 1
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你预约湖北省博物馆，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-09",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.547,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你预约湖北省博物馆，到时在本群 @ 你。",
+        "已修改：2030-09-10 09:00（北京时间）提醒你预约湖北省博物馆，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-10",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.531,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你预约湖北省博物馆，到时在本群 @ 你。",
+        "已取消提醒：预约湖北省博物馆。"
+      ]
+    },
+    {
+      "id": "reminder-11",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你带身份证，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-12",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.547,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "2030-09-10 几点提醒你带身份证？",
+        "已设置：2030-09-10 10:00（北京时间）提醒你带身份证，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-13",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 1,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 1
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你带身份证，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-14",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.531,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你带身份证，到时在本群 @ 你。",
+        "已修改：2030-09-10 09:00（北京时间）提醒你带身份证，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-15",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.703,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你带身份证，到时在本群 @ 你。",
+        "已取消提醒：带身份证。"
+      ]
+    },
+    {
+      "id": "reminder-16",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-17",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.781,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "2030-09-10 几点提醒你买10月1日车票？",
+        "已设置：2030-09-10 10:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-18",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.688,
+      "usage": {
+        "calls": 1,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 1
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-19",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.797,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。",
+        "已修改：2030-09-10 09:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-20",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.718,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你买10月1日车票，到时在本群 @ 你。",
+        "已取消提醒：买10月1日车票。"
+      ]
+    },
+    {
+      "id": "reminder-21",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.469,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你收拾行李，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-22",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.578,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "2030-09-10 几点提醒你收拾行李？",
+        "已设置：2030-09-10 10:00（北京时间）提醒你收拾行李，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-23",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 1,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 1
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你收拾行李，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-24",
+      "category": "reminder",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.562,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你收拾行李，到时在本群 @ 你。",
+        "已修改：2030-09-10 09:00（北京时间）提醒你收拾行李，到时在本群 @ 你。"
+      ]
+    },
+    {
+      "id": "reminder-25",
+      "category": "reminder",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.579,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置：2030-09-10 10:00（北京时间）提醒你收拾行李，到时在本群 @ 你。",
+        "已取消提醒：收拾行李。"
+      ]
+    },
+    {
+      "id": "policy-01",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.484,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 3 天，每日 00:00 放票。\n对应提醒时刻：2030-09-28 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-02",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.469,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆：页面中的个人入馆规则为最多提前 3 天，每日 00:00 放票。\n来源：https://fixture.example/policy\n\n本次只查询规则，没有创建提醒或提交预约。"
+      ]
+    },
+    {
+      "id": "policy-03",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.547,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 3 天，每日 00:00 放票。\n对应提醒时刻：2030-09-28 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n页面同时含季节或节假日说明，需要你核对该规则适用于所选参观日期。\n目前没有创建提醒。核对适用后可回复“按这个规则设置提醒”，或提供更明确的官方说明链接。",
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 3 天，每日 00:00 放票。\n对应提醒时刻：2030-09-28 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-04",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "页面含暂停预约或闭馆信息，请先核对开放安排，暂不创建开约提醒。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-05",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.422,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "没有读到可明确计算的个人入馆预约窗口，不能把团队或讲解预约规则代入。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-06",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.843,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 5 天，每日 00:00 放票。\n对应提醒时刻：2030-09-26 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-07",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.407,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆：页面中的个人入馆规则为最多提前 5 天，每日 00:00 放票。\n来源：https://fixture.example/policy\n\n本次只查询规则，没有创建提醒或提交预约。"
+      ]
+    },
+    {
+      "id": "policy-08",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 5 天，每日 00:00 放票。\n对应提醒时刻：2030-09-26 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n页面同时含季节或节假日说明，需要你核对该规则适用于所选参观日期。\n目前没有创建提醒。核对适用后可回复“按这个规则设置提醒”，或提供更明确的官方说明链接。",
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 5 天，每日 00:00 放票。\n对应提醒时刻：2030-09-26 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-09",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.406,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "页面含暂停预约或闭馆信息，请先核对开放安排，暂不创建开约提醒。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-10",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.484,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "没有读到可明确计算的个人入馆预约窗口，不能把团队或讲解预约规则代入。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-11",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 7 天，每日 00:00 放票。\n对应提醒时刻：2030-09-24 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-12",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.484,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆：页面中的个人入馆规则为最多提前 7 天，每日 00:00 放票。\n来源：https://fixture.example/policy\n\n本次只查询规则，没有创建提醒或提交预约。"
+      ]
+    },
+    {
+      "id": "policy-13",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.578,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 7 天，每日 00:00 放票。\n对应提醒时刻：2030-09-24 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n页面同时含季节或节假日说明，需要你核对该规则适用于所选参观日期。\n目前没有创建提醒。核对适用后可回复“按这个规则设置提醒”，或提供更明确的官方说明链接。",
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 7 天，每日 00:00 放票。\n对应提醒时刻：2030-09-24 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-14",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.422,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "页面含暂停预约或闭馆信息，请先核对开放安排，暂不创建开约提醒。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-15",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.438,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "没有读到可明确计算的个人入馆预约窗口，不能把团队或讲解预约规则代入。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-16",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.454,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 10 天，每日 00:00 放票。\n对应提醒时刻：2030-09-21 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-17",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.453,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆：页面中的个人入馆规则为最多提前 10 天，每日 00:00 放票。\n来源：https://fixture.example/policy\n\n本次只查询规则，没有创建提醒或提交预约。"
+      ]
+    },
+    {
+      "id": "policy-18",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.562,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 10 天，每日 00:00 放票。\n对应提醒时刻：2030-09-21 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n页面同时含季节或节假日说明，需要你核对该规则适用于所选参观日期。\n目前没有创建提醒。核对适用后可回复“按这个规则设置提醒”，或提供更明确的官方说明链接。",
+        "已设置开约提醒。\n湖北省博物馆，计划参观 2030-10-01。\n页面规则：提前 10 天，每日 00:00 放票。\n对应提醒时刻：2030-09-21 00:00（北京时间）。\n来源：https://fixture.example/policy\n核查时间：2030-09-09T02:00:00+00:00\n到时在本群 @ 你；这只是提醒，不代表已经预约成功。"
+      ]
+    },
+    {
+      "id": "policy-19",
+      "category": "policy",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.672,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "页面含暂停预约或闭馆信息，请先核对开放安排，暂不创建开约提醒。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "policy-20",
+      "category": "policy",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.562,
+      "usage": {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 0
+      },
+      "calls": [],
+      "replies": [
+        "没有读到可明确计算的个人入馆预约窗口，不能把团队或讲解预约规则代入。\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。"
+      ]
+    },
+    {
+      "id": "trip-01",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-02",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.61,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n第 1 天 · 2030-10-02\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-03\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-03",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.609,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "已取消行程。"
+      ]
+    },
+    {
+      "id": "trip-04",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.609,
+      "usage": {
+        "calls": 3,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 3
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n室内安排：第2天\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-05",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.516,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉2日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。\n湖北省博物馆：参观 2030-10-01，拟定 2030-09-26 00:00（北京时间）提醒；来源 https://fixture.example/policy"
+      ]
+    },
+    {
+      "id": "trip-06",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.531,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-07",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.61,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n第 1 天 · 2030-10-02\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-03\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-04\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-08",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.594,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "已取消行程。"
+      ]
+    },
+    {
+      "id": "trip-09",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 3,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 3
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n室内安排：第2天\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-10",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉3日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。\n湖北省博物馆：参观 2030-10-01，拟定 2030-09-26 00:00（北京时间）提醒；来源 https://fixture.example/policy"
+      ]
+    },
+    {
+      "id": "trip-11",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.468,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-12",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.594,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n第 1 天 · 2030-10-02\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-03\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-04\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-05\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-13",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.672,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "已取消行程。"
+      ]
+    },
+    {
+      "id": "trip-14",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.844,
+      "usage": {
+        "calls": 3,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 3
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n室内安排：第2天\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-15",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉4日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。\n湖北省博物馆：参观 2030-10-01，拟定 2030-09-26 00:00（北京时间）提醒；来源 https://fixture.example/policy"
+      ]
+    },
+    {
+      "id": "trip-16",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-17",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.609,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n第 1 天 · 2030-10-02\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-03\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-04\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-05\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-06\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-18",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.594,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "已取消行程。"
+      ]
+    },
+    {
+      "id": "trip-19",
+      "category": "trip",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 3,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 3
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。",
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 2）\n你的要求：每天2处景点\n室内安排：第2天\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。"
+      ]
+    },
+    {
+      "id": "trip-20",
+      "category": "trip",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.5,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [],
+      "replies": [
+        "旅行行程：武汉5日行程（TR-0d3fe82c2022，版本 1）\n你的要求：每天2处景点\n第 1 天 · 2030-10-01\n- 上午：湖北省博物馆｜评测街0号；文化参观\n- 下午：评测美术馆1｜评测街1号；文化参观\n第 2 天 · 2030-10-02\n- 上午：评测美术馆2｜评测街2号；文化参观\n- 下午：评测美术馆3｜评测街3号；文化参观\n第 3 天 · 2030-10-03\n- 上午：评测美术馆4｜评测街4号；文化参观\n- 下午：评测美术馆5｜评测街5号；文化参观\n第 4 天 · 2030-10-04\n- 上午：评测美术馆6｜评测街6号；文化参观\n- 下午：评测美术馆7｜评测街7号；文化参观\n第 5 天 · 2030-10-05\n- 上午：评测美术馆8｜评测街8号；文化参观\n- 下午：评测美术馆9｜评测街9号；文化参观\n地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。\n可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。\n湖北省博物馆：参观 2030-10-01，拟定 2030-09-26 00:00（北京时间）提醒；来源 https://fixture.example/policy"
+      ]
+    },
+    {
+      "id": "recovery-01",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.609,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "武汉：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-02",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "武汉：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-03",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "武汉"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "武汉：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-04",
+      "category": "recovery",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.641,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "西宁：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-05",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.657,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "西宁：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-06",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "西宁"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "西宁：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-07",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "北京：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-08",
+      "category": "recovery",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.672,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "北京：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-09",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.719,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "北京"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "北京：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-10",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.797,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "成都：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-11",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.656,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "成都：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-12",
+      "category": "recovery",
+      "split": "holdout",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.672,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "成都"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "成都：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-13",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.625,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "杭州：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-14",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.672,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "杭州：晴。来源为评测天气快照。"
+      ]
+    },
+    {
+      "id": "recovery-15",
+      "category": "recovery",
+      "split": "development",
+      "passed": true,
+      "failures": [],
+      "elapsed_seconds": 0.64,
+      "usage": {
+        "calls": 2,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "usage_missing": 2
+      },
+      "calls": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "杭州"
+          }
+        }
+      ],
+      "replies": [
+        "请告诉我需要查询哪个城市的天气？",
+        "杭州：晴。来源为评测天气快照。"
+      ]
+    }
+  ],
+  "summary": {
+    "total": 120,
+    "passed": 120,
+    "model_calls": 129,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "usage_missing": 129,
+    "p50_seconds": 0.562,
+    "p95_seconds": 0.812
+  }
+}

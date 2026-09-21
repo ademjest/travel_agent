@@ -4,10 +4,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from memory_store import MemoryStore
-from outbox_worker import OutboxWorker
-from reminder_scheduler import ReminderScheduler
-from reservation_service import ReservationExtractionItem, ReservationService
+from infrastructure.memory_store import MemoryStore
+from services.outbox_worker import OutboxWorker
+from services.reminder_scheduler import ReminderScheduler
+from services.reservation_service import (
+    ReservationExtractionItem,
+    ReservationService,
+)
 
 
 class FakeRenderer:

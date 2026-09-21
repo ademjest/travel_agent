@@ -1,0 +1,5 @@
+-r requirements-onebot.txt
+-r requirements-web.txt
+PyYAML
+Pillow
+packaging

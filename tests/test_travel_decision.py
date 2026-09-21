@@ -1,6 +1,6 @@
 import unittest
 
-from travel_decision import decide_travel_action
+from agents.travel_decision import decide_travel_action
 
 
 class TravelDecisionTests(unittest.TestCase):
@@ -32,3 +32,59 @@ class TravelDecisionTests(unittest.TestCase):
         self.assertEqual(decision.intent, "document")
         self.assertFalse(decision.require_live_data)
         self.assertEqual(decision.allowed_tools, ())
+
+    def test_xlsx_filename_question_is_document_intent(self):
+        decision = decide_travel_action(
+            "根据我上传的青甘大环线自驾行程安排.xlsx，列出8月17日的全部行程"
+        )
+
+        self.assertEqual(decision.intent, "document")
+        self.assertEqual(decision.allowed_tools, ())
+
+    def test_weather_and_traffic_can_be_selected_together(self):
+        decision = decide_travel_action(
+            "明天从西宁到青海湖，天气和路况怎么样？"
+        )
+
+        self.assertEqual(decision.intents, ("traffic", "forecast"))
+        self.assertEqual(
+            decision.allowed_tools,
+            ("get_route_traffic", "get_weather_forecast"),
+        )
+        self.assertFalse(decision.needs_clarification)
+
+    def test_natural_reservation_action_exposes_reservation_tools(self):
+        decision = decide_travel_action("帮我确认预约 R-20260722-001")
+
+        self.assertEqual(decision.intent, "reservation")
+        self.assertIn("list_reservation_plans", decision.allowed_tools)
+        self.assertIn("confirm_reservation_plan", decision.allowed_tools)
+        self.assertTrue(decision.required_tool_groups)
+
+    def test_plan_code_edit_is_reservation_intent_without_keyword(self):
+        decision = decide_travel_action(
+            "把 R-20260811-001 的嘉峪关日期补为 2026-08-21，"
+            "水上雅丹不去参观了"
+        )
+
+        self.assertEqual(decision.intent, "reservation")
+        self.assertEqual(
+            decision.allowed_tools,
+            ("update_reservation_draft_items",),
+        )
+        self.assertEqual(
+            decision.required_tool_groups,
+            (("update_reservation_draft_items",),),
+        )
+
+    def test_image_reservation_intent_requires_creation_tool(self):
+        decision = decide_travel_action("按这张攻略帮我制定预约")
+
+        self.assertIn(
+            "create_reservation_draft_from_image",
+            decision.allowed_tools,
+        )
+        self.assertIn(
+            ("create_reservation_draft_from_image",),
+            decision.required_tool_groups,
+        )

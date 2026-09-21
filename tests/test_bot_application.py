@@ -1,14 +1,20 @@
+import asyncio
+import asyncio
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from bot_application import TravelBotApplication
-from chat_transport import ChatAttachment, ChatEvent
-from document_service import DocumentIngestResult
-from memory_store import MemoryStore
-from outbox_worker import OutboxWorker
-from upload_binding import PrivateUploadResult
+from app.bot_application import TravelBotApplication
+from core.chat_transport import ChatAttachment, ChatEvent
+from infrastructure.memory_store import MemoryStore
+from services.document_service import DocumentIngestResult
+from services.outbox_worker import OutboxWorker
+from services.reservation_draft_creator import ReservationDraftCreator
+from services.upload_binding import PrivateUploadResult
+from tools.reservation_tools import AgentToolRouter
 
 
 class FakeTransport:
@@ -56,8 +62,8 @@ class FakeUploadBindingService:
         self.issue_calls = []
         self.private_calls = []
 
-    def issue_binding(self, group_id, sender_id):
-        self.issue_calls.append((group_id, sender_id))
+    def issue_binding(self, group_id, sender_id, **kwargs):
+        self.issue_calls.append((group_id, sender_id, kwargs))
         return "binding-code"
 
     def handle_private_message(
@@ -96,12 +102,34 @@ class FakeReservationImageService:
 
 
 class FakeReservationService:
-    def __init__(self):
+    def __init__(self, store):
+        self.store = store
         self.created = []
         self.commands = []
+        self.active_workflows = set()
 
-    def create_draft(self, image, items):
-        self.created.append((image, items))
+    @staticmethod
+    def _workflow_key(platform, group_id, creator_id):
+        return platform, group_id, creator_id
+
+    def start_workflow(self, platform, group_id, creator_id):
+        self.active_workflows.add(
+            self._workflow_key(platform, group_id, creator_id)
+        )
+
+    def workflow_is_active(self, platform, group_id, creator_id):
+        return (
+            self._workflow_key(platform, group_id, creator_id)
+            in self.active_workflows
+        )
+
+    def finish_workflow(self, platform, group_id, creator_id):
+        self.active_workflows.discard(
+            self._workflow_key(platform, group_id, creator_id)
+        )
+
+    def create_draft(self, image, items, source_event_id="", creator_id=None):
+        self.created.append((image, items, source_event_id))
         return SimpleNamespace(plan_code="R-20260722-001", items=())
 
     def format_draft(self, plan):
@@ -109,6 +137,14 @@ class FakeReservationService:
 
     def handle_command(self, command, event):
         self.commands.append((command, event))
+        if command.name == "reservation_start":
+            self.start_workflow(
+                event.platform, event.scope_id, event.sender_id
+            )
+        elif command.name == "reservation_stop":
+            self.finish_workflow(
+                event.platform, event.scope_id, event.sender_id
+            )
         return "预约命令已处理"
 
 
@@ -127,14 +163,22 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.document_service = FakeDocumentService()
         self.upload_service = FakeUploadBindingService()
         self.reservation_image_service = FakeReservationImageService()
-        self.reservation_service = FakeReservationService()
+        self.reservation_service = FakeReservationService(self.store)
+        self.tool_router = AgentToolRouter(
+            self.travel_service,
+            self.reservation_service,
+            ReservationDraftCreator(
+                self.reservation_image_service,
+                self.reservation_service,
+            ),
+        )
         self.application = TravelBotApplication(
             store=self.store,
             travel_service=self.travel_service,
             travel_agent=self.travel_agent,
             document_service=self.document_service,
-            reservation_image_service=self.reservation_image_service,
             reservation_service=self.reservation_service,
+            tool_router=self.tool_router,
             upload_binding_service=self.upload_service,
             outbox_worker=self.worker,
             reply_renderer=FakeRenderer(),
@@ -180,6 +224,14 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             "agent:帮我评估明天的行程",
         )
 
+    async def test_oversized_message_is_rejected_before_agent(self):
+        event = self.group_event("oversized", "x" * 8001)
+
+        await self.application.handle(event)
+
+        self.assertEqual(self.travel_agent.calls, [])
+        self.assertIn("8000", str(self.transport.messages[0].payload))
+
     async def test_document_context_is_passed_to_agent(self):
         self.store.add_document(
             "group-a",
@@ -221,6 +273,37 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.travel_service.calls, ["查询天气 西宁"])
         self.assertEqual(len(self.transport.messages), 1)
 
+    async def test_long_running_event_renews_processing_lease(self):
+        class SlowTravelService(FakeTravelService):
+            def handle(inner_self, content):
+                time.sleep(0.05)
+                return super().handle(content)
+
+        renewals = []
+        original_renew = self.store.renew_event
+
+        def record_renewal(*args, **kwargs):
+            renewals.append(args)
+            return original_renew(*args, **kwargs)
+
+        self.store.renew_event = record_renewal
+        application = TravelBotApplication(
+            store=self.store,
+            travel_service=SlowTravelService(),
+            travel_agent=None,
+            document_service=self.document_service,
+            upload_binding_service=self.upload_service,
+            outbox_worker=self.worker,
+            reply_renderer=FakeRenderer(),
+            reminder_scheduler=object(),
+            group_allowed=lambda group_id: True,
+            event_lease_renew_seconds=0.01,
+        )
+
+        await application.handle(self.group_event("slow-event", "查询天气 西宁"))
+
+        self.assertGreaterEqual(len(renewals), 1)
+
     async def test_group_event_is_persisted_as_normalized_observation(self):
         event = self.group_event("message-observed", "明早八点集合")
 
@@ -234,7 +317,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(messages[0].member_id, "member-a")
         self.assertEqual(messages[0].content, "明早八点集合")
 
-    async def test_single_image_is_routed_before_document_and_agent(self):
+    async def test_image_without_explicit_reservation_intent_creates_no_plan(self):
         event = ChatEvent(
             platform="qq_official",
             channel="group",
@@ -251,10 +334,241 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             ),
         )
         await self.application.handle(event)
-        self.assertEqual(len(self.reservation_image_service.calls), 1)
-        self.assertEqual(len(self.reservation_service.created), 1)
+        self.assertEqual(self.reservation_image_service.calls, [])
+        self.assertEqual(self.reservation_service.created, [])
+        self.assertIn(
+            "制定预约",
+            str(self.transport.messages[0].payload),
+        )
         self.assertEqual(self.document_service.calls, [])
         self.assertEqual(self.travel_agent.calls, [])
+
+    async def test_start_command_with_image_creates_plan_and_closes_workflow(self):
+        event = ChatEvent(
+            platform="qq_official",
+            channel="group",
+            event_id="image-start",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="制定预约",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+            ),
+        )
+
+        await self.application.handle(event)
+
+        self.assertEqual(len(self.reservation_image_service.calls), 1)
+        self.assertEqual(len(self.reservation_service.created), 1)
+        self.assertEqual(
+            self.reservation_service.created[0][2],
+            event.event_key,
+        )
+        self.assertFalse(self.reservation_service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
+        self.assertEqual(self.document_service.calls, [])
+        self.assertEqual(self.travel_agent.calls, [])
+
+    async def test_active_reservation_workflow_accepts_next_image(self):
+        await self.application.handle(
+            self.group_event("workflow-start", "制定预约")
+        )
+        self.assertTrue(self.reservation_service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
+        event = ChatEvent(
+            platform="qq_official",
+            channel="group",
+            event_id="workflow-image",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+            ),
+        )
+
+        await self.application.handle(event)
+
+        self.assertEqual(len(self.reservation_service.created), 1)
+        self.assertFalse(self.reservation_service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
+
+    async def test_onebot_image_reports_progress_and_processing_status(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        class SlowReservationImageService(FakeReservationImageService):
+            def process_attachment(inner_self, **kwargs):
+                started.set()
+                release.wait(timeout=2)
+                return super().process_attachment(**kwargs)
+
+        image_service = SlowReservationImageService()
+        tool_router = AgentToolRouter(
+            self.travel_service,
+            self.reservation_service,
+            ReservationDraftCreator(
+                image_service,
+                self.reservation_service,
+            ),
+        )
+        worker = OutboxWorker("onebot", self.store, self.transport)
+        application = TravelBotApplication(
+            store=self.store,
+            travel_service=self.travel_service,
+            travel_agent=self.travel_agent,
+            document_service=self.document_service,
+            reservation_service=self.reservation_service,
+            tool_router=tool_router,
+            upload_binding_service=self.upload_service,
+            outbox_worker=worker,
+            reply_renderer=FakeRenderer(),
+            reminder_scheduler=object(),
+            group_allowed=lambda group_id: group_id == "group-a",
+        )
+        self.reservation_service.start_workflow(
+            "onebot",
+            "group-a",
+            "member-a",
+        )
+        image_event = ChatEvent(
+            platform="onebot",
+            channel="group",
+            event_id="onebot-image",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+            ),
+        )
+
+        task = asyncio.create_task(application.handle(image_event))
+        try:
+            self.assertTrue(await asyncio.to_thread(started.wait, 1))
+            self.assertIn(
+                "正在下载并识别",
+                self.transport.messages[0].payload["content"],
+            )
+
+            await application.handle(ChatEvent(
+                platform="onebot",
+                channel="group",
+                event_id="onebot-question",
+                scope_id="group-a",
+                sender_id="member-a",
+                content="看得到我发的图片吗",
+            ))
+
+            self.assertTrue(any(
+                "仍在识别" in message.payload["content"]
+                for message in self.transport.messages
+            ))
+        finally:
+            release.set()
+            await task
+
+        self.assertTrue(any(
+            "预约计划 R-20260722-001" in message.payload["content"]
+            for message in self.transport.messages
+        ))
+
+    async def test_onebot_document_reports_progress_and_processing_status(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        class SlowDocumentService(FakeDocumentService):
+            def ingest_attachments(
+                    inner_self,
+                    group_id,
+                    sender_id,
+                    attachments):
+                inner_self.calls.append((group_id, sender_id, attachments))
+                started.set()
+                release.wait(timeout=2)
+                return DocumentIngestResult(
+                    handled=True,
+                    reply="已保存旅行文档：plan.xlsx",
+                    memory_content="上传旅行文档：plan.xlsx",
+                )
+
+        document_service = SlowDocumentService()
+        worker = OutboxWorker("onebot", self.store, self.transport)
+        application = TravelBotApplication(
+            store=self.store,
+            travel_service=self.travel_service,
+            travel_agent=self.travel_agent,
+            document_service=document_service,
+            reservation_service=self.reservation_service,
+            tool_router=self.tool_router,
+            upload_binding_service=self.upload_service,
+            outbox_worker=worker,
+            reply_renderer=FakeRenderer(),
+            reminder_scheduler=object(),
+            group_allowed=lambda group_id: group_id == "group-a",
+        )
+        document_event = ChatEvent(
+            platform="onebot",
+            channel="group",
+            event_id="onebot-document",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="",
+            attachments=(ChatAttachment(
+                filename="plan.xlsx",
+                url="https://example.test/plan.xlsx",
+                content_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+            ),),
+        )
+
+        task = asyncio.create_task(application.handle(document_event))
+        try:
+            self.assertTrue(await asyncio.to_thread(started.wait, 1))
+            self.assertIn(
+                "正在下载并解析",
+                self.transport.messages[0].payload["content"],
+            )
+
+            await application.handle(ChatEvent(
+                platform="onebot",
+                channel="group",
+                event_id="onebot-document-question",
+                scope_id="group-a",
+                sender_id="member-a",
+                content="能看到我上传的 xlsx 文档吗",
+            ))
+
+            self.assertTrue(any(
+                "仍在解析" in message.payload["content"]
+                for message in self.transport.messages
+            ))
+            self.assertEqual(self.travel_agent.calls, [])
+        finally:
+            release.set()
+            await task
+
+        self.assertTrue(any(
+            "已保存旅行文档：plan.xlsx" in message.payload["content"]
+            for message in self.transport.messages
+        ))
 
     async def test_multiple_images_are_rejected_without_model_call(self):
         attachments = tuple(
@@ -271,13 +585,44 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             event_id="image-2",
             scope_id="group-a",
             sender_id="member-a",
-            content="",
+            content="制定预约",
             attachments=attachments,
         )
         await self.application.handle(event)
         self.assertEqual(self.reservation_image_service.calls, [])
         sent = self.transport.messages[0].payload
         self.assertIn("逐张发送", str(sent))
+
+    async def test_mixed_image_and_document_attachments_are_rejected(self):
+        event = ChatEvent(
+            platform="qq_official",
+            channel="group",
+            event_id="mixed-attachments",
+            scope_id="group-a",
+            sender_id="member-a",
+            content="制定预约",
+            attachments=(
+                ChatAttachment(
+                    filename="booking.jpg",
+                    url="https://example.test/booking.jpg",
+                    content_type="image/jpeg",
+                ),
+                ChatAttachment(
+                    filename="trip.docx",
+                    url="https://example.test/trip.docx",
+                    content_type=(
+                        "application/vnd.openxmlformats-officedocument."
+                        "wordprocessingml.document"
+                    ),
+                ),
+            ),
+        )
+
+        await self.application.handle(event)
+
+        self.assertEqual(self.reservation_image_service.calls, [])
+        self.assertEqual(self.document_service.calls, [])
+        self.assertIn("混合发送", str(self.transport.messages[0].payload))
 
     async def test_image_download_failure_creates_no_plan(self):
         self.reservation_image_service.error = ValueError(
@@ -289,7 +634,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
             event_id="image-failed",
             scope_id="group-a",
             sender_id="member-a",
-            content="",
+            content="制定预约",
             attachments=(
                 ChatAttachment(
                     filename="booking.jpg",
@@ -301,9 +646,27 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         await self.application.handle(event)
         self.assertEqual(self.reservation_service.created, [])
         self.assertIn("5 MB", str(self.transport.messages[0].payload))
+        self.assertTrue(self.reservation_service.workflow_is_active(
+            "qq_official", "group-a", "member-a"
+        ))
 
     async def test_reservation_command_runs_before_travel_agent(self):
         event = self.group_event("reservation-list", "查看预约提醒")
         await self.application.handle(event)
         self.assertEqual(len(self.reservation_service.commands), 1)
+        self.assertEqual(self.travel_agent.calls, [])
+
+    async def test_invalid_confirmation_phrase_uses_reservation_service_not_llm(self):
+        event = self.group_event(
+            "reservation-confirm-help",
+            "确认创建预约提醒",
+        )
+
+        await self.application.handle(event)
+
+        self.assertEqual(len(self.reservation_service.commands), 1)
+        self.assertEqual(
+            self.reservation_service.commands[0][0].name,
+            "reservation_confirm_help",
+        )
         self.assertEqual(self.travel_agent.calls, [])

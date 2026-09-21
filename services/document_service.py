@@ -1,0 +1,391 @@
+from __future__ import annotations
+
+import hashlib
+import io
+import re
+from dataclasses import dataclass
+from datetime import date, datetime
+from pathlib import Path
+from typing import Callable
+from zipfile import BadZipFile, ZipFile
+
+import requests
+from docx import Document
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
+from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
+
+from infrastructure.memory_store import MemoryStore
+from infrastructure.secure_download import download_https, resolve_host
+from infrastructure.attachment_cache import read_cached_attachment
+
+
+MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
+DOCUMENT_TIMEOUT = 20
+CHUNK_SIZE = 1800
+CHUNK_OVERLAP = 200
+MAX_ARCHIVE_MEMBERS = 2_000
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+MAX_DOCUMENT_TEXT_CHARS = 500_000
+MAX_SPREADSHEET_ROWS = 10_000
+MAX_SPREADSHEET_CELLS = 100_000
+SUPPORTED_EXTENSIONS = {".docx", ".txt", ".md", ".xlsx"}
+LEGACY_EXCEL_EXTENSION = ".xls"
+
+
+@dataclass(frozen=True)
+class DocumentIngestResult:
+    handled: bool
+    reply: str = ""
+    memory_content: str = ""
+
+
+@dataclass(frozen=True)
+class PreparedDocument:
+    filename: str
+    sha256: str
+    full_text: str
+    chunks: tuple[str, ...]
+    summary: str
+
+
+class DocumentService:
+    def __init__(
+            self,
+            memory_store: MemoryStore,
+            summarizer: Callable[[str, str], str] | None = None,
+            session: object = None,
+            resolver=resolve_host):
+        self.memory_store = memory_store
+        self.summarizer = summarizer
+        self.session = session or requests.Session()
+        if session is None:
+            self.session.trust_env = False
+        self.resolver = resolver
+
+    @staticmethod
+    def is_document_attachment(attachment: object) -> bool:
+        filename = str(getattr(attachment, "filename", "") or "")
+        return Path(filename).suffix.lower() in (
+            SUPPORTED_EXTENSIONS | {".doc", LEGACY_EXCEL_EXTENSION}
+        )
+
+    def prepare_attachments(
+            self,
+            attachments: list) -> tuple[PreparedDocument, ...]:
+        prepared = []
+        for attachment in attachments:
+            filename = str(getattr(attachment, "filename", "") or "")
+            if Path(filename).suffix.lower() not in SUPPORTED_EXTENSIONS:
+                continue
+            data = self._download_attachment(attachment)
+            text = self._extract_text(filename, data)
+            summary = ""
+            if self.summarizer:
+                try:
+                    summary = self.summarizer(filename, text)
+                except Exception:
+                    summary = ""
+            prepared.append(PreparedDocument(
+                filename=filename,
+                sha256=hashlib.sha256(data).hexdigest(),
+                full_text=text,
+                chunks=tuple(self._chunk_text(text)),
+                summary=summary,
+            ))
+        return tuple(prepared)
+
+    def ingest_attachments(
+            self,
+            group_openid: str,
+            member_openid: str,
+            attachments: list) -> DocumentIngestResult:
+        document_attachments = []
+        legacy_documents = []
+        legacy_excel_documents = []
+
+        for attachment in attachments:
+            filename = str(getattr(attachment, "filename", "") or "")
+            extension = Path(filename).suffix.lower()
+            if extension in SUPPORTED_EXTENSIONS:
+                document_attachments.append(attachment)
+            elif extension == ".doc":
+                legacy_documents.append(filename)
+            elif extension == LEGACY_EXCEL_EXTENSION:
+                legacy_excel_documents.append(filename)
+
+        if (
+                not document_attachments
+                and not legacy_documents
+                and not legacy_excel_documents):
+            return DocumentIngestResult(handled=False)
+
+        messages = []
+        memory_names = []
+
+        for filename in legacy_documents:
+            memory_names.append(filename)
+            messages.append(
+                f"暂不支持旧版 Word 文件 {filename}，请转换为 .docx 后重新上传。"
+            )
+
+        for filename in legacy_excel_documents:
+            memory_names.append(filename)
+            messages.append(
+                f"暂不支持旧版 Excel 文件 {filename}，"
+                "请另存为 .xlsx 后重新上传。"
+            )
+
+        for attachment in document_attachments:
+            filename = str(attachment.filename)
+            try:
+                data = self._download_attachment(attachment)
+                text = self._extract_text(filename, data)
+                chunks = self._chunk_text(text)
+                digest = hashlib.sha256(data).hexdigest()
+                stored = self.memory_store.add_document(
+                    group_openid=group_openid,
+                    uploader_openid=member_openid,
+                    filename=filename,
+                    sha256=digest,
+                    full_text=text,
+                    chunks=chunks,
+                )
+                memory_names.append(filename)
+                if stored.is_new:
+                    messages.append(
+                        f"已保存旅行文档：{filename}（{len(text)} 字，{len(chunks)} 个片段）。"
+                    )
+                    if self.summarizer:
+                        try:
+                            summary = self.summarizer(filename, text)
+                            if summary:
+                                self.memory_store.update_document_summary(
+                                    stored.document_id,
+                                    summary,
+                                )
+                                messages.append("已生成长期行程摘要。")
+                        except Exception:
+                            messages.append(
+                                "自动摘要失败，但文档原文和分块已正常保存。"
+                            )
+                else:
+                    messages.append(f"该文档已保存过：{stored.filename}。")
+            except Exception as exc:
+                messages.append(f"处理文档 {filename} 失败：{exc}")
+
+        messages.append(
+            "文档属于群共享长期资料，不受最近 6 轮对话限制。后续提问时会按内容检索相关片段。"
+        )
+        return DocumentIngestResult(
+            handled=True,
+            reply="\n".join(messages),
+            memory_content="上传旅行文档：" + "、".join(memory_names),
+        )
+
+    def _download_attachment(self, attachment) -> bytes:
+        if getattr(attachment, 'local_path', ''):
+            return read_cached_attachment(attachment, self.memory_store.database_path, max_bytes=MAX_DOCUMENT_BYTES)
+        url = str(getattr(attachment, "url", "") or "")
+        declared_size = int(getattr(attachment, "size", 0) or 0)
+        data, unused_content_type = download_https(
+            self.session,
+            url,
+            max_bytes=MAX_DOCUMENT_BYTES,
+            timeout=DOCUMENT_TIMEOUT,
+            declared_size=declared_size,
+            resolver=self.resolver,
+            size_error="文件超过 5 MB 限制",
+        )
+        return data
+
+    @staticmethod
+    def _validate_office_archive(data: bytes) -> None:
+        try:
+            with ZipFile(io.BytesIO(data)) as archive:
+                members = archive.infolist()
+                if len(members) > MAX_ARCHIVE_MEMBERS:
+                    raise ValueError("Office 文件包含过多内部条目")
+                total_size = sum(member.file_size for member in members)
+                if total_size > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+                    raise ValueError("Office 文件解压后超过 50 MB 限制")
+                if any(member.flag_bits & 0x1 for member in members):
+                    raise ValueError("Office 文件已加密，无法读取")
+        except BadZipFile as exc:
+            raise ValueError("Office 文件损坏、加密或无法读取") from exc
+
+    @staticmethod
+    def _is_date_header(value: object) -> bool:
+        if not isinstance(value, str):
+            return False
+        normalized = re.sub(r"\s+", "", value).lower()
+        return normalized == "date" or normalized.endswith("日期")
+
+    @staticmethod
+    def _excel_date_serial(value: object, epoch: datetime) -> object:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return value
+        try:
+            converted = from_excel(value, epoch)
+        except (OverflowError, TypeError, ValueError):
+            return value
+        if isinstance(converted, datetime) and 1900 <= converted.year <= 2200:
+            return converted
+        return value
+
+    @staticmethod
+    def _excel_value(value: object) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, datetime):
+            if not any((
+                    value.hour,
+                    value.minute,
+                    value.second,
+                    value.microsecond,
+            )):
+                return value.date().isoformat()
+            return value.isoformat(sep=" ", timespec="minutes")
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, bool):
+            return "TRUE" if value else "FALSE"
+        return str(value).strip()
+
+    @staticmethod
+    def _extract_xlsx_text(data: bytes) -> str:
+        try:
+            DocumentService._validate_office_archive(data)
+        except ValueError as exc:
+            if str(exc).startswith("Office 文件损坏"):
+                raise ValueError("Excel 文件损坏、加密或无法读取") from exc
+            raise
+        try:
+            workbook = load_workbook(
+                io.BytesIO(data),
+                read_only=True,
+                data_only=True,
+            )
+            try:
+                parts = []
+                row_count = 0
+                cell_count = 0
+                text_length = 0
+                for worksheet in workbook.worksheets:
+                    if worksheet.sheet_state != "visible":
+                        continue
+                    rows = []
+                    date_columns = set()
+                    epoch = getattr(workbook, "epoch", WINDOWS_EPOCH)
+                    for raw_row in worksheet.iter_rows(values_only=True):
+                        row_count += 1
+                        cell_count += len(raw_row)
+                        if (
+                                row_count > MAX_SPREADSHEET_ROWS
+                                or cell_count > MAX_SPREADSHEET_CELLS):
+                            raise ValueError("Excel 文件有效数据范围过大")
+                        date_columns.update(
+                            index
+                            for index, value in enumerate(raw_row)
+                            if DocumentService._is_date_header(value)
+                        )
+                        values = [
+                            DocumentService._excel_value(
+                                DocumentService._excel_date_serial(
+                                    value,
+                                    epoch,
+                                )
+                                if index in date_columns
+                                else value
+                            )
+                            for index, value in enumerate(raw_row)
+                        ]
+                        while values and not values[-1]:
+                            values.pop()
+                        if any(values):
+                            rendered = " | ".join(values)
+                            text_length += len(rendered)
+                            if text_length > MAX_DOCUMENT_TEXT_CHARS:
+                                raise ValueError("文档文本超过 50 万字符限制")
+                            rows.append(rendered)
+                    if rows:
+                        parts.append(f"[工作表：{worksheet.title}]")
+                        parts.extend(rows)
+                return "\n".join(parts)
+            finally:
+                workbook.close()
+        except (
+                BadZipFile,
+                InvalidFileException,
+                KeyError,
+                OSError,
+                ValueError,
+        ) as exc:
+            raise ValueError("Excel 文件损坏、加密或无法读取") from exc
+
+    @staticmethod
+    def _extract_text(filename: str, data: bytes) -> str:
+        extension = Path(filename).suffix.lower()
+        if extension == ".docx":
+            DocumentService._validate_office_archive(data)
+            try:
+                document = Document(io.BytesIO(data))
+            except (BadZipFile, KeyError, OSError, ValueError) as exc:
+                raise ValueError("Word 文件损坏、加密或无法读取") from exc
+            parts = [
+                paragraph.text.strip()
+                for paragraph in document.paragraphs
+                if paragraph.text.strip()
+            ]
+            for table in document.tables:
+                for row in table.rows:
+                    cells = [cell.text.strip() for cell in row.cells]
+                    if any(cells):
+                        parts.append(" | ".join(cells))
+            text = "\n".join(parts)
+        elif extension == ".xlsx":
+            text = DocumentService._extract_xlsx_text(data)
+        else:
+            text = DocumentService._decode_text(data)
+
+        text = text.replace("\x00", "")
+        text = re.sub(r"[ \t]+", " ", text)
+        text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        if len(text) > MAX_DOCUMENT_TEXT_CHARS:
+            raise ValueError("文档文本超过 50 万字符限制")
+        if len(text) < 10:
+            raise ValueError("文档中没有提取到足够的文本")
+        return text
+
+    @staticmethod
+    def _decode_text(data: bytes) -> str:
+        for encoding in ("utf-8-sig", "utf-8", "gb18030"):
+            try:
+                return data.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        raise ValueError("文本文件编码无法识别")
+
+    @staticmethod
+    def _chunk_text(text: str) -> list[str]:
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = min(len(text), start + CHUNK_SIZE)
+            if end < len(text):
+                boundary = max(
+                    text.rfind("\n", start, end),
+                    text.rfind("。", start, end),
+                )
+                if boundary > start + CHUNK_SIZE // 2:
+                    end = boundary + 1
+
+            chunk = text[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
+
+            if end >= len(text):
+                break
+            start = max(start + 1, end - CHUNK_OVERLAP)
+
+        return chunks

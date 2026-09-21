@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+botpy.log.*
 .venv/
 __pycache__/
 *.py[cod]
@@ -6,3 +9,8 @@ __pycache__/
 *.log
 data/
 .onebot-runtime/
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/test-results/
+frontend/playwright-report/
