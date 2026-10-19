@@ -109,10 +109,10 @@ class PersonalReminderTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(store.reminders.list_for_owner('onebot', 'group', 'owner')[0]['delivery_status'], 'sent')
         self.assertEqual(store.get_recent_turns('onebot:group', 'owner'), ())
 
-    async def test_stale_and_disallowed_reminders_are_visible_not_sent(self):
+    async def test_stale_reminders_are_removed_and_disallowed_reminders_are_blocked(self):
         self.handle('明天上午十点提醒我抢票')
         self.assertEqual(await self.scheduler.scan_once(self.now + timedelta(days=3)), 0)
-        self.assertEqual(self.store.reminders.list_for_owner('onebot', 'group', 'owner')[0]['delivery_status'], 'missed')
+        self.assertEqual(self.store.reminders.list_for_owner('onebot', 'group', 'owner'), ())
         self.handle('明天上午十一点提醒我带证件', 'second')
         scheduler = ReminderScheduler('onebot', self.store, OneBotReplyRenderer(), lambda group: False)
         self.assertEqual(await scheduler.scan_once(self.now + timedelta(days=1, hours=1)), 0)

@@ -12,7 +12,7 @@ class WebReplyRenderer:
                 '- 定时查询与规则监测：例如“1分钟后告诉我武汉天气”。\n\n'
                 '当前网页使用独立会话与测试数据，无需 QQ 在线。关闭网页后，后端仍需运行才能执行提醒。')}
         if command_content.strip() == '状态':
-            return {'kind': 'reply', 'text': '本地网页服务正在运行。请打开左侧“状态与设置”查看模型、高德及后台任务状态。QQ 在线状态不影响本网页。'}
+            return {'kind': 'reply', 'text': '本地网页服务正在运行。请从左侧分别打开“本地空间状态”或“服务配置”查看后台任务与外部服务。QQ 在线状态不影响本网页。'}
         text = reply_text.replace('本群 @ 你', '当前网页会话通知你').replace('群共享资料', '当前会话资料')
         return {'text': text, 'kind': 'reply'}
 

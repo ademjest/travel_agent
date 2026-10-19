@@ -1,0 +1,47 @@
+[
+  {
+    "id": "museum-booking",
+    "query": "博物馆预约规则",
+    "expected_filenames": ["museum.md"],
+    "documents": [
+      {"filename": "museum.md", "content": "湖北省博物馆个人入馆需要核对预约开放日期和放票时间。"},
+      {"filename": "hotel.md", "content": "酒店位于江汉路附近，靠近地铁站。"}
+    ]
+  },
+  {
+    "id": "relaxed-transit",
+    "query": "轻松行程 公共交通",
+    "expected_filenames": ["pace.md"],
+    "documents": [
+      {"filename": "pace.md", "content": "行程节奏舒缓，每天安排两处，优先地铁和公交。"},
+      {"filename": "drive.md", "content": "自驾路线包含高速收费站和停车场。"}
+    ]
+  },
+  {
+    "id": "rain-backup",
+    "query": "下雨 室内备选",
+    "expected_filenames": ["rain.md"],
+    "documents": [
+      {"filename": "rain.md", "content": "雨天可以改去美术馆、科技馆等室内场馆。"},
+      {"filename": "park.md", "content": "晴天适合游览东湖公园和江滩。"}
+    ]
+  },
+  {
+    "id": "hotel-budget",
+    "query": "住宿 每晚预算",
+    "expected_filenames": ["budget.md"],
+    "documents": [
+      {"filename": "budget.md", "content": "酒店预算为人民币每间每晚三百元左右。"},
+      {"filename": "food.md", "content": "餐饮预算按每人每天计算。"}
+    ]
+  },
+  {
+    "id": "walking-route",
+    "query": "步行路线 地铁换乘",
+    "expected_filenames": ["transport.md"],
+    "documents": [
+      {"filename": "transport.md", "content": "短距离优先步行，较远地点使用地铁并减少换乘。"},
+      {"filename": "ticket.md", "content": "景点门票价格需要出发前再次核对。"}
+    ]
+  }
+]

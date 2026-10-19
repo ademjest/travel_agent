@@ -62,6 +62,18 @@ class WebTests(unittest.TestCase):
         self.assertEqual(other.state.repository.messages(self.identity)['items'][-1]['content'], 'pong')
         self.assertEqual(self.store.get_recent_turns(f'web:{self.identity}', OWNER)[-1].assistant_content, 'pong')
 
+    def test_conversation_context_includes_scoped_usage_and_protects_missing_or_deleted_scopes(self):
+        response=self.client.get(f'/api/conversations/{self.identity}/context')
+        usage=response.json()['model_usage']
+        self.assertEqual(usage['conversation_id'],self.identity)
+        self.assertEqual(usage['totals']['total_tokens'],0)
+        self.assertEqual(usage['totals']['calls'],0)
+        with TestClient(self.app,base_url='http://127.0.0.1:8080') as anonymous:
+            self.assertEqual(anonymous.get(f'/api/conversations/{self.identity}/context').status_code,401)
+        self.assertEqual(self.client.get('/api/conversations/unknown-usage/context').status_code,404)
+        self.client.delete(f'/api/conversations/{self.identity}',headers=self.headers)
+        self.assertEqual(self.client.get(f'/api/conversations/{self.identity}/context').status_code,410)
+
     def test_idempotent_submission_and_different_body_conflict(self):
         first = self.send('ping').json()
         self.assertEqual(self.send('ping').json()['job_id'], first['job_id'])
@@ -105,6 +117,17 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.repo.context(other)['documents'], ())
         self.assertEqual(self.messages()[-1]['role'], 'assistant')
         self.assertNotIn('绑定码', self.messages()[-1]['content'])
+
+    def test_planning_artifacts_are_visible_selectable_and_deletable_by_version(self):
+        artifact=self.store.planning.capture(self.event('规划开封2天行程','plan-source'),
+            '开封参考方案\n第1天：清明上河园。第2天：开封府。')
+        plans=self.repo.context(self.identity)['planning_artifacts']
+        self.assertEqual(plans[0]['artifact_id'],artifact['artifact_id'])
+        response=self.client.delete(f'/api/conversations/{self.identity}/plans/{artifact["artifact_id"]}?version=99',headers=self.headers)
+        self.assertEqual(response.status_code,409)
+        response=self.client.delete(f'/api/conversations/{self.identity}/plans/{artifact["artifact_id"]}?version={artifact["version"]}',headers=self.headers)
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(self.repo.context(self.identity)['planning_artifacts'],[])
 
     def test_image_uses_original_image_service_and_scoped_local_attachment(self):
         data = io.BytesIO()
@@ -204,6 +227,17 @@ class WebTests(unittest.TestCase):
         self.client.post(f'/api/notifications/{notices[0]["id"]}/read', headers=self.headers)
         self.assertIsNotNone(self.repo.notifications()[0]['read_at'])
 
+        with self.store._connect() as connection:
+            connection.execute("UPDATE web_deliveries SET created_at=? WHERE id=?",
+                               ((datetime.now(timezone.utc)-timedelta(days=2)).isoformat(), notices[0]['id']))
+            connection.execute("""INSERT INTO web_deliveries
+                (delivery_key,conversation_id,reply_to_id,kind,content,created_at)
+                VALUES ('legacy-reminder',?,'','notification','提醒你：旧提醒',?)""",
+                (self.identity, (datetime.now(timezone.utc)-timedelta(days=2)).isoformat()))
+        self.assertEqual(self.repo.notifications(), [])
+        asyncio.run(self.runtime.reminder_scheduler.scan_once(due + timedelta(days=2)))
+        self.assertEqual(self.store.reminders.list_for_owner('web', self.identity, OWNER), ())
+
     def test_versioned_confirmation_rejects_old_preview(self):
         event = self.event('修改行程')
         claim = self.store.begin_event(event.event_key)
@@ -222,6 +256,51 @@ class WebTests(unittest.TestCase):
         self.runtime.application.trip_service.handle = Mock(side_effect=AssertionError('must not apply stale preview'))
         self.run_job()
         self.assertIn('未执行修改', self.messages()[-1]['content'])
+
+    def delivered_preview(self):
+        def prepare(event, claim):
+            reply = '完整预览：行程及关联提醒变更，核对后再确认。'
+            self.store.tasks.prepare_result(event,claim,
+                TaskUpdate('itinerary','collecting',event.content,{},('confirmation',)),reply)
+            return reply
+        self.runtime.application.trip_service.handle = Mock(side_effect=prepare)
+        self.send('帮我规划武汉行程',key='preview')
+        self.run_job()
+        return self.repo.context(self.identity)['confirmations'][0]
+
+    def test_confirmation_snapshot_survives_completed_delivery_and_restart(self):
+        preview = self.delivered_preview()
+        with self.store._connect() as db:
+            event = db.execute("SELECT p.* FROM travel_tasks t JOIN processed_events p ON p.event_id=t.last_event_id WHERE t.task_id=?",(preview['id'],)).fetchone()
+        self.assertEqual(event['status'],'completed')
+        self.assertIsNone(event['prepared_reply'])
+        self.assertTrue(preview['can_confirm'])
+        other = create_web_app(self.settings,Settings('', '', frozenset(), '', '', '', ''),start_workers=False)
+        self.assertEqual(other.state.repository.context(self.identity)['confirmations'][0]['preview'],preview['preview'])
+
+    def test_legacy_preview_recovers_exact_delivered_event_not_latest_reply(self):
+        preview = self.delivered_preview()
+        with self.store._connect() as db:
+            db.execute("UPDATE travel_tasks SET slots_json=json_remove(slots_json,'$.confirmation_preview') WHERE task_id=?",(preview['id'],))
+        self.send('ping',key='unrelated')
+        self.run_job()
+        restored = self.repo.context(self.identity)['confirmations'][0]
+        self.assertEqual(restored['preview'],preview['preview'])
+        self.assertTrue(restored['can_confirm'])
+
+    def test_missing_preview_disables_confirmation_at_api(self):
+        event = self.event('无法恢复的旧预览')
+        claim = self.store.begin_event(event.event_key)
+        self.store.tasks.prepare_result(event,claim,TaskUpdate('itinerary','collecting',event.content,{},('confirmation',)),'旧预览')
+        with self.store._connect() as db:
+            db.execute("UPDATE travel_tasks SET slots_json='{}' WHERE last_event_id=?",(event.event_key,))
+            db.execute('UPDATE processed_events SET prepared_reply=NULL WHERE event_id=?',(event.event_key,))
+        preview = self.repo.context(self.identity)['confirmations'][0]
+        self.assertEqual(preview['preview'],'')
+        self.assertFalse(preview['can_confirm'])
+        response = self.client.post(f'/api/conversations/{self.identity}/confirmations/{preview["id"]}',
+            headers=self.headers,json={'version':preview['version'],'client_request_id':'invalid-confirm'})
+        self.assertEqual(response.status_code,409)
 
     def test_scheduled_query_uses_web_platform_and_due_time(self):
         service = self.runtime.application.scheduled_query_service

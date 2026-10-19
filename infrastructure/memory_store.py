@@ -13,6 +13,9 @@ from zoneinfo import ZoneInfo
 
 from core.chat_transport import storage_scope_id
 from core.data_paths import database_path as default_database_path
+from core.model_policy import current_policy
+from infrastructure.local_vector_index import vector_candidates
+from core.retrieval_metrics import reciprocal_rank_fusion
 
 if TYPE_CHECKING:
     from services.document_service import PreparedDocument
@@ -217,10 +220,18 @@ class MemoryStore:
         self.preferences = PreferenceRepository(self)
         from infrastructure.research_repository import ResearchRepository
         self.research = ResearchRepository(self)
+        from infrastructure.planning_repository import PlanningRepository
+        self.planning = PlanningRepository(self)
+        from infrastructure.tool_artifact_repository import ToolArtifactRepository
+        self.tool_artifacts = ToolArtifactRepository(self)
+        from infrastructure.conversation_summary_repository import ConversationSummaryRepository
+        self.conversation_summaries = ConversationSummaryRepository(self)
+        from infrastructure.execution_diagnostics import ExecutionDiagnostics
+        self.diagnostics = ExecutionDiagnostics(self)
 
     @contextmanager
-    def _connect(self):
-        connection = sqlite3.connect(self.database_path, timeout=10)
+    def _connect(self, timeout=10):
+        connection = sqlite3.connect(self.database_path, timeout=timeout)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA journal_mode = WAL")
@@ -3805,6 +3816,12 @@ class MemoryStore:
         counts: dict[str, object] = {}
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            counts['execution_diagnostics'] = connection.execute(
+                'DELETE FROM execution_diagnostics WHERE julianday(created_at)<julianday(?)',
+                (event_cutoff.isoformat(),)).rowcount
+            counts['http_read_attempts'] = connection.execute(
+                'DELETE FROM http_read_attempts WHERE julianday(created_at)<julianday(?)',
+                (event_cutoff.isoformat(),)).rowcount
             counts["chat_messages"] = connection.execute(
                 "DELETE FROM chat_messages WHERE julianday(created_at) < "
                 "julianday(?)",
@@ -3964,7 +3981,8 @@ class MemoryStore:
             self,
             group_openid: str,
             query: str,
-            max_chars: int = MAX_DOCUMENT_CONTEXT_CHARS) -> str:
+            max_chars: int = MAX_DOCUMENT_CONTEXT_CHARS,
+            allow_low_relevance: bool = True) -> str:
         if max_chars <= 0:
             return ""
 
@@ -3983,9 +4001,12 @@ class MemoryStore:
                 connection,
                 group_openid,
                 query,
+                allow_low_relevance=allow_low_relevance,
             )
 
         if not documents:
+            return ""
+        if not selected and not allow_low_relevance:
             return ""
 
         parts: list[str] = []
@@ -4070,9 +4091,13 @@ class MemoryStore:
             self,
             connection: sqlite3.Connection,
             group_openid: str,
-            query: str) -> list[sqlite3.Row]:
+            query: str,
+            allow_low_relevance: bool = True,
+            limit: int = MAX_DOCUMENT_CHUNKS) -> list[sqlite3.Row]:
+        limit=max(1,min(int(limit),20))
         candidates: list[sqlite3.Row] = []
         seen_chunk_ids = set()
+        vector_scores: dict[int, float] = {}
 
         fts_terms = self._fts_terms(query)
         if self._document_fts_available and fts_terms:
@@ -4165,6 +4190,39 @@ class MemoryStore:
                 candidates.append(row)
                 seen_chunk_ids.add(row["chunk_id"])
 
+        if current_policy().vector_enabled:
+            semantic=getattr(self,'semantic_index',None)
+            if semantic is not None:
+                try:
+                    matches=semantic.search(group_openid,query,MAX_DOCUMENT_CANDIDATES)
+                    self.diagnostics.record('retrieval',{'name':'local_embedding','status':'completed',
+                                            'candidate_count':len(matches)})
+                    vector_rows=[]
+                    for chunk_id,score in matches:
+                        row=connection.execute('''SELECT c.id AS chunk_id,c.document_id,c.chunk_index,c.content,
+                            d.filename,d.preview,d.summary,d.id AS document_order FROM document_chunks c
+                            JOIN documents d ON d.id=c.document_id WHERE c.id=? AND d.group_openid=?''',
+                            (chunk_id,group_openid)).fetchone()
+                        if row:
+                            vector_rows.append((score,row))
+                except Exception as exc:
+                    from core.execution_scope import ExecutionRevoked
+                    if isinstance(exc,ExecutionRevoked):
+                        raise
+                    self.diagnostics.record('retrieval',{'name':'local_embedding','status':'failed',
+                                            'error_type':type(exc).__name__})
+                    vector_rows=[]
+            elif not getattr(self,'semantic_index_unavailable',False):
+                vector_rows=vector_candidates(connection, group_openid, query, MAX_DOCUMENT_CANDIDATES)
+            else:
+                vector_rows=[]
+                self.diagnostics.record('retrieval',{'name':'local_embedding','status':'unavailable'})
+            for vector_score, row in vector_rows:
+                vector_scores[int(row['chunk_id'])] = vector_score
+                if row['chunk_id'] not in seen_chunk_ids:
+                    candidates.append(row)
+                    seen_chunk_ids.add(row['chunk_id'])
+
         terms = self._search_terms(query)
         ranked = []
         for row in candidates:
@@ -4177,11 +4235,20 @@ class MemoryStore:
                 (score, row["document_order"], -row["chunk_index"], row)
             )
         ranked.sort(reverse=True, key=lambda item: item[:3])
+        if vector_scores:
+            rows_by_id={row['chunk_id']:row for row in candidates}
+            lexical=[item[3]['chunk_id'] for item in ranked if item[0]>0]
+            hashed=sorted(vector_scores,key=lambda key:(-vector_scores[key],key))
+            order=reciprocal_rank_fusion([lexical,hashed])
+            return [rows_by_id[key] for key in order[:limit]]
         selected = [
             item[3] for item in ranked if item[0] > 0
-        ][:MAX_DOCUMENT_CHUNKS]
+        ][:limit]
         if selected:
             return selected
+
+        if not allow_low_relevance:
+            return []
 
         newest = connection.execute(
             """

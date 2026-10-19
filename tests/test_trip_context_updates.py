@@ -15,6 +15,7 @@ from core.trip_updates import apply_constraints, date_range
 from infrastructure.amap_client import AmapError
 from infrastructure.memory_store import MemoryStore
 from infrastructure.preference_repository import PreferenceConflict
+from infrastructure.task_repository import TaskConflict
 from services.preference_service import PreferenceService
 from services.semantic_task_service import SemanticTaskService
 from services.trip_service import TripService
@@ -95,6 +96,136 @@ class ContextUpdateTests(unittest.TestCase):
         self.assertEqual(self.store.preferences.snapshot(self.event(''))['values'],{})
         with self.store._connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM travel_tasks WHERE task_type IN ('transit','walking')").fetchone()[0],0)
+
+    def test_mixed_hotel_budget_clarification_keeps_all_changes_and_target(self):
+        text = MESSAGE + '，然后酒店要舒适一点但不要太贵，价格在200-300区间'
+        changes = {**deepcopy(CHANGES),
+            'accommodation':{'value':'酒店要舒适一点但不要太贵','requested':True,'source':'酒店要舒适一点但不要太贵'},
+            'budget':{'value':'200-300','scope':'accommodation','source':'价格在200-300区间'}}
+        first = intent(changes,question='200-300 的币种和计价单位是什么？')
+        first.update(action='clarify',missing_fields=['budget_unit'])
+        reply = self.dispatch(first,text)
+        self.assertIn('200-300 的币种和计价单位',reply)
+        self.assertIn('酒店要舒适一点',reply)
+        self.assertEqual(self.current()['version'],1)
+        # Even after another trip is saved, the answer belongs to the original trip.
+        self.save('another-trip','南京')
+        hotel = {'id':'hotel','name':'测试舒适酒店','address':'测试路','type':'住宿服务'}
+        self.amap.search_places.return_value = [*PLACES.values(),hotel]
+        self.planner.client.completions.responses = [model_response({**plan_value(),'hotel_ids':['hotel']})]
+        changes['budget']['unit_text'] = '人民币每间每晚'
+        reply = self.dispatch(intent(changes),'人民币每间每晚','budget-answer')
+        self.assertIn('确认行程修改',reply)
+        self.assertIn('住宿预算目标：200-300；人民币每间每晚',reply)
+        self.assertIn('未核实实时价格',reply)
+        self.confirm()
+        trip = self.current()
+        self.assertEqual(trip['version'],2)
+        self.assertTrue(trip['spec']['gentle'])
+        self.assertTrue(trip['spec']['hotel_requested'])
+        self.assertEqual(trip['plan']['hotel_ids'],['hotel'])
+        self.assertEqual(trip['spec']['budgets']['accommodation']['unit_text'],'人民币每间每晚')
+        for field in ('destination','start_date','day_count','must_visit','source_context'):
+            self.assertEqual(trip['spec'][field],self.spec[field])
+        self.assertEqual(self.store.preferences.snapshot(self.event(''))['values'],{})
+
+    def test_budget_clarification_rejects_stale_trip(self):
+        changes = {'budget':{'value':'200-300','scope':'accommodation','source':'200-300'}}
+        first = intent(changes)
+        first.update(action='clarify',missing_fields=['budget_unit'])
+        self.dispatch(first,'酒店预算200-300')
+        with self.store._connect() as db:
+            db.execute('UPDATE trips SET version=version+1')
+        changes['budget']['unit_text'] = '人民币每间每晚'
+        reply = self.dispatch(intent(changes),'人民币每间每晚','answer')
+        self.assertIn('已经变化',reply)
+
+    def mixed_draft(self):
+        text = MESSAGE + '；酒店舒适一点；200-300元，人民币每间每晚'
+        changes = {**deepcopy(CHANGES),
+            'accommodation':{'value':'酒店舒适一点','source':'酒店舒适一点'},
+            'budget':{'value':'200-300元','source':'200-300元','scope':'accommodation','unit_text':'人民币每间每晚'}}
+        self.dispatch(intent(changes),text)
+        return self.store.trips.draft(self.event(''),self.current())
+
+    def test_expired_draft_keeps_budget_and_transport_when_adding_hotel_brand(self):
+        previous = self.mixed_draft()
+        with self.store._connect() as db:
+            db.execute("UPDATE travel_tasks SET expires_at='2000-01-01' WHERE task_id=?",(previous['task'].task_id,))
+        self.assertIn('没有仍然有效',self.confirm('expired-confirm'))
+        self.planner.client.completions.responses = [model_response(plan_value())]
+        changes = {'accommodation':{'value':'偏好连锁酒店','source':'偏好连锁酒店'}}
+        client = FakeClient([model_response(intent(changes))])
+        self.dispatch(text='偏好连锁酒店',key='brand',compiler=IntentCompiler(client,'test'))
+        model_context = json.loads(json.loads(client.completions.requests[0]['messages'][1]['content'])['context'])
+        self.assertTrue(model_context['current_trip']['gentle'])
+        self.assertEqual(model_context['current_trip']['budgets']['accommodation']['value'],'200-300元')
+        updated = self.store.trips.draft(self.event(''),self.current())
+        self.assertNotEqual(updated['task'].task_id,previous['task'].task_id)
+        self.assertTrue(updated['candidate']['spec']['gentle'])
+        self.assertEqual(updated['candidate']['spec']['transport_preferences']['preferred'],['walking','transit'])
+        self.assertEqual(updated['candidate']['spec']['budgets']['accommodation']['value'],'200-300元')
+        self.assertEqual(self.current()['version'],1)
+        self.confirm()
+        self.assertEqual(self.current()['version'],2)
+
+    def test_legacy_superseded_constraints_are_recovered_when_regenerating(self):
+        previous = self.mixed_draft()
+        with self.store._connect() as db:
+            db.execute("UPDATE travel_tasks SET slots_json=json_remove(slots_json,'$.draft_context_complete') WHERE task_id=?",(previous['task'].task_id,))
+        text='偏好连锁酒店'
+        candidate=deepcopy(self.saved)
+        candidate['version']=2
+        candidate['spec'],_=apply_constraints(candidate['spec'],{'accommodation':{'value':text,'source':text}},text)
+        e=self.event(text,'legacy')
+        self.store.trips.commit(e,self.store.begin_event(e.event_key),TaskUpdate('itinerary','collecting',text,
+            {'trip_id':self.saved['trip_id'],'candidate_trip':candidate,'expected_trip_version':1,'trip_already_saved':False},
+            ('confirmation',)),'legacy preview')
+        with self.store._connect() as db:
+            db.execute("UPDATE travel_tasks SET expires_at='2000-01-01'")
+        self.planner.client.completions.responses=[model_response(plan_value())]
+        e=self.event('重新生成行程预览','regenerate')
+        reply=self.service.handle(e,self.store.begin_event(e.event_key))
+        self.assertIn('200-300元',reply)
+        spec=self.store.trips.draft(self.event(''),self.current())['candidate']['spec']
+        self.assertTrue(spec['gentle'])
+        self.assertIn(text,spec['accommodation_text'])
+        self.assertIn('酒店舒适一点',spec['accommodation_text'])
+        self.assertEqual(spec['transport_preferences']['discouraged'],['taxi'])
+
+    def test_draft_changed_during_planning_cannot_be_overwritten(self):
+        previous=self.mixed_draft()
+        def changed(*args,**kwargs):
+            with self.store._connect() as db:
+                db.execute('UPDATE travel_tasks SET version=version+1 WHERE task_id=?',(previous['task'].task_id,))
+            return self.planner.validate_plan(plan_value(),args[0],args[2])
+        self.planner.update_recommendations=Mock(side_effect=changed)
+        with self.assertRaisesRegex(TaskConflict,'草稿已被另一条消息更新'):
+            self.dispatch(intent({'accommodation':{'value':'偏好连锁酒店','source':'偏好连锁酒店'}}),'偏好连锁酒店','race')
+        self.assertEqual(self.current()['version'],1)
+
+    def test_cancelled_draft_is_not_reintroduced_into_new_request(self):
+        self.mixed_draft()
+        e=self.event('取消当前任务','cancel')
+        self.store.tasks.command(e,self.store.begin_event(e.event_key))
+        self.planner.client.completions.responses=[model_response(plan_value())]
+        self.dispatch(intent({'accommodation':{'value':'偏好连锁酒店','source':'偏好连锁酒店'}}),'偏好连锁酒店','fresh')
+        spec=self.store.trips.draft(self.event(''),self.current())['candidate']['spec']
+        self.assertFalse(spec['gentle'])
+        self.assertNotIn('budgets',spec)
+
+    def test_budget_without_units_is_clarified_even_if_model_marks_update(self):
+        changes = {'budget':{'value':'200-300','scope':'accommodation','source':'200-300'}}
+        reply = self.dispatch(intent(changes),'酒店预算200-300')
+        self.assertIn('预算币种与计价单位',reply)
+        self.assertEqual(self.current()['version'],1)
+
+    def test_free_form_travel_requirement_reaches_planner(self):
+        changes = {'requirements':{'value':'午后留出一段午休时间','source':'午后留出一段午休时间'}}
+        self.dispatch(intent(changes),'午后留出一段午休时间')
+        request = json.loads(self.planner.client.completions.requests[0]['messages'][1]['content'])
+        self.assertIn('午后留出一段午休时间',request['requirements']['preferences'])
+        self.assertEqual(self.current()['version'],1)
 
     def test_expired_tasks_and_restart_keep_trip_context(self):
         with self.store._connect() as db:
@@ -271,6 +402,20 @@ class ConstraintAndDateTests(unittest.TestCase):
         self.assertEqual(spec['transport_preferences']['discouraged'],['taxi','walking'])
         with self.assertRaises(ValueError):
             apply_constraints(previous,CHANGES,'只是闲聊')
+
+    def test_budget_scopes_remain_separate_and_fabricated_units_are_rejected(self):
+        previous = {'budgets':{'trip':{'value':'5000元','unit_text':'每人全程'}}}
+        changes = {'budget':{'value':'200-300','scope':'accommodation','source':'200-300'}}
+        result,_ = apply_constraints(previous,changes,'酒店200-300')
+        self.assertEqual(result['budgets']['trip'],previous['budgets']['trip'])
+        self.assertNotIn('unit_text',result['budgets']['accommodation'])
+        changes['budget']['unit_text']='人民币每间每晚'
+        with self.assertRaises(ValueError):
+            apply_constraints(previous,changes,'酒店200-300')
+
+    def test_unmentioned_unsupported_field_is_not_silently_accepted(self):
+        with self.assertRaisesRegex(ValueError,'无法执行的修改字段'):
+            apply_constraints({}, {'arbitrary_database_write':{'source':'请帮我'}},'请帮我')
 
     def test_mixed_route_short_walk_long_transit_and_failure(self):
         spec,_ = apply_constraints({'destination':'武汉'},CHANGES,MESSAGE)

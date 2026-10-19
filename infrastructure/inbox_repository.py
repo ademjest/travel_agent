@@ -107,15 +107,16 @@ class InboxRepository:
                 (json.dumps(result, ensure_ascii=False), timestamp, job['id'], job['claim_token']))
         return cursor.rowcount == 1
 
-    def fail(self, job, error, *, busy=False, now=None):
+    def fail(self, job, error, *, busy=False, now=None, permanent=False, retry_after_seconds=None):
         now = now or datetime.now(timezone.utc)
-        terminal = not busy and job['attempts'] >= MAX_JOB_ATTEMPTS
+        terminal = not busy and (permanent or job['attempts'] >= MAX_JOB_ATTEMPTS)
         status = 'failed' if terminal else 'retry'
         with self.store._connect() as connection:
             cursor = connection.execute('''UPDATE inbox_jobs SET status=?, last_error=?, next_attempt_at=?,
                 updated_at=?, claim_token=NULL, lease_until=NULL, attempts=attempts-?
                 WHERE id=? AND status='running' AND claim_token=?''',
-                (status, str(error)[:500], (now+timedelta(seconds=5 if busy else min(60, 5*job['attempts']))).isoformat(),
+                (status, str(error)[:500], (now+timedelta(seconds=5 if busy else
+                    max(0, retry_after_seconds) if retry_after_seconds is not None else min(60, 5*job['attempts']))).isoformat(),
                  now.isoformat(), int(busy), job['id'], job['claim_token']))
             if cursor.rowcount and not busy:
                 connection.execute("UPDATE processed_events SET lease_expires_at=? WHERE event_id=? AND status='processing'",

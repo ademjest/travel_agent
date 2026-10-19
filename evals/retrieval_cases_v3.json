@@ -1,0 +1,7092 @@
+[
+  {
+    "id": "retrieval-v3-001",
+    "category": "exact",
+    "split": "holdout",
+    "query": "湖北省博物馆",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-002",
+    "category": "exact",
+    "split": "development",
+    "query": "陕西历史博物馆",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-003",
+    "category": "exact",
+    "split": "development",
+    "query": "南京博物院",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-004",
+    "category": "exact",
+    "split": "development",
+    "query": "湖南博物院",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-005",
+    "category": "exact",
+    "split": "holdout",
+    "query": "河南博物院",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-006",
+    "category": "exact",
+    "split": "development",
+    "query": "湖北省博物馆预约",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-007",
+    "category": "exact",
+    "split": "development",
+    "query": "陕西历史博物馆预约",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-008",
+    "category": "exact",
+    "split": "development",
+    "query": "南京博物院预约",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-009",
+    "category": "exact",
+    "split": "holdout",
+    "query": "湖南博物院预约",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-010",
+    "category": "exact",
+    "split": "development",
+    "query": "河南博物院预约",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-011",
+    "category": "exact",
+    "split": "development",
+    "query": "湖北省博物馆个人参观",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-012",
+    "category": "exact",
+    "split": "development",
+    "query": "陕西历史博物馆个人参观",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-013",
+    "category": "exact",
+    "split": "holdout",
+    "query": "南京博物院个人参观",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-014",
+    "category": "exact",
+    "split": "development",
+    "query": "湖南博物院个人参观",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-015",
+    "category": "exact",
+    "split": "development",
+    "query": "河南博物院个人参观",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-016",
+    "category": "exact",
+    "split": "development",
+    "query": "湖北省博物馆在线预约规则",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-017",
+    "category": "exact",
+    "split": "holdout",
+    "query": "陕西历史博物馆在线预约规则",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-018",
+    "category": "exact",
+    "split": "development",
+    "query": "南京博物院在线预约规则",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-019",
+    "category": "exact",
+    "split": "development",
+    "query": "湖南博物院在线预约规则",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-020",
+    "category": "exact",
+    "split": "development",
+    "query": "河南博物院在线预约规则",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-021",
+    "category": "exact",
+    "split": "holdout",
+    "query": "湖北省博物馆开放时段",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-022",
+    "category": "exact",
+    "split": "development",
+    "query": "陕西历史博物馆开放时段",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-023",
+    "category": "exact",
+    "split": "development",
+    "query": "南京博物院开放时段",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-024",
+    "category": "exact",
+    "split": "development",
+    "query": "湖南博物院开放时段",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-025",
+    "category": "exact",
+    "split": "holdout",
+    "query": "河南博物院开放时段",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-026",
+    "category": "synonym",
+    "split": "development",
+    "query": "省博入场怎么办",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-027",
+    "category": "synonym",
+    "split": "development",
+    "query": "陕历博入场怎么办",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-028",
+    "category": "synonym",
+    "split": "development",
+    "query": "南博入场怎么办",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-029",
+    "category": "synonym",
+    "split": "holdout",
+    "query": "省博看展怎么办",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-030",
+    "category": "synonym",
+    "split": "development",
+    "query": "中原看展怎么办",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-031",
+    "category": "synonym",
+    "split": "development",
+    "query": "武汉看展需要办什么手续",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-032",
+    "category": "synonym",
+    "split": "development",
+    "query": "西安看展需要办什么手续",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-033",
+    "category": "synonym",
+    "split": "holdout",
+    "query": "南京看展需要办什么手续",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-034",
+    "category": "synonym",
+    "split": "development",
+    "query": "长沙看展需要办什么手续",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-035",
+    "category": "synonym",
+    "split": "development",
+    "query": "郑州看展需要办什么手续",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-036",
+    "category": "synonym",
+    "split": "development",
+    "query": "武汉博物馆入场流程",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-037",
+    "category": "synonym",
+    "split": "holdout",
+    "query": "西安博物馆入场流程",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-038",
+    "category": "synonym",
+    "split": "development",
+    "query": "南京博物馆入场流程",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-039",
+    "category": "synonym",
+    "split": "development",
+    "query": "长沙博物馆入场流程",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-040",
+    "category": "synonym",
+    "split": "development",
+    "query": "郑州博物馆入场流程",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-041",
+    "category": "synonym",
+    "split": "holdout",
+    "query": "武汉不买票能进馆吗",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-042",
+    "category": "synonym",
+    "split": "development",
+    "query": "西安不买票能进馆吗",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-043",
+    "category": "synonym",
+    "split": "development",
+    "query": "南京不买票能进馆吗",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-044",
+    "category": "synonym",
+    "split": "development",
+    "query": "长沙不买票能进馆吗",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-045",
+    "category": "synonym",
+    "split": "holdout",
+    "query": "郑州不买票能进馆吗",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-046",
+    "category": "synonym",
+    "split": "development",
+    "query": "武汉场馆登记方式",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-047",
+    "category": "synonym",
+    "split": "development",
+    "query": "西安场馆登记方式",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-048",
+    "category": "synonym",
+    "split": "development",
+    "query": "南京场馆登记方式",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-049",
+    "category": "synonym",
+    "split": "holdout",
+    "query": "长沙场馆登记方式",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-050",
+    "category": "synonym",
+    "split": "development",
+    "query": "郑州场馆登记方式",
+    "expected_chunks": [
+      "museum.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-051",
+    "category": "multi",
+    "split": "development",
+    "query": "湖北省博物馆预约与武汉交通方式",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-052",
+    "category": "multi",
+    "split": "development",
+    "query": "陕西历史博物馆预约与西安交通方式",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-053",
+    "category": "multi",
+    "split": "holdout",
+    "query": "南京博物院预约与南京交通方式",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-054",
+    "category": "multi",
+    "split": "development",
+    "query": "湖南博物院预约与长沙交通方式",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-055",
+    "category": "multi",
+    "split": "development",
+    "query": "河南博物院预约与郑州交通方式",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-056",
+    "category": "multi",
+    "split": "development",
+    "query": "武汉入馆和地铁公交",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-057",
+    "category": "multi",
+    "split": "holdout",
+    "query": "西安入馆和地铁公交",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-058",
+    "category": "multi",
+    "split": "development",
+    "query": "南京入馆和地铁公交",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-059",
+    "category": "multi",
+    "split": "development",
+    "query": "长沙入馆和地铁公交",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-060",
+    "category": "multi",
+    "split": "development",
+    "query": "郑州入馆和地铁公交",
+    "expected_chunks": [
+      "museum.md:0",
+      "transport.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-061",
+    "category": "multi",
+    "split": "holdout",
+    "query": "武汉酒店房价与餐厅消费",
+    "expected_chunks": [
+      "hotel.md:0",
+      "food.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-062",
+    "category": "multi",
+    "split": "development",
+    "query": "西安酒店房价与餐厅消费",
+    "expected_chunks": [
+      "hotel.md:0",
+      "food.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-063",
+    "category": "multi",
+    "split": "development",
+    "query": "南京酒店房价与餐厅消费",
+    "expected_chunks": [
+      "hotel.md:0",
+      "food.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-064",
+    "category": "multi",
+    "split": "development",
+    "query": "长沙酒店房价与餐厅消费",
+    "expected_chunks": [
+      "hotel.md:0",
+      "food.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-065",
+    "category": "multi",
+    "split": "holdout",
+    "query": "郑州酒店房价与餐厅消费",
+    "expected_chunks": [
+      "hotel.md:0",
+      "food.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-066",
+    "category": "multi",
+    "split": "development",
+    "query": "武汉步行出行和入住日期价格",
+    "expected_chunks": [
+      "transport.md:0",
+      "hotel.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-067",
+    "category": "multi",
+    "split": "development",
+    "query": "西安步行出行和入住日期价格",
+    "expected_chunks": [
+      "transport.md:0",
+      "hotel.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-068",
+    "category": "multi",
+    "split": "development",
+    "query": "南京步行出行和入住日期价格",
+    "expected_chunks": [
+      "transport.md:0",
+      "hotel.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-069",
+    "category": "multi",
+    "split": "holdout",
+    "query": "长沙步行出行和入住日期价格",
+    "expected_chunks": [
+      "transport.md:0",
+      "hotel.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-070",
+    "category": "multi",
+    "split": "development",
+    "query": "郑州步行出行和入住日期价格",
+    "expected_chunks": [
+      "transport.md:0",
+      "hotel.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-071",
+    "category": "no_answer",
+    "split": "development",
+    "query": "quantum spectroscopy plasma",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-072",
+    "category": "no_answer",
+    "split": "development",
+    "query": "深海潜航器维修参数",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-073",
+    "category": "no_answer",
+    "split": "holdout",
+    "query": "space fusion vacuum",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-074",
+    "category": "no_answer",
+    "split": "development",
+    "query": "火星辐射监测标准",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-075",
+    "category": "no_answer",
+    "split": "development",
+    "query": "molecular protein enzyme",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-076",
+    "category": "no_answer",
+    "split": "development",
+    "query": "quantum spectroscopy plasma",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-077",
+    "category": "no_answer",
+    "split": "holdout",
+    "query": "深海潜航器维修参数",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-078",
+    "category": "no_answer",
+    "split": "development",
+    "query": "space fusion vacuum",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-079",
+    "category": "no_answer",
+    "split": "development",
+    "query": "火星辐射监测标准",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-080",
+    "category": "no_answer",
+    "split": "development",
+    "query": "molecular protein enzyme",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-081",
+    "category": "no_answer",
+    "split": "holdout",
+    "query": "quantum spectroscopy plasma",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-082",
+    "category": "no_answer",
+    "split": "development",
+    "query": "深海潜航器维修参数",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-083",
+    "category": "no_answer",
+    "split": "development",
+    "query": "space fusion vacuum",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-084",
+    "category": "no_answer",
+    "split": "development",
+    "query": "火星辐射监测标准",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-085",
+    "category": "no_answer",
+    "split": "holdout",
+    "query": "molecular protein enzyme",
+    "expected_chunks": [],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-086",
+    "category": "temporal",
+    "split": "development",
+    "query": "湖北省博物馆2024年旧公告",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-087",
+    "category": "temporal",
+    "split": "development",
+    "query": "陕西历史博物馆2024年旧公告",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-088",
+    "category": "temporal",
+    "split": "development",
+    "query": "南京博物院2024年旧公告",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-089",
+    "category": "temporal",
+    "split": "holdout",
+    "query": "湖南博物院2024年旧公告",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-090",
+    "category": "temporal",
+    "split": "development",
+    "query": "河南博物院2024年旧公告",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-091",
+    "category": "temporal",
+    "split": "development",
+    "query": "湖北省博物馆历史夏季时段",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-092",
+    "category": "temporal",
+    "split": "development",
+    "query": "陕西历史博物馆历史夏季时段",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-093",
+    "category": "temporal",
+    "split": "holdout",
+    "query": "南京博物院历史夏季时段",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-094",
+    "category": "temporal",
+    "split": "development",
+    "query": "湖南博物院历史夏季时段",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-095",
+    "category": "temporal",
+    "split": "development",
+    "query": "河南博物院历史夏季时段",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-096",
+    "category": "temporal",
+    "split": "development",
+    "query": "湖北省博物馆旧规则不是当前规则",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "武汉湖北省博物馆。个人参观需要提前在线预约，周一闭馆。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "武汉短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "武汉酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "武汉餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖北省博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-097",
+    "category": "temporal",
+    "split": "holdout",
+    "query": "陕西历史博物馆旧规则不是当前规则",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "西安陕西历史博物馆。普通个人观众需要预约入馆，放票时刻请查询官方通知。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "西安短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "西安酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "西安餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "陕西历史博物馆旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-098",
+    "category": "temporal",
+    "split": "development",
+    "query": "南京博物院旧规则不是当前规则",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "南京南京博物院。参观预约和每日开放时段需核对官网。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "南京短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "南京酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "南京餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "南京博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-099",
+    "category": "temporal",
+    "split": "development",
+    "query": "湖南博物院旧规则不是当前规则",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "长沙湖南博物院。博物院参观需要预约，节假日时间以公告为准。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "长沙短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "长沙酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "长沙餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "湖南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  },
+  {
+    "id": "retrieval-v3-100",
+    "category": "temporal",
+    "split": "development",
+    "query": "河南博物院旧规则不是当前规则",
+    "expected_chunks": [
+      "old.md:0"
+    ],
+    "documents": [
+      {
+        "filename": "museum.md",
+        "content": "郑州河南博物院。个人入馆需要预约，特殊展览规则单独公布。"
+      },
+      {
+        "filename": "transport.md",
+        "content": "郑州短距离优先步行，距离较远时选择地铁公交，并核对末班车时刻。"
+      },
+      {
+        "filename": "hotel.md",
+        "content": "郑州酒店只提供地点和品牌候选，入住日期房价与余房需要独立核对。"
+      },
+      {
+        "filename": "food.md",
+        "content": "郑州餐厅人均消费是历史参考价格，不代表实际套餐价格。"
+      },
+      {
+        "filename": "old.md",
+        "content": "河南博物院旧公告：2024年夏季特殊时段，历史资料不可当作当前开放规则。"
+      },
+      {
+        "filename": "distractor-0.md",
+        "content": "虚构城市0的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-1.md",
+        "content": "虚构城市1的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-2.md",
+        "content": "虚构城市2的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-3.md",
+        "content": "虚构城市3的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-4.md",
+        "content": "虚构城市4的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-5.md",
+        "content": "虚构城市5的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-6.md",
+        "content": "虚构城市6的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-7.md",
+        "content": "虚构城市7的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-8.md",
+        "content": "虚构城市8的美术馆和公园介绍。主要讨论停车场和观景台。"
+      },
+      {
+        "filename": "distractor-9.md",
+        "content": "虚构城市9的美术馆和公园介绍。主要讨论停车场和观景台。"
+      }
+    ]
+  }
+]

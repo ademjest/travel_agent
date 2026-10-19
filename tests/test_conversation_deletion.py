@@ -254,6 +254,10 @@ class ConversationDeletionTests(unittest.TestCase):
 
     def test_full_graph_purge_including_trip_reservation_and_scheduled_jobs(self):
         event = ChatEvent('web','group','fixture-trip',self.a,OWNER,'创建行程')
+        self.store.planning.capture(ChatEvent('web','group','fixture-plan',self.a,OWNER,'规划武汉2天行程'),
+            '武汉参考方案\n第1天：湖北省博物馆。第2天：东湖。')
+        self.store.research.update_context(event,{'destination':'武汉','requested_domains':['zhihu.com'],
+            'excluded_domains':[],'strict_sources':False})
         self.store.trips.commit(event,self.store.begin_event(event.event_key),
             TaskUpdate('itinerary','completed',event.content,{}),'saved',trip={
                 'trip_id':'TR-fixture','title':'测试行程','status':'active','spec':{},'plan':{'days':[]},'sources':{}})
@@ -292,8 +296,10 @@ class ConversationDeletionTests(unittest.TestCase):
         with self.store._connect() as db:
             for table in ('trips','trip_versions','travel_tasks','task_event_results','reservation_images','reservation_plans',
                           'reservation_items','reservation_reminders','scheduled_queries','policy_watches','inbox_jobs',
-                          'outbox_messages','event_tool_results','processed_events','model_calls'):
+                          'outbox_messages','event_tool_results','processed_events','model_calls',
+                          'planning_artifacts','research_contexts','tool_artifacts','conversation_summaries'):
                 self.assertEqual(db.execute(f'SELECT count(*) FROM {table}').fetchone()[0],0,table)
+            self.assertGreater(db.execute('SELECT count(*) FROM model_usage_periods').fetchone()[0],0)
             self.assertGreater(db.execute('SELECT count(*) FROM booking_policy_evidence').fetchone()[0],0)
         self.assertFalse(path.exists())
 

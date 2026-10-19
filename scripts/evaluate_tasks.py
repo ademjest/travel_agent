@@ -22,15 +22,15 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv
 from openai import OpenAI
 from adapters.onebot_app import OneBotAdapter, OneBotReplyRenderer
-from agents.reminder_intent import ReminderIntentParser
-from agents.travel_agent import TravelAgent
 from agents.trip_planner import indoor_place
 from app.runtime_factory import build_runtime
 from core.chat_transport import ChatEvent
 from core.settings import Settings, OneBotSettings
 from infrastructure.memory_store import MemoryStore
-from infrastructure.model_gateway import ModelGateway, usage_summary
+from infrastructure.model_gateway import usage_summary
 from services.booking_policy import BookingPolicyResolver
+from core.model_budget import MODEL_CALL
+from core.tool_result import ToolResult
 
 
 class ScriptedModel:
@@ -39,6 +39,21 @@ class ScriptedModel:
         self.chat = SimpleNamespace(completions=self)
 
     def create(self, **kwargs):
+        call=MODEL_CALL.get()
+        if call and call.purpose=='intent_parse':
+            request=json.loads(kwargs['messages'][-1]['content'])
+            text=request['message']
+            ir={'schema_version':1,'action':'none','operations':[],'source_spans':[]}
+            if self.responses and 'tool' in self.responses[0]:
+                row=self.responses[0]
+                domain={'get_current_weather':'weather','get_weather_forecast':'forecast'}.get(row['tool'])
+                if domain and row['arguments'].get('location') in text:
+                    self.responses.pop(0)
+                    if self.responses and 'text' in self.responses[0]:
+                        self.responses.pop(0)
+                    ir.update(action='read',operations=[{'domain':domain,'operation':'query',**row['arguments']}],
+                              source_spans=[row['arguments']['location']])
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(ir,ensure_ascii=False),tool_calls=[]))])
         if not self.responses:
             raise AssertionError('Unexpected model invocation; no scripted response')
         value = self.responses.pop(0)
@@ -58,7 +73,7 @@ class RecordingTransport:
 
 
 class SnapshotPlaces:
-    def search_places(self, city, keyword):
+    def search_places(self, city, keyword, **kwargs):
         return [dict(id=str(i), name='湖北省博物馆' if i == 0 else f'评测美术馆{i}',
             type='博物馆' if i == 0 else '美术馆', address=f'评测街{i}号', location=f'114.{300+i},30.55') for i in range(14)]
 
@@ -73,19 +88,19 @@ async def evaluate(case, live, reference):
         scripted = ScriptedModel()
         settings = Settings('', '', frozenset({'eval'}), '', os.getenv('LLM_API_KEY', '') if live else 'script',
             os.getenv('LLM_BASE_URL', '') if live else 'https://example.test', os.getenv('LLM_MODEL_ID', '') if live else 'script-v1')
-        base_client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url, max_retries=1) if live else scripted
-        client = ModelGateway(store, base_client)
+        base_client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url, max_retries=0) if live else scripted
 
         def read_tool(name, arguments):
             calls.append(dict(name=name, arguments=arguments))
             return f"【{'天气预报' if name == 'get_weather_forecast' else '当前天气'}】{arguments.get('location', '')}\n天气：晴，温度：25℃。发布时间：2030-09-09 10:00。评测固定快照。"
 
         def runtime_for(store):
-            runtime = build_runtime(Settings('', '', frozenset({'eval'}), '', '', '', ''), platform='onebot',
-                store=store, transport=transport, reply_renderer=OneBotReplyRenderer(), group_allowed=lambda group: group == 'eval')
+            runtime = build_runtime(settings, platform='onebot',client=base_client,amap_client=SnapshotPlaces(),clock=lambda:reference,
+                store=store, transport=transport, reply_renderer=OneBotReplyRenderer(), group_allowed=lambda group: group == 'eval',semantic_mode='execute')
             app = runtime.application
-            app.travel_agent = TravelAgent(settings, read_tool, client=client)
-            app.personal_reminder_service.intent_parser = ReminderIntentParser(client, settings.llm_model_id)
+            client=app.travel_agent.client
+            app.travel_service.execute_result=lambda name,args: ToolResult.from_text(name,read_tool(name,args))
+            app.travel_service.execute_tool=read_tool
             app.personal_reminder_service.clock = lambda: reference
             resolver = BookingPolicyResolver(sources={'湖北省博物馆': 'https://fixture.example/policy'},
                 fetch_text=lambda url: case.get('policy', '湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。'), clock=lambda: reference)
@@ -165,7 +180,9 @@ async def evaluate(case, live, reference):
 
 
 async def main(args):
-    load_dotenv(ROOT / '.env')
+    # Offline evaluation must not need credentials or read the project's .env.
+    if args.live:
+        load_dotenv(ROOT / '.env')
     raw = (ROOT / 'evals/task_cases_v1.json').read_bytes()
     corpus = json.loads(raw)
     selected = [case for case in corpus['cases'] if args.split == 'all' or case['split'] == args.split]
@@ -173,7 +190,8 @@ async def main(args):
     if not selected: raise ValueError('No matching cases')
     results = []
     report = dict(mode='real_model_fixed_tools' if args.live else 'scripted_model_contracts',
-        corpus_sha256=hashlib.sha256(raw).hexdigest(), model=os.getenv('LLM_MODEL_ID') if args.live else 'script-v1',
+        corpus_sha256=hashlib.sha256(raw).hexdigest(), model=os.getenv('LLM_MODEL_ID') if args.live else 'script-v3',
+        runtime_contract='build_runtime-v3-complete',
         reference_time=corpus['reference_time'], results=results)
     for case in selected:
         result = await evaluate(case, args.live, datetime.fromisoformat(corpus['reference_time']))

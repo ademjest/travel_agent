@@ -50,6 +50,14 @@ class ResearchTests(unittest.TestCase):
         self.assertEqual(self.store.preferences.snapshot(self.event())['values'], {})
         self.assertEqual(self.store.reminders.list_for_owner('web', 'a', 'u'), ())
 
+    def test_natural_online_guide_reference_enters_research(self):
+        text='我想去开封玩，但是还没确定时间，想先了解一下大概的攻略参考，最好可以参考一下网上的攻略比如小红书'
+        self.assertTrue(__import__('services.research_service',fromlist=['research_request']).research_request(text))
+        event=self.event(text,key='natural-research')
+        self.handle(event)
+        self.assertGreaterEqual(self.search.search.call_count,1)
+        self.assertIn('xiaohongshu.com',self.search.search.call_args_list[0].kwargs['include_domains'])
+
     def test_failed_page_is_only_snippet_and_model_citation_is_checked(self):
         self.reader.side_effect = ValueError('unavailable')
         self.service.client = FakeClient([completion(assistant_message(content=json.dumps({'items': [

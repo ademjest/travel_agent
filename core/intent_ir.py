@@ -4,8 +4,12 @@ from typing import Any
 
 
 SUPPORTED_ACTIONS = {'none', 'clarify', 'read', 'create', 'update', 'delete', 'confirm', 'cancel'}
-SUPPORTED_DOMAINS = {'trip', 'reminder', 'booking', 'weather', 'forecast', 'route', 'traffic', 'places', 'document', 'system'}
+SUPPORTED_DOMAINS = {'trip', 'research', 'reminder', 'booking', 'weather', 'forecast', 'route', 'traffic',
+                     'places', 'walking', 'transit', 'document', 'system'}
 FORBIDDEN_MODEL_KEYS = {'trip_id', 'reminder_id', 'plan_code', 'item_code', 'owner_id', 'group_id', 'platform', 'scope_id', 'principal_id', 'account_id', 'user_id'}
+READ_OPERATION_FIELDS = {'weather':{'location'},'forecast':{'location'},'route':{'origin','destination'},
+    'traffic':{'origin','destination'},'walking':{'origin','destination'},'transit':{'origin','destination','city'},
+    'places':{'city','keywords'}}
 
 
 def _contains_forbidden(value):
@@ -60,6 +64,13 @@ def parse_intent_ir(value: Any, source_text: str) -> IntentIR:
         values = {key: item for key, item in raw.items() if key not in {'domain', 'operation'}}
         if _contains_forbidden(values):
             raise ValueError('语义解析不能生成资源编号或身份字段。')
+        if raw['domain'] == 'research' and operation == 'search_travel_guides':
+            from core.research_contract import project_request
+            project_request(values, source_text)
+        if raw['domain'] in READ_OPERATION_FIELDS and operation in {'query','search'}:
+            if (values.keys()-READ_OPERATION_FIELDS[raw['domain']]
+                    or any(not isinstance(item,str) or len(item)>150 for item in values.values())):
+                raise ValueError('只读查询含不支持字段或非法参数；需要重新解析。')
         operations.append(IntentOperation(raw['domain'], operation, values))
     missing = value.get('missing_fields', [])
     spans = value.get('source_spans', [])

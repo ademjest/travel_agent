@@ -3,6 +3,11 @@ import json
 import re
 
 from core.tasks import TaskUpdate, location_answer, utc_now
+from core.model_budget import model_call_context
+from core.context_contract import response_json
+from core.tool_result import ReadFailed, ToolResult
+from core.tool_execution import retry_read
+from tools.agent_tools import AgentToolContext
 from services.reminder_time import BEIJING, is_time_answer, parse_reminder_time
 
 
@@ -28,22 +33,24 @@ def scheduled_query_continuation(text, tasks):
 
 
 class ScheduledQueryService:
-    def __init__(self, store, travel_service, client=None, model='', clock=None):
+    def __init__(self, store, travel_service, client=None, model='', clock=None, tool_executor=None):
         self.store, self.travel_service, self.client, self.model = store, travel_service, client, model
         self.clock = clock or utc_now
+        self.tool_executor = tool_executor
 
     def _extract(self, text, previous):
         if self.client is None:
             raise ValueError('定时查询的自然语言解析需要模型服务，请配置后重试。')
-        response = self.client.chat.completions.create(model=self.model, response_format={'type': 'json_object'}, messages=[
-            {'role': 'system', 'content': ('提取一次性定时查询需求，只返回 JSON：'
+        with model_call_context('intent_parse', prompt_version='scheduled-query-v2'):
+            response = self.client.chat.completions.create(model=self.model, response_format={'type': 'json_object'}, messages=[
+                {'role': 'system', 'content': ('提取一次性定时查询需求，只返回 JSON：'
                 '{"kind":"weather|forecast|traffic","arguments":{"location":"地点原文"},"time_text":"执行时间原文"}。'
                 'weather为到时查询当前天气，forecast为到时查询天气预报，traffic为到时查询实时路况；'
                 'traffic的arguments只包含origin和destination。字段缺失填空字符串。所有非空参数必须来自本轮原文或上次对应参数，'
                 '时间也只能是本轮连续原文或上次值，不计算日期、不猜地点，不增加其他动作。')},
-            {'role': 'user', 'content': json.dumps({'message': text, 'previous': previous}, ensure_ascii=False)},
-        ])
-        value = json.loads(response.choices[0].message.content or '{}')
+                {'role': 'user', 'content': json.dumps({'message': text, 'previous': previous}, ensure_ascii=False)},
+            ])
+        value = response_json(response)
         if not isinstance(value, dict) or value.get('kind') not in QUERY_TOOLS or not isinstance(value.get('arguments'), dict):
             raise ValueError('请明确要定时查询天气、天气预报还是路况。')
         allowed = QUERY_TOOLS[value['kind']][1]
@@ -129,11 +136,19 @@ class ScheduledQueryService:
             arguments = json.loads(row['arguments_json'])
             if set(arguments) - set(allowed) or any(not isinstance(arguments.get(key), str) or not arguments[key] for key in allowed):
                 raise ValueError('无效的定时查询参数')
-            result = await asyncio.to_thread(self.travel_service.execute_tool, name, arguments)
-            if result.startswith('工具错误：'):
-                raise RuntimeError('scheduled query data source failed')
+            if self.tool_executor:
+                result = await asyncio.to_thread(self.tool_executor, name, arguments,
+                    AgentToolContext(row['platform'], row['group_id'], row['owner_id'], job['event_key']))
+            elif callable(getattr(type(self.travel_service), 'execute_result', None)):
+                result = await asyncio.to_thread(lambda: retry_read(
+                    lambda: self.travel_service.execute_result(name, arguments),
+                    max_attempts=1 if getattr(self.travel_service, 'manages_read_retries', False) is True else 3))
+            else:
+                result = ToolResult.from_text(name, await asyncio.to_thread(self.travel_service.execute_tool, name, arguments))
+            if result.status != 'completed':
+                raise ReadFailed(result)
             planned = datetime.fromisoformat(row['due_at']).astimezone(BEIJING)
-            reply = f'【定时查询结果】\n原定触发：{planned:%Y-%m-%d %H:%M:%S}（北京时间）；实际查询：{self.clock().astimezone(BEIJING):%Y-%m-%d %H:%M:%S}。\n' + result
+            reply = f'【定时查询结果】\n原定触发：{planned:%Y-%m-%d %H:%M:%S}（北京时间）；实际查询：{self.clock().astimezone(BEIJING):%Y-%m-%d %H:%M:%S}。\n' + result.data
             event = SimpleNamespace(event_key=job['event_key'], platform=row['platform'],
                 storage_scope_id=storage_scope_id(row['platform'], row['group_id']), sender_id=row['owner_id'], content='[定时查询]')
             initial = {'weather': '当前天气', 'forecast': '天气预报', 'traffic': '路况'}[row['kind']]

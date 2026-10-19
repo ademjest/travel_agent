@@ -15,6 +15,8 @@ import requests
 from openai import OpenAI
 
 from core.data_paths import image_root as default_image_root
+from core.model_budget import model_call_context
+from core.context_contract import response_text
 from infrastructure.memory_store import MemoryStore, ReservationImageRecord
 from infrastructure.secure_download import download_https, resolve_host
 from infrastructure.attachment_cache import read_cached_attachment
@@ -80,7 +82,7 @@ class ImageVisionExtractor:
             api_key=api_key,
             base_url=base_url,
             timeout=90,
-            max_retries=1,
+            max_retries=0,
         )
 
     def extract(
@@ -102,8 +104,10 @@ class ImageVisionExtractor:
                     "opening_hours、requires_reservation、advance_value、"
                     "advance_unit、booking_channel、source_text、confidence。"
                     "advance_unit 只能是 day、month、none。"
-                    "无需预约和无需提前都输出 requires_reservation=false、"
-                    "advance_value=0、advance_unit=none。不得推测缺失事实。"
+                    "明确无需预约才输出 requires_reservation=false、advance_value=0、advance_unit=none。"
+                    "需要预约但无需提前，输出 requires_reservation=true、advance_value=0、advance_unit=none。"
+                    "仅有‘无需提前’不能证明无需预约；是否预约不明时只保留raw_text，不生成该items条目，留待人工核对。"
+                    "不得推测缺失事实。"
                 ),
             },
             {
@@ -134,15 +138,17 @@ class ImageVisionExtractor:
                         + first
                     ),
                 },
-            ])
+            ], repair_attempt=1)
             return self._parse(repaired)
 
-    def _request(self, messages: list[dict[str, object]]) -> str:
-        response = self.client.chat.completions.create(
-            model=self.model_id,
-            messages=messages,
-        )
-        return str(response.choices[0].message.content or "").strip()
+    def _request(self, messages: list[dict[str, object]], repair_attempt: int = 0) -> str:
+        with model_call_context('image_extract', prompt_version='reservation-image-v2',
+                                repair_attempt=repair_attempt):
+            response = self.client.chat.completions.create(
+                model=self.model_id,
+                messages=messages,
+            )
+        return str(response_text(response)).strip()
 
     @staticmethod
     def _parse(raw: str) -> VisionExtraction:

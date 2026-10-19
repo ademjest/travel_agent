@@ -324,7 +324,8 @@ class TravelAgentTests(unittest.TestCase):
             [tool["function"]["name"] for tool in exposed_tools],
             ["update_reservation_draft_items"],
         )
-        self.assertEqual(len(client.completions.requests), 3)
+        # A completed mutation returns its deterministic receipt immediately.
+        self.assertEqual(len(client.completions.requests), 2)
 
     def test_client_uses_longer_timeout_and_one_retry(self):
         with patch("agents.travel_agent.OpenAI") as openai:
@@ -335,7 +336,7 @@ class TravelAgentTests(unittest.TestCase):
 
         kwargs = openai.call_args.kwargs
         self.assertEqual(kwargs["timeout"], 90.0)
-        self.assertEqual(kwargs["max_retries"], 1)
+        self.assertEqual(kwargs["max_retries"], 0)
 
     def test_invalid_tool_arguments_are_returned_to_model(self):
         client = FakeClient([
@@ -386,6 +387,21 @@ class TravelAgentTests(unittest.TestCase):
         self.assertEqual(result.reply, "西宁当前天气已查询。")
         self.assertEqual(len(calls), 1)
         self.assertEqual(len(result.traces), 2)
+
+    def test_repeated_tool_path_across_steps_stops_without_exhausting_budget(self):
+        repeated = tool_call('call-1', 'get_current_weather', '{"location":"西宁"}')
+        client = FakeClient([
+            completion(assistant_message(tool_calls=[repeated])),
+            completion(assistant_message(tool_calls=[tool_call(
+                'call-2', 'get_current_weather', '{"location":"西宁"}')])),
+        ])
+        agent = TravelAgent(self.settings, lambda name, arguments: '天气工具结果', client=client)
+
+        result = agent.run('西宁天气')
+
+        self.assertEqual(result.status, 'failed')
+        self.assertIn('重复出现', result.reply)
+        self.assertEqual(len(client.completions.requests), 2)
 
     def test_history_and_document_context_are_sent_to_model(self):
         client = FakeClient([

@@ -61,7 +61,7 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.runtime.reminder_scheduler.scan_once(due), 0)
         self.now = due
         await self.worker.run_once(now=due)
-        self.runtime.travel_service.execute_tool.assert_called_once_with('get_current_weather', {'location': '武汉'})
+        self.runtime.travel_service.execute_tool.assert_called_once_with('get_current_weather', {'location': '武汉'}, structured=True)
         self.assertEqual(self.rows()[0]['status'], 'sent')
         self.assertIn('定时查询结果', str(self.transport.messages[-1].payload))
         self.assertEqual(self.store.get_recent_turns('onebot:100', 'owner'), ())
@@ -98,9 +98,59 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.runtime.travel_service.execute_tool.call_count, 2)
         self.assertEqual(self.rows()[0]['status'], 'sent')
 
+    async def test_permanent_source_failure_does_not_retry_the_job(self):
+        from core.tool_result import ToolResult
+        self.runtime.travel_service.execute_result = Mock(return_value=ToolResult(
+            'failed', 'get_current_weather', error_code='permission_denied'))
+        self.create()
+        due = datetime.fromisoformat(self.rows()[0]['due_at'])
+        await self.runtime.reminder_scheduler.scan_once(due)
+        await self.worker.run_once(now=due)
+        self.assertEqual(self.rows()[0]['status'], 'failed')
+        self.runtime.travel_service.execute_result.assert_called_once()
+        self.assertFalse(await self.worker.run_once(now=due+timedelta(seconds=60)))
+
+    async def test_long_retry_after_is_preserved_by_job_scheduler(self):
+        from core.tool_result import ToolResult
+        self.runtime.travel_service.execute_result = Mock(return_value=ToolResult(
+            'failed', 'get_current_weather', error_code='rate_limit', retryable=True, retry_after_seconds=120))
+        self.create()
+        due = datetime.fromisoformat(self.rows()[0]['due_at'])
+        await self.runtime.reminder_scheduler.scan_once(due)
+        await self.worker.run_once(now=due)
+        with self.store._connect() as db:
+            job = db.execute("SELECT * FROM inbox_jobs WHERE event_key LIKE 'scheduled-query:%'").fetchone()
+        self.assertEqual(job['status'], 'retry')
+        self.assertGreaterEqual(datetime.fromisoformat(job['next_attempt_at']) - datetime.now(timezone.utc), timedelta(seconds=119))
+        self.runtime.travel_service.execute_result.assert_called_once()
+
+    async def test_http_exhaustion_does_not_multiply_worker_retries(self):
+        from infrastructure.amap_client import AmapClient
+        from test_read_reliability import response
+        client = AmapClient('key', http_get=Mock(return_value=response(status=503)), sleeper=lambda _: None)
+        del self.runtime.travel_service.execute_tool
+        client.checkpoint_store = self.store
+        self.runtime.travel_service.amap = client
+        self.service.tool_executor = self.runtime.tool_router.execute_result
+        self.create()
+        due = datetime.fromisoformat(self.rows()[0]['due_at'])
+        await self.runtime.reminder_scheduler.scan_once(due)
+        await self.worker.run_once(now=due)
+        self.assertEqual(client.http_get.call_count, 3)
+        self.assertEqual(self.rows()[0]['status'], 'failed')
+        self.assertFalse(await self.worker.run_once(now=due+timedelta(seconds=60)))
+
     def test_remind_me_to_query_is_not_automatic_query(self):
         self.assertFalse(scheduled_query_request('明天上午八点提醒我查武汉天气'))
         self.assertTrue(scheduled_query_request('明天上午八点告诉我武汉天气'))
+
+    def test_truncated_valid_json_cannot_create_a_query(self):
+        response = parsed({'kind': 'weather', 'arguments': {'location': '武汉'}, 'time_text': '明天上午八点'})
+        response.choices[0].finish_reason = 'length'
+        self.client.completions.responses = [response]
+        with self.assertRaises(ValueError):
+            self.create()
+        self.assertEqual(self.rows(), ())
 
     def test_model_cannot_request_write_tool_or_inject_identity(self):
         for value in (

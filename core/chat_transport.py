@@ -55,6 +55,7 @@ class ChatEvent:
     reply_to_id: str = ""
     attachments: tuple[ChatAttachment, ...] = ()
     occurred_at: datetime | None = None
+    trip_edit: dict[str, Any] | None = None
 
     @property
     def event_key(self) -> str:

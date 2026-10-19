@@ -44,7 +44,21 @@ class SemanticTaskServiceTests(unittest.TestCase):
     def test_fixed_commands_use_fast_path(self):
         self.assertFalse(semantic_candidate('查看行程'))
         self.assertFalse(semantic_candidate('查看我的提醒'))
+        self.assertFalse(semantic_candidate('你好'))
         self.assertTrue(semantic_candidate('10月2日不去湖北省博物馆了'))
+
+    def test_simple_weather_ir_executes_deterministic_tool_once(self):
+        value = {'schema_version': 1, 'action': 'read', 'operations': [
+            {'domain': 'weather', 'operation': 'query', 'location': '西宁'}],
+            'missing_fields': [], 'requires_confirmation': False,
+            'source_spans': ['西宁'], 'confidence': .98}
+        travel_service = Mock()
+        travel_service.execute_tool.return_value = '【当前天气】西宁'
+        service = SemanticTaskService(self.store, compiler(value), self.trip_service,
+                                      travel_service=travel_service, mode='execute')
+
+        self.assertEqual(service.handle(event('西宁现在天气怎么样'), object()), '【当前天气】西宁')
+        travel_service.execute_tool.assert_called_once_with('get_current_weather', {'location': '西宁'})
 
     def test_missing_place_is_persisted_and_short_answer_continues(self):
         first = {'schema_version': 1, 'action': 'update', 'operations': [

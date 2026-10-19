@@ -1,9 +1,11 @@
 from core.web_lifecycle import publish_files
 import base64
 import hashlib
-import json
 import os
 import uuid
+
+from core.model_budget import model_call_context
+from core.context_contract import response_json
 
 
 class ImageContextService:
@@ -28,8 +30,9 @@ class ImageContextService:
                       'image/webp': data[:4] == b'RIFF' and data[8:12] == b'WEBP'}
         if len(data) > 5 * 1024 * 1024 or not signatures.get(content_type):
             raise ValueError('图片内容不是受支持的 JPEG、PNG 或 WebP，或超过 5 MB。')
-        response = self.client.chat.completions.create(model=self.model, response_format={'type': 'json_object'},
-            messages=[
+        with model_call_context('image_extract', prompt_version='image-context-v1'):
+            response = self.client.chat.completions.create(model=self.model, response_format={'type': 'json_object'},
+                messages=[
                 {'role': 'system', 'content': (
                     '读取旅行图片，回答用户的问题。只返回 JSON：'
                     '{"facts":"图片中可明确辨认的旅行事实","answer":"面向用户的回答","uncertain":false}。'
@@ -41,8 +44,8 @@ class ImageContextService:
                     {'type': 'text', 'text': event.content or '请识别这张旅行图片中的主要信息。'},
                     {'type': 'image_url', 'image_url': {'url': f'data:{content_type};base64,' + base64.b64encode(data).decode()}},
                 ]},
-            ])
-        result = json.loads(response.choices[0].message.content or '{}')
+                ])
+        result = response_json(response)
         if (not isinstance(result, dict) or type(result.get('uncertain')) is not bool
                 or not isinstance(result.get('facts'), str) or not isinstance(result.get('answer'), str)
                 or not result['answer'].strip() or len(result['facts']) > 5000 or len(result['answer']) > 3000):

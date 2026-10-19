@@ -12,6 +12,7 @@ import {
   Compass,
   Copy,
   FileText,
+  HardDrive,
   ImagePlus,
   Info,
   LoaderCircle,
@@ -28,13 +29,21 @@ import {
   Route,
   Settings2,
   ShieldCheck,
+  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { normalizeMathDelimiters } from "./mathMarkdown";
 import { SettingsPanel } from "./SettingsPanel";
 import { ResearchPanel } from "./ResearchPanel";
+import { ConversationUsage } from "./ConversationUsage";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { TripStatePanel, TripChangeDiff } from "./TripStatePanel";
 import { api, ApiError, bootstrap, dateText, emptyContext, label } from "./api";
 import type {
   Bootstrap,
@@ -84,16 +93,36 @@ type DraftFile = {
   busy: boolean;
 };
 
-function Markdown({ text }: { text: string }) {
-  const display = text.startsWith("旅行行程：")
-    ? text
-        .replace(/^(第 \d+ 天 · [^\n]+)$/gm, "\n### $1\n")
-        .replace(/^地点依据：/gm, "\n地点依据：")
-    : text;
+export function normalizeMarkdownText(text: string) {
+  return normalizeMathDelimiters(text)
+    .replace(/^\*\*([^*\n]+)\*\*[ \t]*$/gm, "## $1")
+    .replace(
+      /^(第\s*\d+\s*天(?:\s*·\s*[^\n]+|（日期待定）))[ \t]*$/gm,
+      "\n### $1\n",
+    )
+    .replace(
+      /^(住宿候选|餐饮候选)(?:（([^\n）]*)）)?[：:][ \t]*$/gm,
+      (_match, title: string, note?: string) =>
+        `\n### ${title}${note ? `（${note}）` : ""}\n`,
+    )
+    .replace(
+      /^(旅行行程|行程创建预览（尚未保存）|行程修改预览（尚未保存）)(：[^\n]+)$/gm,
+      "## $1$2",
+    );
+}
+
+export function Markdown({ text }: { text: unknown }) {
+  if (typeof text !== "string")
+    return <p role="alert">这条内容暂时无法显示，请刷新或重新生成。</p>;
+  const display = normalizeMarkdownText(text).replace(
+    /^地点依据：/gm,
+    "\n地点依据：",
+  );
   return (
     <div className="markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[[rehypeKatex, { trust: false, strict: "ignore", maxExpand: 1000, maxSize: 20 }]]}
         skipHtml
         components={{
           a: ({ href, children }) => (
@@ -125,6 +154,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [context, setContext] = useState<Context>(emptyContext);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [noticeToast, setNoticeToast] = useState<Notice | null>(null);
   const [draft, setDraft] = useState("");
   const [files, setFiles] = useState<DraftFile[]>([]);
   const [sending, setSending] = useState(false);
@@ -136,8 +166,15 @@ export default function App() {
   const [width, setWidth] = useState(window.innerWidth);
   const [tab, setTab] = useState("trip");
   const [modal, setModal] = useState<
-    "notifications" | "status" | "delete" | null
+    "notifications" | "space" | "services" | "preferences" | "delete" | "diagnostics" | null
   >(null);
+  const [diagnosticJob, setDiagnosticJob] = useState<{ conversationId: string; jobId: number } | null>(null);
+  useEffect(() => {
+    if (diagnosticJob && diagnosticJob.conversationId !== active) {
+      setDiagnosticJob(null);
+      setModal((value) => value === "diagnostics" ? null : value);
+    }
+  }, [active, diagnosticJob]);
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const deleteTargetRef = useRef("");
   const [deleteSummary, setDeleteSummary] = useState<DeletionSummary | null>(
@@ -163,6 +200,7 @@ export default function App() {
   const nearBottom = useRef(true);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const lastMessage = useRef("");
+  const seenNoticeIds = useRef(new Set<number>());
   const dialog = useRef<HTMLDialogElement>(null);
   const historyLoaded = useRef(false);
 
@@ -170,6 +208,13 @@ export default function App() {
     if (reason instanceof ApiError && reason.status === 410) return;
     setError(reason instanceof Error ? reason.message : "操作未完成，请重试。");
   };
+  const receiveNotices = useCallback((items: Notice[]) => {
+    const visible = items.filter((item) => !deletedIds.current.has(item.conversation_id));
+    const fresh = visible.find(item => !item.read_at && !seenNoticeIds.current.has(item.id));
+    if (fresh) setNoticeToast(fresh);
+    visible.forEach(item => seenNoticeIds.current.add(item.id));
+    setNotices(visible);
+  }, []);
   const forgetConversation = useCallback((identity: string) => {
     if (typeof identity !== "string" || !identity) return;
     if (deleteTargetRef.current === identity) {
@@ -266,11 +311,7 @@ export default function App() {
     );
     setContext(ctx);
     setConversations(list.filter((item) => !deletedIds.current.has(item.id)));
-    setNotices(
-      notifications.filter(
-        (item) => !deletedIds.current.has(item.conversation_id),
-      ),
-    );
+    receiveNotices(notifications);
     setOnline(true);
     setError((old) => (old.startsWith("暂时连接不到本地服务") ? "" : old));
     if (!historyLoaded.current) {
@@ -287,7 +328,7 @@ export default function App() {
       lastMessage.current = lastId;
     }
     return ctx.jobs.length > 0;
-  }, []);
+  }, [receiveNotices]);
 
   useEffect(() => {
     if (!active || !ready) return;
@@ -424,18 +465,12 @@ export default function App() {
     if (!ready || active) return;
     const update = () =>
       api<Notice[]>("/notifications")
-        .then((items) =>
-          setNotices(
-            items.filter(
-              (item) => !deletedIds.current.has(item.conversation_id),
-            ),
-          ),
-        )
+        .then(receiveNotices)
         .catch(report);
     void update();
     const timer = setInterval(update, 15000);
     return () => clearInterval(timer);
-  }, [ready, active]);
+  }, [ready, active, receiveNotices]);
   useEffect(() => {
     if (active && !deletedIds.current.has(active))
       localStorage.setItem(`travel-draft:${active}`, draft);
@@ -444,6 +479,11 @@ export default function App() {
     const timer = setInterval(() => setTick(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (!noticeToast) return;
+    const timer = setTimeout(() => setNoticeToast(null), 10000);
+    return () => clearTimeout(timer);
+  }, [noticeToast]);
   useEffect(() => {
     if (input.current) {
       input.current.style.height = "auto";
@@ -743,7 +783,7 @@ export default function App() {
     if (window.innerWidth < 1024) setDetails(false);
   }
   async function openStatus() {
-    setModal("status");
+    setModal("space");
     try {
       setStatus(await api<Status>("/status"));
     } catch (reason) {
@@ -861,8 +901,18 @@ export default function App() {
             旅途通知{unread > 0 && <span className="count">{unread}</span>}
           </button>
           <button onClick={openStatus}>
+            <HardDrive size={18} />
+            本地空间状态
+            <ChevronRight size={14} />
+          </button>
+          <button onClick={() => setModal("services")}>
             <Settings2 size={18} />
-            状态与设置
+            服务配置
+            <ChevronRight size={14} />
+          </button>
+          <button onClick={() => setModal("preferences")}>
+            <SlidersHorizontal size={18} />
+            偏好设置
             <ChevronRight size={14} />
           </button>
           <div className="local-note">
@@ -937,6 +987,7 @@ export default function App() {
             </button>
           </div>
         </header>
+        <ConversationUsage key={active} conversation={active} usage={context.model_usage} />
         {renaming && (
           <form
             className="rename-form"
@@ -1120,20 +1171,36 @@ export default function App() {
                           {copied === message.id ? "已复制" : "复制"}
                         </button>
                       )}
+                    {message.role === "user" && message.job_id != null && (
+                      <button className="copy-button" onClick={() => {
+                        setDiagnosticJob({ conversationId: active, jobId: message.job_id! });
+                        setModal("diagnostics");
+                      }}>查看处理过程</button>
+                    )}
                   </div>
                 </article>
               ))}
               {context.confirmations.map((c) => (
+                <ErrorBoundary key={`${active}-${c.id}-${c.version}`} fallback={
+                  <section className="confirmation" role="alert">
+                    <p>这项预览暂时无法显示，请重新生成后核对。</p>
+                    <button onClick={() => fill(c.command === "确认行程修改" ? "重新生成行程预览" : "重新查询预约规则")}>重新生成预览</button>
+                  </section>
+                }>
                 <section className="confirmation" key={`${c.id}-${c.version}`}>
                   <div className="confirmation-heading">
                     <Info size={18} />
                     <strong>有一项变更需要你确认</strong>
                   </div>
-                  <Markdown text={c.preview} />
+                  {c.diff && <TripChangeDiff diff={c.diff} />}
+                  {typeof c.preview === "string" && c.preview.trim() ? (c.diff ? <details><summary>展开完整预览</summary><Markdown text={c.preview} /></details> : <Markdown text={c.preview} />) :
+                    <p role="alert">完整预览暂时不可用。原行程未修改，请重新生成后核对。</p>}
+                  {c.can_confirm === false && typeof c.unavailable_reason === "string" &&
+                    <p role="alert">{c.unavailable_reason}</p>}
                   <div className="confirmation-actions">
                     <button
                       className="primary-button"
-                      disabled={sending || busy}
+                      disabled={sending || busy || c.can_confirm === false || typeof c.preview !== "string" || !c.preview.trim()}
                       onClick={() => confirm(c.id, c.version)}
                     >
                       确认这次变更
@@ -1141,9 +1208,12 @@ export default function App() {
                     <button onClick={() => fill("取消当前任务")}>
                       暂不执行
                     </button>
+                    {(c.can_confirm === false || typeof c.preview !== "string" || !c.preview.trim()) &&
+                      <button onClick={() => fill(c.command === "确认行程修改" ? "重新生成行程预览" : "重新查询预约规则")}>重新生成预览</button>}
                     <small>以当前预览版本为准</small>
                   </div>
                 </section>
+                </ErrorBoundary>
               ))}
             </div>
           )}
@@ -1259,7 +1329,7 @@ export default function App() {
               {!config.llm_configured
                 ? "模型尚未配置，行程规划与图片理解暂不可用。"
                 : "高德尚未配置，天气和路线查询暂不可用。"}
-              <button onClick={openStatus}>查看配置</button>
+              <button onClick={() => setModal("services")}>查看配置</button>
             </div>
           )}
           <form
@@ -1392,6 +1462,7 @@ export default function App() {
         <div className="detail-tabs" role="tablist" aria-label="旅行资料">
           {[
             ["trip", "行程"],
+            ["plan", "方案"],
             ["reminder", "提醒"],
             ["document", "资料"],
           ].map(([key, name]) => (
@@ -1419,6 +1490,12 @@ export default function App() {
                   <p className="muted">
                     {trip.spec.start_date || "日期待定"} · 版本 {trip.version}
                   </p>
+                  <TripStatePanel facts={trip.facts || []} draft={trip.draft_facts} onEdit={async (field,value)=>{
+                    await api(`/conversations/${active}/trips/${trip.trip_id}/fields`, {method:'POST',body:JSON.stringify({
+                      field,value,version:trip.version,draft_id:trip.draft_id || null,draft_version:trip.draft_version || null,
+                      client_request_id:crypto.randomUUID()})});
+                    await refresh(active);
+                  }} />
                   {trip.spec.preferences?.length ? (
                     <div className="tags">
                       {trip.spec.preferences.map((p) => (
@@ -1477,6 +1554,30 @@ export default function App() {
                 </button>
               </div>
             ))}
+          {tab === "plan" &&
+            (context.planning_artifacts.length ? context.planning_artifacts.map((plan) => (
+              <section className="trip-card" key={plan.artifact_id}>
+                <div className="trip-title"><Compass size={16}/><h2>{plan.title}</h2></div>
+                <p className="muted">方案 {plan.ordinal} · {plan.kind === "research_backed" ? "研究方案" : "探索方案"}</p>
+                <p>{plan.summary}</p>
+                <div className="tags">
+                  {plan.duration_options.map(days => <span key={days}>{days} 天</span>)}
+                </div>
+                <div className="plan-actions">
+                  {plan.duration_options.length ? plan.duration_options.map(days =>
+                    <button key={days} onClick={() => fill(`采用方案 ${plan.ordinal} 的 ${days} 天安排`)}>采用 {days} 天方案</button>) :
+                    <button onClick={() => fill(`采用方案 ${plan.ordinal}，计划玩`)}>采用这个方案</button>}
+                  <button onClick={async () => {
+                    if (!window.confirm(`不再保留“${plan.title}”吗？`)) return;
+                    try {
+                      await api(`/conversations/${active}/plans/${plan.artifact_id}?version=${plan.version}`, {method:"DELETE"});
+                      await refresh(active);
+                    } catch (reason) { report(reason); }
+                  }}>不再保留</button>
+                </div>
+              </section>
+            )) : <div className="detail-empty"><Compass size={34} strokeWidth={1.2}/><h2>还没有方案草稿</h2>
+              <p>探索性规划和研究方案会保存在这里，<br/>确认后才成为正式行程。</p></div>)}
           {tab === "reminder" && (
             <>
               {!context.reminders.length &&
@@ -1637,9 +1738,19 @@ export default function App() {
         </div>
       </aside>
 
+      {noticeToast && (
+        <aside className="notification-toast" role="status" aria-live="polite">
+          <button className="notification-toast-main" onClick={() => { setModal("notifications"); setNoticeToast(null); }}>
+            <Bell size={18} />
+            <span><strong>{noticeToast.title}</strong><small>{noticeToast.content}</small></span>
+          </button>
+          <button className="icon-button tiny" aria-label="关闭旅途通知提示" onClick={() => setNoticeToast(null)}><X size={15} /></button>
+        </aside>
+      )}
+
       <dialog
         ref={dialog}
-        className="modal"
+        className={`modal ${modal === "services" || modal === "preferences" ? "settings-modal" : ""}`}
         onCancel={(event) => {
           if (deleteSending) event.preventDefault();
           else setModal(null);
@@ -1655,7 +1766,11 @@ export default function App() {
                 ? "删除聊天会话"
                 : modal === "notifications"
                   ? "旅途通知"
-                  : "本地空间状态"}
+                  : modal === "services"
+                    ? "服务配置"
+                    : modal === "preferences"
+                      ? "偏好设置"
+                      : modal === "diagnostics" ? "消息处理过程" : "本地空间状态"}
             </h2>
             <button
               className="icon-button"
@@ -1682,6 +1797,9 @@ export default function App() {
                       ["消息", deleteSummary.messages],
                       ["附件", deleteSummary.attachments],
                       ["行程", deleteSummary.trips],
+                      ["方案草稿", deleteSummary.planning_artifacts],
+                      ["会话摘要", deleteSummary.conversation_summaries],
+                      ["大型工具结果", deleteSummary.tool_artifacts],
                       ["进行中任务", deleteSummary.active_tasks],
                       ["待处理提醒", deleteSummary.reminders],
                       ["定时查询", deleteSummary.scheduled_queries],
@@ -1770,25 +1888,15 @@ export default function App() {
               ))}
             </div>
           )}
-          {modal === "status" && (
+          {modal === "space" && (
             <div className="status-content">
               <p>
                 这里是你的单使用者本地空间，与 QQ 的会话和提醒数据相互独立。
               </p>
               {status ? (
                 <>
-                  <div className="status-row">
-                    <span>模型服务</span>
-                    <b className={status.llm_configured ? "good" : "warning"}>
-                      {status.llm_configured ? "已配置" : "未配置"}
-                    </b>
-                  </div>
-                  <div className="status-row">
-                    <span>高德服务</span>
-                    <b className={status.amap_configured ? "good" : "warning"}>
-                      {status.amap_configured ? "已配置" : "未配置"}
-                    </b>
-                  </div>
+                  <div className="status-row"><span>本地数据空间</span><b className={status.data_isolated ? "good" : "warning"}>{status.data_isolated ? "独立存储" : "需要检查"}</b></div>
+                  <div className="status-row"><span>排队与处理中</span><b>{["pending", "running", "retry"].reduce((sum, key) => sum + (status.queue[key] || 0), 0)} 项</b></div>
                   {Object.entries(status.tasks).map(([name, task]) => (
                     <div className="status-row" key={name}>
                       <span>
@@ -1808,12 +1916,8 @@ export default function App() {
                   <p className="detail-tip">
                     已配置表示配置项完整，不代表外部服务当前一定可用。请通过实际查询验证连接。
                   </p>
-                  <SettingsPanel />
                   <details>
-                    <summary>配置与数据说明</summary>
-                    <p>
-                      在项目配置文件中填写模型地址、模型名称、模型密钥及高德密钥，修改后重启服务。密钥仅在后端读取。
-                    </p>
+                    <summary>本地数据说明</summary>
                     <p>
                       默认网页端口 8080，Web 数据保存在
                       data/web。电脑休眠或关闭后端时，定时任务会暂停。
@@ -1825,6 +1929,21 @@ export default function App() {
                 <p>正在读取服务状态…</p>
               )}
             </div>
+          )}
+          {modal === "services" && (
+            <div className="settings-modal-content">
+              <p className="modal-intro">配置模型、地图、联网搜索、预算和可选 AI 能力。每个字段都提供用途与填写示例；保存后需要重启后端。</p>
+              <SettingsPanel section="services" />
+            </div>
+          )}
+          {modal === "preferences" && (
+            <div className="settings-modal-content">
+              <p className="modal-intro">这里保存你明确确认的长期旅行默认。本次对话中的要求仍然优先。</p>
+              <SettingsPanel section="preferences" />
+            </div>
+          )}
+          {modal === "diagnostics" && diagnosticJob && diagnosticJob.conversationId === active && (
+            <DiagnosticsPanel conversationId={diagnosticJob.conversationId} jobId={diagnosticJob.jobId} />
           )}
         </div>
       </dialog>

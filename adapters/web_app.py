@@ -1,4 +1,5 @@
 import asyncio
+from core.runtime_identity import runtime_status, retrieval_status
 from contextlib import asynccontextmanager, nullcontext
 import io
 import mimetypes
@@ -24,8 +25,10 @@ from infrastructure.web_repository import OWNER, WebConflict, WebRepository
 from services.document_service import DocumentService
 from services.inbox_worker import InboxWorker
 from services.conversation_deletion import ConversationDeletionService
-from infrastructure.env_settings_store import EnvSettingsStore, SettingsConflict
+from infrastructure.env_settings_store import EnvSettingsStore, SettingsConflict, SettingsInputError
 from infrastructure.preference_repository import PreferenceConflict
+from infrastructure.planning_repository import PlanningConflict
+from infrastructure.model_gateway import usage_report
 from core.chat_transport import ChatEvent
 
 
@@ -51,6 +54,13 @@ class ConfirmationInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     version: int = Field(ge=1)
     client_request_id: str = Field(min_length=1, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
+
+
+class TripEditInput(ConfirmationInput):
+    field: str = Field(max_length=30)
+    value: str = Field(max_length=60)
+    draft_id: str | None = Field(default=None,max_length=100)
+    draft_version: int | None = Field(default=None,ge=1)
 
 
 def create_web_app(settings=None, travel_settings=None, *, start_workers=True, settings_store=None):
@@ -87,6 +97,8 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
                 runtime.supervisor.start('web-reminders', runtime.reminder_scheduler.run)
                 runtime.supervisor.start('web-maintenance', maintain)
                 runtime.supervisor.start('web-deletions', deletion.run)
+                if getattr(store, 'semantic_index', None) is not None:
+                    runtime.supervisor.start('web-local-index', store.semantic_index.run)
             try:
                 yield
             finally:
@@ -163,6 +175,15 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
     def conversations():
         return repository.conversations()
 
+    @app.get('/api/runtime-status')
+    def runtime_information():
+        return runtime_status(store, travel_settings.llm_model_id)
+
+    @app.get('/api/conversations/{identity}/retrieval-status')
+    def retrieval_information(identity: str):
+        repository.conversation(identity)
+        return retrieval_status(store, f'web:{identity}')
+
     def service_settings():
         nonlocal settings_store
         if settings_store is None:
@@ -186,18 +207,28 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             return await asyncio.to_thread(service_settings().save, body['version'], body['changes'])
         except SettingsConflict:
             raise HTTPException(409, '配置已变化或正在保存，请刷新后重试。') from None
+        except SettingsInputError as error:
+            raise HTTPException(400, str(error)) from None
         except Exception:
-            raise HTTPException(400, '保存失败：检查字段、HTTPS 地址、端点更换时的新 Key、启动环境覆盖、Git 忽略及文件权限。原有配置未被替换。') from None
+            raise HTTPException(400, '保存失败：检查字段、HTTPS 地址、端点更换时的新 Key、Git 忽略及文件权限。原有配置未被替换。') from None
 
     @app.post('/api/settings/services/test')
     async def test_service_settings(request: Request):
         try:
             body = await request.json()
-            if not isinstance(body, dict) or set(body) != {'service'} or body['service'] not in ('search', 'llm'):
+            if not isinstance(body, dict) or set(body) != {'service'} or body['service'] not in ('search', 'llm', 'all'):
                 raise ValueError()
+            if body['service'] == 'all':
+                return await asyncio.to_thread(service_settings().test_all, store)
             return await asyncio.to_thread(service_settings().test, body['service'])
+        except SettingsConflict:
+            raise HTTPException(409, '服务测试正在运行，请等待完成后再试。') from None
         except Exception:
             raise HTTPException(400, '连接测试未通过：请检查已保存的配置、网络和服务额度。未回传供应商错误正文。') from None
+
+    @app.get('/api/settings/model-usage')
+    def model_usage():
+        return usage_report(store)
 
     def preference_event():
         return ChatEvent('web', 'group', 'preferences-settings', '', OWNER, '')
@@ -238,6 +269,16 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         if not body.title.strip():
             raise HTTPException(422, '标题不能为空。')
         return repository.rename(identity, body.title.strip())
+
+    @app.delete('/api/conversations/{identity}/plans/{artifact_id}')
+    def delete_plan(identity: str, artifact_id: str, version: int):
+        event=ChatEvent('web','group','',identity,OWNER,'')
+        repository.conversation(identity)
+        try:
+            store.planning.delete(event,artifact_id,version)
+        except PlanningConflict as error:
+            raise HTTPException(409,str(error)) from None
+        return {'status':'deleted'}
 
     @app.get('/api/conversations/{identity}/deletion-summary')
     def deletion_summary(identity: str):
@@ -290,6 +331,18 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
     def task(identity: int):
         return repository.job(identity)
 
+    @app.get('/api/conversations/{identity}/jobs/{job_id}/diagnostics')
+    def diagnostics(identity: str, job_id: int):
+        from infrastructure.execution_report import web_report
+        repository.conversation(identity)
+        job = repository.job(job_id)
+        if job['scope_id'] != identity:
+            raise LookupError('请求不存在。')
+        result = web_report(store.database_path, job)
+        result['retrieval_status'] = retrieval_status(store, f'web:{identity}')
+        repository.conversation(identity)
+        return result
+
     @app.post('/api/tasks/{identity}/cancel')
     def cancel(identity: int):
         row = repository.job(identity)
@@ -301,6 +354,20 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
     @app.get('/api/conversations/{identity}/context')
     def context(identity: str):
         return repository.context(identity)
+
+    @app.post('/api/conversations/{identity}/trips/{trip_id}/fields',status_code=202)
+    async def edit_trip_field(identity: str, trip_id: str, body: TripEditInput):
+        from core.trip_diff import edit_text
+        try:
+            content=edit_text(body.field,body.value)
+        except ValueError as exc:
+            raise HTTPException(422,str(exc)) from exc
+        await asyncio.to_thread(repository.conversation,identity)
+        data={'trip_id':trip_id,'version':body.version,'draft_id':body.draft_id,'draft_version':body.draft_version,
+              'field':body.field,'value':body.value}
+        result=await asyncio.to_thread(repository.accept,identity,content,[],body.client_request_id,None,data)
+        worker.wakeup.set()
+        return result
 
     @app.post('/api/conversations/{identity}/confirmations/{confirmation_id}', status_code=202)
     async def confirm(identity: str, confirmation_id: str, body: ConfirmationInput):
@@ -315,6 +382,8 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             return {'job_id': previous['id'], 'status': previous['status']}
         pending = await asyncio.to_thread(repository.context, identity)
         matches = [item for item in pending['confirmations'] if item['id'] == confirmation_id and item['version'] == body.version]
+        if matches and not matches[0]['can_confirm']:
+            raise HTTPException(409, matches[0]['unavailable_reason'])
         if len(matches) != 1:
             raise WebConflict('预览已变化或过期，请重新核对。')
         result = await asyncio.to_thread(repository.accept, identity, matches[0]['command'], [], body.client_request_id,
@@ -404,7 +473,8 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         try:
             store.inbox.health()
             snapshot = runtime.supervisor.snapshot()
-            healthy = not start_workers or (len(snapshot) == 5 and all(item['running'] for item in snapshot.values()))
+            expected_workers = 5 + int(getattr(store, 'semantic_index', None) is not None)
+            healthy = not start_workers or (len(snapshot) == expected_workers and all(item['running'] for item in snapshot.values()))
         except Exception:
             healthy = False
         return JSONResponse({'status': 'ok' if healthy else 'degraded'}, status_code=200 if healthy else 503)

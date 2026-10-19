@@ -9,6 +9,7 @@ from agents.travel_agent import TravelAgent
 from agents.reminder_intent import ReminderIntentParser
 from agents.trip_planner import TripPlanner
 from agents.intent_compiler import IntentCompiler
+from agents.context_builder import ContextBuilder
 from app.bot_application import TravelBotApplication
 from core.background_supervisor import BackgroundSupervisor
 from core.chat_transport import MessageTransport, ReplyRenderer
@@ -28,6 +29,8 @@ from services.booking_policy import BookingPolicyResolver
 from services.semantic_task_service import SemanticTaskService
 from services.preference_service import PreferenceService
 from services.research_service import ResearchService
+from services.planning_service import PlanningService
+from services.conversation_summary_service import ConversationSummaryService
 from infrastructure.search_client import SearchClient
 from services.reminder_scheduler import ReminderScheduler
 from services.reservation_draft_creator import ReservationDraftCreator
@@ -64,11 +67,20 @@ def build_runtime(
         transport: MessageTransport,
         reply_renderer: ReplyRenderer,
         group_allowed: Callable[[str], bool],
-        store: MemoryStore | None = None) -> RuntimeComponents:
+        store: MemoryStore | None = None,
+        client=None, amap_client=None, search_client=None, reader=None, clock=None,
+        semantic_mode=None) -> RuntimeComponents:
     memory_store = store or MemoryStore()
-    model_client = (ModelGateway(memory_store, OpenAI(api_key=settings.llm_api_key,
-        base_url=settings.llm_base_url, timeout=90, max_retries=1)) if settings.llm_configured else None)
+    from infrastructure.local_embedding import configure_local_index
+    configure_local_index(memory_store)
+    model_client = (ModelGateway(memory_store, client if client is not None else OpenAI(api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url, timeout=90, max_retries=0)) if settings.llm_configured else None)
     travel_service = TravelService(settings)
+    if amap_client is not None:
+        travel_service.amap=amap_client
+    if travel_service.manages_read_retries:
+        travel_service.amap.diagnostics = memory_store.diagnostics.record
+        travel_service.amap.checkpoint_store = memory_store
     reservation_service = ReservationService(memory_store)
     image_extractor = (
         ImageVisionExtractor(
@@ -93,6 +105,7 @@ def build_runtime(
         travel_service,
         reservation_service,
         reservation_draft_creator,
+        memory_store.tool_artifacts,
     )
     travel_agent = (
         TravelAgent(settings, tool_router.execute_result, client=model_client)
@@ -142,21 +155,41 @@ def build_runtime(
         image_context_service=ImageContextService(memory_store, reservation_image_service._download,
             travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else ''),
         scheduled_query_service=ScheduledQueryService(memory_store, travel_service,
-            travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else ''),
+            travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else '',
+            tool_executor=tool_router.execute_result),
         policy_watch_service=PolicyWatchService(memory_store, BookingPolicyResolver(),
             travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else ''),
+        context_builder=ContextBuilder(memory_store, ConversationSummaryService(
+            memory_store.conversation_summaries, model_client, settings.llm_model_id,
+            diagnostics=memory_store.diagnostics.summary), diagnostics=memory_store.diagnostics.context),
     )
     application.preference_service = PreferenceService(memory_store.preferences)
+    application.planning_service = PlanningService(memory_store.planning)
     application.research_service = ResearchService(memory_store,
-        SearchClient(os.getenv('SEARCH_API_KEY', ''), os.getenv('SEARCH_BASE_URL', 'https://api.tavily.com')),
+        search_client if search_client is not None else SearchClient(os.getenv('SEARCH_API_KEY', ''), os.getenv('SEARCH_BASE_URL', 'https://api.tavily.com')),
         model_client, settings.llm_model_id, application.trip_service)
+    if reader is not None:
+        application.research_service.reader=reader
+    else:
+        from infrastructure.web_reader import read_page
+        application.research_service.reader=lambda url: read_page(url,diagnostics=memory_store.diagnostics.record)
+    if isinstance(application.research_service.search,SearchClient):
+        application.research_service.search.diagnostics=memory_store.diagnostics.record
+    if clock is not None:
+        for service in (application.personal_reminder_service,application.booking_reminder_service,
+                        application.trip_service,application.scheduled_query_service,application.policy_watch_service,
+                        reminder_scheduler,outbox_worker,maintenance_service):
+            service.clock=clock
     if model_client is not None:
         application.semantic_task_service = SemanticTaskService(
             memory_store,
-            IntentCompiler(model_client, settings.llm_model_id),
+            IntentCompiler(model_client, settings.llm_model_id, diagnostics=memory_store.diagnostics),
             trip_service=application.trip_service,
             reminder_service=application.personal_reminder_service,
-            mode=os.getenv('TRAVEL_SEMANTIC_MODE', 'execute'),
+            research_service=application.research_service,
+            travel_service=travel_service,
+            tool_executor=tool_router.execute_result,
+            mode=semantic_mode if semantic_mode is not None else os.getenv('TRAVEL_SEMANTIC_MODE', 'execute'),
         )
     return RuntimeComponents(
         store=memory_store,

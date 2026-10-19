@@ -6,7 +6,7 @@ import re
 from agents.clarification import resume_weather_request
 from agents.travel_decision import decide_travel_action
 from core.chat_transport import ChatEvent
-from core.tasks import read_task_continuation
+from core.tasks import read_task_continuation, route_correction
 from core.commands import parse_command
 from infrastructure.memory_store import MemoryStore
 from services.document_service import DocumentService
@@ -18,6 +18,7 @@ from services.scheduled_query_service import scheduled_query_request, scheduled_
 from services.policy_watch_service import watch_request, watch_control, watch_continuation
 from services.preference_service import preference_request
 from services.research_service import research_request, research_continuation
+from services.planning_service import planning_request
 
 
 class GroupTriggerPolicy:
@@ -25,7 +26,7 @@ class GroupTriggerPolicy:
         self.store = store
 
     async def should_handle(self, event: ChatEvent) -> bool:
-        if preference_request(event.content) or research_request(event.content):
+        if preference_request(event.content) or research_request(event.content) or planning_request(event.content):
             return True
         if watch_request(event.content) or watch_control(event.content):
             return True
@@ -64,7 +65,7 @@ class GroupTriggerPolicy:
         if not has_image:
             tasks = await asyncio.to_thread(
                 self.store.tasks.recent, event.platform, event.storage_scope_id, event.sender_id,
-                reply_to_id=event.reply_to_id)
+                reply_to_id=event.reply_to_id,**({'include_failed_reads':True} if route_correction(event.content) else {}))
             # Task ownership, not a vocabulary list, determines who can answer a pending reminder.
             if any(task.task_type == 'reminder' and task.status == 'collecting' for task in tasks):
                 return bool(event.content.strip()) and len(event.content) <= 8000

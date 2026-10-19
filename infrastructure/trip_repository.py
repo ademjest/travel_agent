@@ -1,5 +1,7 @@
 import hashlib
 import json
+from copy import deepcopy
+from core.trip_updates import apply_constraints
 
 from core.tasks import utc_now
 from infrastructure.task_repository import TaskConflict
@@ -91,8 +93,47 @@ class TripRepository:
                 ORDER BY r.updated_at DESC, r.rowid DESC
             ''', (event.platform, event.scope_id, event.sender_id, trip_id, include_cancelled)).fetchall())
 
+    def draft(self, event, trip):
+        """Read the latest draft independently of its confirmation deadline."""
+        with self.store._connect() as db:
+            rows = db.execute('''SELECT * FROM travel_tasks WHERE platform=? AND scope_id=? AND owner_id=?
+                AND task_type='itinerary' AND json_extract(slots_json,'$.trip_id')=?
+                ORDER BY rowid DESC LIMIT 30''',
+                (event.platform,event.storage_scope_id,event.sender_id,trip['trip_id'])).fetchall()
+        if not rows or rows[0]['status'] != 'collecting':
+            return None
+        task = self.store.tasks._record(rows[0])
+        candidate = deepcopy(task.slots.get('candidate_trip'))
+        if not candidate or task.slots.get('trip_already_saved'):
+            return None
+        original_spec = deepcopy(candidate['spec'])
+        # Older constraint updates started over from the saved trip. Recover their
+        # validated deltas until a cancelled/completed draft or a different base.
+        if not task.slots.get('draft_context_complete') and task.slots.get('expected_trip_version') == trip['version']:
+            chain = []
+            for row in rows:
+                slots = json.loads(row['slots_json'])
+                old = slots.get('candidate_trip', {})
+                if (row['status'] not in {'collecting','superseded'} or slots.get('expected_trip_version') != trip['version']
+                        or slots.get('trip_already_saved') or not old.get('spec',{}).get('constraint_overrides')):
+                    break
+                chain.append(old['spec']['constraint_overrides'])
+                if slots.get('draft_context_complete'):
+                    break
+            for changes in reversed(chain):
+                # Values and budget units may have been quoted in separate user turns.
+                quotes = []
+                for change in changes.values():
+                    quotes.extend([change['source'],change.get('unit_text','')])
+                    value = change.get('value', '')
+                    quotes.extend(value if isinstance(value,list) else [value] if isinstance(value,str) else [])
+                sources = '\n'.join(quotes)
+                candidate['spec'], _ = apply_constraints(candidate['spec'], changes, sources)
+        return {'task':task,'candidate':candidate,'recovered':candidate['spec'] != original_spec}
+
     def commit(self, event, claim, task_update, reply, *, trip=None, expected_version=None,
-               expected_trip=None, reminder_changes=(), supersede_request='', preference_update=None, now=None):
+               expected_trip=None, expected_draft=None, expected_artifact=None, adopt_artifact=False,
+               reminder_changes=(), supersede_request='', preference_update=None, now=None):
         now = now or utc_now()
         timestamp = now.isoformat()
         with self.store._connect() as connection:
@@ -108,7 +149,25 @@ class TripRepository:
                     (expected_trip[0], event.platform, event.storage_scope_id, event.sender_id)).fetchone()
                 if not existing or existing['version'] != expected_trip[1]:
                     raise TaskConflict('关联行程已经变化，请重新核对。')
-            task_id = self.store.tasks.apply(connection, event, task_update, now)
+            if expected_draft:
+                latest = connection.execute('''SELECT task_id,version,status,slots_json FROM travel_tasks
+                    WHERE platform=? AND scope_id=? AND owner_id=? AND task_type='itinerary'
+                    AND json_extract(slots_json,'$.trip_id')=? ORDER BY rowid DESC LIMIT 1''',
+                    (event.platform,event.storage_scope_id,event.sender_id,expected_draft[0])).fetchone()
+                slots = json.loads(latest['slots_json']) if latest else {}
+                actual = ((latest['task_id'],latest['version']) if latest and latest['status']=='collecting'
+                    and slots.get('candidate_trip') and not slots.get('trip_already_saved') else ('',0))
+                if actual != expected_draft[1:]:
+                    raise TaskConflict('待确认草稿已被另一条消息更新，请重新查看后再修改。')
+            if expected_artifact:
+                artifact=connection.execute('''SELECT version,status,capture_version FROM planning_artifacts WHERE artifact_id=?
+                    AND platform=? AND scope_id=? AND owner_id=?''',
+                    (expected_artifact[0],event.platform,event.storage_scope_id,event.sender_id)).fetchone()
+                from infrastructure.planning_repository import CAPTURE_VERSION
+                if (not artifact or artifact['version']!=expected_artifact[1] or artifact['status']!='active'
+                        or artifact['capture_version']<CAPTURE_VERSION):
+                    raise TaskConflict('方案草稿已变化，请重新选择后规划。')
+            task_id = self.store.tasks.apply(connection, event, task_update, now, reply=reply)
             semantic = task_update.slots.get('semantic_task')
             if semantic:
                 cursor = connection.execute('''UPDATE travel_tasks SET status='completed',version=version+1
@@ -154,6 +213,9 @@ class TripRepository:
                 self.store.reminders.apply_change(connection, event, task_id, action, reminder, now)
             if preference_update:
                 self.store.preferences.apply_update(connection, event, preference_update['version'], preference_update['values'])
+            if adopt_artifact and expected_artifact:
+                connection.execute("UPDATE planning_artifacts SET status='adopted',version=version+1,updated_at=? WHERE artifact_id=?",
+                                   (timestamp,expected_artifact[0]))
             connection.execute('UPDATE processed_events SET prepared_reply=?, prepared_memory_content=?, updated_at=? WHERE event_id=?',
                                (reply, event.content, timestamp, event.event_key))
         return reply

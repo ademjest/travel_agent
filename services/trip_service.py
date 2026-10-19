@@ -1,12 +1,14 @@
 from copy import deepcopy
 from dataclasses import replace
-from datetime import date, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 import re
+import os
+from core.trip_diff import record_sources, trip_diff, render_diff
 
 from agents.trip_planner import TripPlanError
 from core.tasks import TaskUpdate, location_answer, utc_now
-from core.trip_updates import apply_constraints, MODES, PACE
+from core.trip_updates import apply_constraints, MODES, PACE, BUDGET_SCOPES
 from services.booking_reminder_service import DATE_PATTERN
 from services.booking_policy import BookingPolicyResolver, PolicyUnavailable
 from services.reminder_time import number, parse_reminder_time
@@ -15,6 +17,7 @@ from services.reminder_time import number, parse_reminder_time
 TRIP_ID = r'TR-[a-f0-9]{12}'
 CONFIRM_TRIP = {'确认行程修改', '确认行程提醒'}
 TRIP_COMMANDS = {'查看行程', '查看我的行程', '我的行程', '取消行程', '重新查询行程预约规则',
+                 '重新生成行程预览',
                  '设置行程提醒', '按行程提醒预约', '刷新行程交通', '刷新行程预约规则', *CONFIRM_TRIP}
 
 
@@ -79,6 +82,28 @@ class TripService:
             lines.append(('规划约束（含所选资料）：' if spec.get('document_ids') else '你的要求：') + '；'.join(spec['preferences']))
         if spec.get('budget_text'):
             lines.append('预算目标：' + spec['budget_text'] + '；尚未核验实时房价、门票和交通费用。')
+        if spec.get('accommodation_text'):
+            lines.append('住宿要求：' + spec['accommodation_text'] + '；舒适度需另行核实。')
+        if spec.get('dining_text'):
+            lines.append('餐饮要求：' + spec['dining_text'] + '；口味、配料和营业时段需另行核实。')
+        for key, label in (('hotel_preferences','住宿筛选'), ('dining_preferences','餐饮筛选')):
+            preferences = spec.get(key, {})
+            parts = []
+            if preferences.get('preferred_brands'):
+                parts.append('品牌 ' + '、'.join(preferences['preferred_brands']))
+            if preferences.get('cuisines'):
+                parts.append('菜系 ' + '、'.join(preferences['cuisines']))
+            if preferences.get('minimum_rating') is not None:
+                origin = '默认标准' if preferences.get('rating_origin') == 'default_high_quality' else '你的明确要求'
+                parts.append(f"高德评分至少 {preferences['minimum_rating']:g}（{origin}）")
+            if preferences.get('near_itinerary'):
+                parts.append('结合行程位置')
+            if parts:
+                lines.append(label + '：' + '；'.join(parts))
+        for scope, budget in spec.get('budgets', {}).items():
+            lines.append(BUDGET_SCOPES[scope] + '预算目标：' + budget['value']
+                         + ('；'+budget['unit_text'] if budget.get('unit_text') else '')
+                         + '；尚未核验实时价格及库存。')
         if spec.get('applied_preferences'):
             from infrastructure.preference_repository import PreferenceRepository
             lines.append('已采用你的偏好：' + PreferenceRepository.describe(spec['applied_preferences']) + '（本次明确要求优先）。')
@@ -96,6 +121,8 @@ class TripService:
         if spec.get('media_ids'):
             lines.append('需求参考图片：' + '、'.join('#' + value for value in spec['media_ids']))
         for day in trip['plan']['days']:
+            if lines and lines[-1] != '':
+                lines.append('')
             lines.append(f"第 {day['day_index']} 天" + (f" · {day['date']}" if day['date'] else '（日期待定）'))
             if not day['activities']:
                 lines.append('- 自由休整：按你的修改，暂不安排固定景点。')
@@ -113,13 +140,106 @@ class TripService:
                     lines.append(f'  {origin} → {destination}：{mode}{estimate}（当前路网参考，出发当日需再核对）。')
             if spec.get('gentle'):
                 lines.append('  建议在活动间安排休息，按实际体力减少步行。')
-        for key, label in (('hotel_ids', '住宿候选'), ('restaurant_ids', '餐饮候选')):
-            if trip['plan'].get(key):
-                lines.append(label + '（地点资料，未核实实时价格和营业/库存）：')
-                lines.extend(f"- {trip['sources'][poi_id]['name']}｜{trip['sources'][poi_id].get('address', '')}"
-                             for poi_id in trip['plan'][key])
-            elif spec.get('hotel_requested' if key == 'hotel_ids' else 'restaurant_requested'):
-                lines.append(label + '：本次未查到可用地点，请补充地段或具体名称后再查询。')
+        def candidate_lines(recommendations, *, kind):
+            rendered = []
+            labels = {'matched':'满足已核验条件', 'partial':'部分条件待核实', 'fallback':'需要放宽条件的备选'}
+            for item in recommendations:
+                place = trip['sources'][item['poi_id']]
+                rendered.append(f"- {place['name']}｜{place.get('address', '')}")
+                facts = []
+                if item.get('rating') is not None:
+                    facts.append(f"高德评分 {item['rating']:g}")
+                distance = item.get('distance', {})
+                if kind == 'hotel' and distance.get('average_meters') is not None:
+                    facts.append(f"距全程景点平均约 {distance['average_meters']/1000:.1f} 公里")
+                    facts.append(f"最远约 {distance['maximum_meters']/1000:.1f} 公里")
+                elif distance.get('average_meters') is not None:
+                    facts.append(f"距本餐前后地点平均约 {distance['average_meters']/1000:.1f} 公里")
+                price_info = item.get('price_info', {})
+                if not price_info and item.get('reference_price') is not None:
+                    price_info = ({'average_price': item['reference_price'], 'lowest_price': None}
+                                  if kind == 'hotel' else {'per_capita': item['reference_price']})
+                if kind == 'hotel':
+                    if price_info.get('average_price') is not None:
+                        facts.append(f"高德参考均价约 {price_info['average_price']:g} 元")
+                    else:
+                        facts.append('高德未返回参考均价')
+                    if price_info.get('lowest_price') is not None:
+                        facts.append(f"高德参考最低价约 {price_info['lowest_price']:g} 元")
+                    else:
+                        facts.append('高德未返回参考最低价')
+                elif price_info.get('per_capita') is not None:
+                    facts.append(f"高德参考人均消费约 {price_info['per_capita']:g} 元/人")
+                else:
+                    facts.append('高德未返回参考人均消费')
+                rendered.append('  ' + labels.get(item.get('status'), '候选') + ('；' + '；'.join(facts) if facts else ''))
+                if item.get('reasons'):
+                    rendered.append('  推荐依据：' + '；'.join(item['reasons'][:3]))
+                if item.get('issues'):
+                    rendered.append('  待确认：' + '；'.join(dict.fromkeys(item['issues'])))
+                for route in item.get('routes', []) if kind == 'hotel' else []:
+                    route_parts = []
+                    for direction, label in (('outbound','去首个景点'), ('return','从末个景点返回')):
+                        evidence = route.get(direction)
+                        if evidence and not evidence.get('error') and evidence.get('duration_seconds'):
+                            route_parts.append(f"{label}约 {(evidence['duration_seconds']+59)//60} 分钟")
+                    if route_parts:
+                        rendered.append(f"  第 {route['day_index']} 天：" + '；'.join(route_parts))
+                if kind == 'dining' and isinstance(item.get('routes'), dict):
+                    routes = item['routes']
+                    if routes.get('extra_duration_seconds') is not None:
+                        rendered.append(f"  相比前后地点直达，预计额外绕行约 {(routes['extra_duration_seconds']+59)//60} 分钟")
+                    else:
+                        route_parts = []
+                        for key, label in (('from_previous','从上一地点'), ('to_next','前往下一地点')):
+                            evidence = routes.get(key)
+                            if evidence and not evidence.get('error') and evidence.get('duration_seconds'):
+                                route_parts.append(f"{label}约 {(evidence['duration_seconds']+59)//60} 分钟")
+                        if route_parts:
+                            rendered.append('  行程位置：' + '；'.join(route_parts))
+            return rendered
+
+        hotel_recommendations = trip['plan'].get('hotel_recommendations', [])
+        if hotel_recommendations:
+            if lines and lines[-1] != '':
+                lines.append('')
+            lines.append('住宿候选（高德参考价格，未核实实时价格和库存；当前接口不提供具体房型价格）：')
+            lines.extend(candidate_lines(hotel_recommendations, kind='hotel'))
+        elif trip['plan'].get('hotel_ids'):
+            if lines and lines[-1] != '':
+                lines.append('')
+            lines.append('住宿候选（地点资料，未核实实时价格和营业/库存）：')
+            lines.extend(f"- {trip['sources'][poi_id]['name']}｜{trip['sources'][poi_id].get('address', '')}"
+                         for poi_id in trip['plan']['hotel_ids'])
+        elif spec.get('hotel_requested'):
+            if lines and lines[-1] != '':
+                lines.append('')
+            lines.append('住宿候选：本次检索范围内未找到符合要求的酒店；没有用无关酒店替代。')
+
+        dining_options = trip['plan'].get('dining_options', [])
+        restaurant_recommendations = trip['plan'].get('restaurant_recommendations', [])
+        if dining_options or restaurant_recommendations:
+            if lines and lines[-1] != '':
+                lines.append('')
+            lines.append('餐饮候选（参考消费不是实际账单，营业时段和配料需核实）：')
+            if restaurant_recommendations:
+                lines.extend(candidate_lines(restaurant_recommendations, kind='dining'))
+            for option in dining_options:
+                lines.append(f"第 {option['day_index']} 天 · {option['meal']}：")
+                lines.extend(candidate_lines(option.get('candidates', []), kind='dining'))
+        elif trip['plan'].get('restaurant_ids'):
+            if lines and lines[-1] != '':
+                lines.append('')
+            lines.append('餐饮候选（参考消费不是实际账单，营业时段和配料需核实）：')
+            lines.extend(f"- {trip['sources'][poi_id]['name']}｜{trip['sources'][poi_id].get('address', '')}"
+                         for poi_id in trip['plan']['restaurant_ids'])
+        elif spec.get('restaurant_requested'):
+            if lines and lines[-1] != '':
+                lines.append('')
+            lines.append('餐饮候选：本次检索范围内未找到符合要求的餐饮地点；没有为凑数生成商家。')
+
+        if lines and lines[-1] != '':
+            lines.append('')
         lines.extend(('地点依据：高德 POI 查询记录；开放时间、预约、价格和跨地点通行时间需另行核对。',
                       '可以说“第二天改为室内”“把行程改到10月2日开始”或“查看行程”。'))
         return '\n'.join(lines)
@@ -128,30 +248,77 @@ class TripService:
         return TaskUpdate('itinerary', status, task.initial_request if task else event.content,
                           slots, missing, task.task_id if task else '', task.version if task else None)
 
-    def _question(self, task, event, claim, slots, missing, reply, *, trip=None, expected_trip=None, supersede_request=''):
+    def _question(self, task, event, claim, slots, missing, reply, *, trip=None, expected_trip=None,
+                  expected_draft=None, expected_artifact=None, supersede_request=''):
+        if 'confirmation' in missing and slots.get('candidate_trip') and expected_trip:
+            saved = self.store.trips.get(event,expected_trip[0])
+            if saved:
+                slots['change_diff'] = trip_diff(saved,slots['candidate_trip'])
+                reply = render_diff(slots['change_diff'])+'\n\n'+reply
         if 'confirmation' in missing and len(reply) > 7500:
             raise TripPlanError('本次行程与提醒变更太长，无法完整展示供核对。请减少本次修改范围后重试，尚未应用本次变更。')
         return self.store.trips.commit(event, claim, self._task_update(task, event, slots, 'collecting', missing),
-                                       reply, trip=trip, expected_trip=expected_trip, supersede_request=supersede_request, now=self.clock())
+                                       reply, trip=trip, expected_trip=expected_trip, expected_draft=expected_draft,
+                                       expected_artifact=expected_artifact,supersede_request=supersede_request, now=self.clock())
 
     def update_constraints(self, event, claim, trip_id, expected_version, changes, *, source_text=None,
-                           preference_update=None, semantic_task=None):
+                           preference_update=None, semantic_task=None, expected_draft=None):
         current = self.store.trips.get(event, trip_id)
         if not current or current['status'] != 'active' or current['version'] != expected_version:
             raise TripPlanError('当前行程已经变化，请重新查看后再调整。')
-        spec, summary = apply_constraints(current['spec'], changes, source_text or event.content)
-        candidate = deepcopy(current)
+        draft = self.store.trips.draft(event, current)
+        draft_key = (draft['task'].task_id,draft['task'].version) if draft else ('',0)
+        if expected_draft is not None and draft_key != expected_draft:
+            raise TripPlanError('待确认草稿已变化，请重新查看后再修改。')
+        stale_draft = bool(draft and draft['task'].slots.get('expected_trip_version') != expected_version)
+        if stale_draft and changes:
+            raise TripPlanError('草稿的基础行程已变化，请先发送“重新生成行程预览”，核对最新行程后再修改。')
+        base = draft['candidate'] if draft and not stale_draft else current
+        spec, summary = (apply_constraints(base['spec'], changes, source_text or event.content) if changes
+                         else (deepcopy(base['spec']), ['根据当前草稿重新生成预览']))
+        if stale_draft:
+            summary = ['旧草稿的基础版本已变化，本次按最新已保存行程重新核对，未自动套用旧草稿']
+        candidate = deepcopy(base)
+        record_sources(spec,changes,event)
         candidate.update(spec=spec, version=expected_version+1)
-        if changes.keys() - {'transport'}:
-            candidate['sources'] = {**current['sources'], **self.planner.collect_places(spec)}
-            candidate['plan'] = self.planner.plan(spec, candidate['sources'], current['plan'], source_text or event.content)
-        self.planner.add_route_evidence(candidate['plan'], spec, candidate['sources'], current['plan'])
+        local = (os.getenv('AI_LOCAL_PLANNING','true').lower() == 'true' and changes
+                 and not (draft and draft['recovered']) and not stale_draft
+                 and set(changes) <= {'accommodation','dining','budget','budgets','transport'})
+        budgets=([changes['budget']] if 'budget' in changes else [])+changes.get('budgets',[])
+        local = local and all(b['scope'] in {'accommodation','food'} for b in budgets)
+        if local:
+            categories=set()
+            if 'accommodation' in changes or any(b['scope']=='accommodation' for b in budgets):
+                categories.add('hotel')
+            if 'dining' in changes or any(b['scope']=='food' for b in budgets):
+                categories.add('dining')
+            if categories:
+                lookup_categories={category for category in categories if spec.get('hotel_requested' if category=='hotel' else 'restaurant_requested')}
+                fresh=self.planner.collect_places(spec,categories=lookup_categories) if lookup_categories else {}
+                candidate['sources'] = {**base['sources'],**fresh}
+                candidate['plan'] = self.planner.update_recommendations(spec,base['plan'],candidate['sources'],categories,candidate_ids=set(fresh))
+            candidate['planning_mode']='local_recommendations' if categories else 'routes_only'
+        elif not changes or changes.keys() - {'transport'} or (draft and draft['recovered']):
+            candidate['sources'] = {**base['sources'], **self.planner.collect_places(spec)}
+            candidate['plan'] = self.planner.plan(spec, candidate['sources'], base['plan'], source_text or event.content)
+        if local and categories and 'transport' not in changes:
+            self.planner._add_recommendation_routes(candidate['plan'],spec,candidate['sources'])
+        else:
+            self.planner.add_route_evidence(candidate['plan'], spec, candidate['sources'], current['plan'])
+        if hasattr(self.store,'diagnostics'):
+            self.store.diagnostics.record('planning',{'event_key':event.event_key,'status':candidate.get('planning_mode','full'),
+                                                     'version':expected_version})
+        candidate['plan'].pop('_local_patch',None)
         changes_to_reminders, notes, errors, fingerprints, _ = self._reminder_changes(event, candidate)
         slots = {'trip_id': trip_id, 'candidate_trip': candidate, 'expected_trip_version': expected_version,
+                 'draft_context_complete': True,
                  'trip_already_saved': False, 'policy_fingerprints': fingerprints,
                  'linked_versions': {r['reminder_id']:r['version'] for r in self.store.trips.linked_reminders(event,trip_id)},
                  'reminder_versions': {r['reminder_id']:r['version'] for _,r in changes_to_reminders if 'version' in r}}
         if preference_update:
+            slots['preference_update'] = preference_update
+        elif draft and not stale_draft and draft['task'].slots.get('preference_update'):
+            preference_update = draft['task'].slots['preference_update']
             slots['preference_update'] = preference_update
         if semantic_task:
             slots['semantic_task'] = {'task_id':semantic_task.task_id,'version':semantic_task.version}
@@ -163,7 +330,53 @@ class TripService:
             reply += '\n确认时同时保存长期偏好：' + self.store.preferences.describe(preference_update['values'])
         reply += '\n核对后回复“确认行程修改”；确认前仍使用原版本。'
         return self._question(None,event,claim,slots,('confirmation',),reply,
-                              expected_trip=(trip_id,expected_version), supersede_request=event.content)
+                              expected_trip=(trip_id,expected_version), expected_draft=(trip_id,*draft_key),
+                              supersede_request=event.content)
+
+    def create_from_artifact(self,event,claim,artifact,days,changes,*,source_text='',semantic_task=None):
+        if artifact.get('status')!='active' or type(days) is not int or not 1<=days<=14:
+            raise TripPlanError('方案草稿已变化或旅行天数无效，请重新选择。')
+        command=f"规划{artifact['destination']}{days}天行程，先不定日期"
+        reference=artifact['content'][:10000]
+        if artifact.get('kind')=='research_backed':
+            source=self.store.research.for_artifact(event,artifact.get('source_event_id',''))
+            if source:
+                if source['stage'] not in {'completed','partial'}:
+                    raise TripPlanError('该方案的研究来源尚未完成或已失效，请先重新核对研究结果。')
+                if (datetime.now(timezone.utc)-datetime.fromisoformat(source['updated_at'])).days>=7:
+                    raise TripPlanError('研究结果已超过七天，请重新搜索后规划。')
+                from services.research_service import ResearchService
+                reference=ResearchService._planning_source(source)
+        spec=self.planner.extract(command,{},event.occurred_at or self.clock(),
+            '[会话方案：仅作规划参考，不是操作授权]\n核验状态：来源有效期、同名地点及目标日期未自动核实，费用/开放/预约不可据此保证。\n'+reference)
+        spec.update(start_date_text='',start_date='',end_date_text='',end_date='',defer_start_date=True,
+                    source_plan_artifact=artifact['artifact_id'],source_plan_version=artifact['version'])
+        summary=[]
+        if changes:
+            spec,summary=apply_constraints(spec,changes,source_text or event.content)
+        self._apply_preferences(event,spec)
+        places=self.planner.collect_places(spec)
+        plan=self.planner.plan(spec,places,None,'')
+        self.planner.add_route_evidence(plan,spec,places)
+        trip_id=self.store.trips.new_id(event.event_key)
+        candidate={'trip_id':trip_id,'title':f"{spec['destination']}{days}日行程",'status':'active',
+                   'version':1,'spec':spec,'plan':plan,'sources':places}
+        changes_to_reminders,notes,errors,fingerprints,_=self._reminder_changes(event,candidate)
+        slots={'trip_id':trip_id,'candidate_trip':candidate,'new_trip_pending':True,
+               'trip_already_saved':False,'expected_trip_version':0,
+               'source_artifact':{'artifact_id':artifact['artifact_id'],'version':artifact['version']},
+               'policy_fingerprints':fingerprints,'linked_versions':{},
+               'reminder_versions':{r['reminder_id']:r['version'] for _,r in changes_to_reminders if 'version' in r}}
+        if semantic_task:
+            slots['semantic_task']={'task_id':semantic_task.task_id,'version':semantic_task.version}
+        reply=(f"已采用方案草稿：{artifact['title']}。日期继续待定；确认后才保存正式行程。\n"
+               + ('；'.join(summary)+'\n\n' if summary else '')
+               + self.format_trip(candidate,preview=True).replace('行程修改预览','行程创建预览',1))
+        if notes or errors:
+            reply+='\n关联提醒尚未创建：\n'+'\n'.join([*notes,*errors])
+        reply+='\n核对后回复“确认行程修改”；确认前当前会话仍没有正式行程。'
+        return self._question(None,event,claim,slots,('confirmation',),reply,
+            expected_artifact=(artifact['artifact_id'],artifact['version']))
 
     def _select_trip(self, event, task, tasks):
         ids = re.findall(TRIP_ID, event.content)
@@ -270,6 +483,11 @@ class TripService:
             return None
         command = re.sub(TRIP_ID, '', text).strip()
         trips = self.store.trips.list_for_owner(event)
+        if command == '重新生成行程预览':
+            current = self._select_trip(event, task, tasks)
+            if not current:
+                return '请先查看行程，并用行程编号说明要重新生成哪份预览。'
+            return self.update_constraints(event,claim,current['trip_id'],current['version'],{})
         if command == '我的行程':
             return '\n'.join(f"{trip['title']}（{trip['trip_id']}，版本 {trip['version']}）" for trip in trips) or '还没有保存的行程。'
         slots = deepcopy(task.slots) if task else {}
@@ -304,8 +522,9 @@ class TripService:
         editing = bool(command in {'查看行程', '查看我的行程', '取消行程', *CONFIRM_TRIP, '重新查询行程预约规则',
                                     '设置行程提醒', '按行程提醒预约', '刷新行程交通', '刷新行程预约规则'} or policy_link or pending_date or pending_transport
                        or re.search(r'改|调整|换|挪|放到|放第|不去|删除', text))
-        current = self._select_trip(event, task, tasks) if editing else None
-        if editing and current is None:
+        new_trip_pending=bool(task and slots.get('new_trip_pending') and slots.get('candidate_trip'))
+        current = None if new_trip_pending else self._select_trip(event, task, tasks) if editing else None
+        if editing and current is None and not new_trip_pending:
             if not trips:
                 return '还没有保存的行程。可以说“帮我规划武汉三天行程”。'
             slots.update(trip_candidates=[trip['trip_id'] for trip in trips], original_command=text)
@@ -322,6 +541,13 @@ class TripService:
             return '没有仍然有效的行程变更预览。请先查看或修改行程，再确认具体变更。'
         if task and (command in CONFIRM_TRIP | {'重新查询行程预约规则'} or policy_link) and slots.get('candidate_trip'):
             candidate = slots['candidate_trip']
+            if command in CONFIRM_TRIP:
+                if not new_trip_pending:
+                    draft = self.store.trips.draft(event,current)
+                    if draft and draft['task'].task_id == task.task_id and draft['recovered']:
+                        return '这份旧预览遗漏了此前的草稿要求，请发送“重新生成行程预览”，核对完整要求后再确认。'
+                if event.platform == 'web' and not self.store.tasks.confirmation_preview(event,task):
+                    return '完整预览暂时不可用，请发送“重新生成行程预览”，核对后再确认。'
             if policy_link:
                 urls = re.findall(r'https://[^\s，。<>]+', text)
                 entities = [name for name in candidate['spec'].get('reminder_entities', []) if name in text]
@@ -330,9 +556,10 @@ class TripService:
                 if len(urls) != 1 or len(entities) != 1:
                     return '请在链接前写明行程里的完整场馆名称，一次补充一个预约说明链接。'
                 candidate['spec'].setdefault('policy_sources', {})[entities[0]] = urls[0]
-            if current['version'] != slots['expected_trip_version']:
+            if not new_trip_pending and current['version'] != slots['expected_trip_version']:
                 raise TripPlanError('行程已变化，旧预览不能确认。请查看最新行程后重新修改。')
-            linked_versions = {row['reminder_id']: row['version'] for row in self.store.trips.linked_reminders(event, current['trip_id'])}
+            linked_versions = ({row['reminder_id']: row['version'] for row in self.store.trips.linked_reminders(event, current['trip_id'])}
+                               if current else {})
             if linked_versions != slots.get('linked_versions', {}):
                 raise TripPlanError('关联提醒集合已经变化，请重新查看并修改行程，不能使用旧预览。')
             changes, notes, errors, fingerprints, review = self._reminder_changes(event, candidate, force_refresh=slots.get('force_refresh', False))
@@ -341,47 +568,78 @@ class TripService:
                 raise TripPlanError('关联提醒已被修改，旧预览不能确认。请查看最新行程后重试。')
             if errors or policy_link or (slots.get('policy_fingerprints') != fingerprints):
                 slots.update(policy_fingerprints=fingerprints, reminder_versions={row['reminder_id']: row['version'] for _, row in changes if 'version' in row})
+                source_artifact=slots.get('source_artifact')
                 return self._question(task, event, claim, slots, ('confirmation',),
-                    '规则或适用条件需要重新核对，尚未应用变更。\n' + '\n'.join([*notes, *errors]) + '\n核对后回复“确认行程提醒”。')
+                    '规则或适用条件需要重新核对，尚未应用变更。\n' + '\n'.join([*notes, *errors]) + '\n核对后回复“确认行程提醒”。',
+                    expected_artifact=(source_artifact['artifact_id'],source_artifact['version']) if source_artifact else None)
             if command == '重新查询行程预约规则':
+                source_artifact=slots.get('source_artifact')
                 return self._question(task, event, claim, slots, ('confirmation',),
-                    '\n'.join(notes) + '\n核对后回复“确认行程提醒”。')
+                    '\n'.join(notes) + '\n核对后回复“确认行程提醒”。',
+                    expected_artifact=(source_artifact['artifact_id'],source_artifact['version']) if source_artifact else None)
             for _, reminder in changes:
                 if reminder.get('source'):
                     reminder['source']['applicability_confirmed_by_user'] = True
-            reply = ('已应用行程与提醒变更。\n' if not slots.get('trip_already_saved') else '已设置行程关联提醒。\n') + '\n'.join(notes)
+            reply = ('已创建行程。\n' if new_trip_pending else
+                     '已应用行程与提醒变更。\n' if not slots.get('trip_already_saved') else '已设置行程关联提醒。\n') + '\n'.join(notes)
             if slots.get('preference_update'):
                 reply += '\n已同时保存长期偏好：' + self.store.preferences.describe(slots['preference_update']['values'])
-            if not slots.get('trip_already_saved'):
+            if new_trip_pending or not slots.get('trip_already_saved'):
                 reply += '\n' + self.format_trip(candidate)
+            artifact=slots.get('source_artifact')
             return self.store.trips.commit(event, claim, self._task_update(task, event, {'trip_id': candidate['trip_id']}, 'completed'),
-                reply, trip=None if slots.get('trip_already_saved') else candidate,
-                expected_version=None if slots.get('trip_already_saved') else current['version'],
-                expected_trip=(current['trip_id'], current['version']), reminder_changes=changes,
+                reply, trip=candidate if new_trip_pending else None if slots.get('trip_already_saved') else candidate,
+                expected_version=None if new_trip_pending or slots.get('trip_already_saved') else current['version'],
+                expected_trip=None if new_trip_pending else (current['trip_id'], current['version']),
+                expected_artifact=(artifact['artifact_id'],artifact['version']) if artifact else None,
+                adopt_artifact=bool(new_trip_pending and artifact), reminder_changes=changes,
                 preference_update=slots.get('preference_update'), now=self.clock())
 
         spec = deepcopy(current['spec'] if current else slots.get('spec', {}))
         candidate = deepcopy(current) if current else None
         targeted_day = re.search(r'第([一二两三四五六七八九十\d]+)天', text)
+        day_draft_key = None
         transport_change = re.search(r'改(?:成|为).{0,8}(公共交通|公交|地铁|步行|驾车|自驾|开车)', text) if current else None
         if current and targeted_day and re.search(r'室内|室外', text):
+            draft=self.store.trips.draft(event,current)
+            if draft and (draft['recovered'] or draft['task'].slots.get('expected_trip_version')!=current['version']):
+                raise TripPlanError('草稿需要按最新行程重新生成，再调整指定日期。')
+            base=draft['candidate'] if draft else current
+            spec=deepcopy(base['spec'])
+            candidate=deepcopy(base)
+            day_draft_key=(current['trip_id'],draft['task'].task_id if draft else '',draft['task'].version if draft else 0)
             day_index = number(targeted_day[1])
             if not 1 <= day_index <= spec['day_count']:
                 raise TripPlanError('这个天数不在当前行程内。')
             indoor = set(spec.get('indoor_days', []))
             outdoor = set(spec.get('outdoor_days', []))
-            if '室内' in text:
+            period_match=re.search(r'第[一二两三四五六七八九十\d]+天(?:的)?(上午|下午|晚上)',text)
+            if period_match:
+                for key,days in (('indoor_periods',indoor),('outdoor_periods',outdoor)):
+                    if day_index in days:
+                        spec.setdefault(key,{})[str(day_index)]=['上午','下午','晚上']
+                        days.discard(day_index)
+                wanted,other=('indoor_periods','outdoor_periods') if '室内' in text else ('outdoor_periods','indoor_periods')
+                spec.setdefault(wanted,{})[str(day_index)]=list(dict.fromkeys([*spec.get(wanted,{}).get(str(day_index),[]),period_match[1]]))
+                spec.setdefault(other,{})[str(day_index)]=[p for p in spec.get(other,{}).get(str(day_index),[]) if p!=period_match[1]]
+            elif '室内' in text:
                 indoor.add(day_index)
                 outdoor.discard(day_index)
             else:
                 indoor.discard(day_index)
                 outdoor.add(day_index)
+            if not period_match:
+                for key in ('indoor_periods','outdoor_periods'):
+                    spec.setdefault(key,{}).pop(str(day_index),None)
             spec['indoor_days'] = sorted(indoor)
             spec['outdoor_days'] = sorted(outdoor)
-            places = self.planner.collect_places(spec)
-            places = {**current['sources'], **places}
-            generated = self.planner.plan(spec, places, current['plan'], text)
+            field='indoor_periods' if period_match and '室内' in text else 'outdoor_periods' if period_match else 'indoor_days' if '室内' in text else 'outdoor_days'
+            spec.setdefault('fact_sources',{})[field]={'event_id':event.event_key,'source':event.content,'origin':'user',
+                'revision':spec.get('fact_sources',{}).get(field,{}).get('revision',0)+1}
+            places = {**base['sources'], **self.planner.collect_places(spec,categories={'general'})}
+            generated = self.planner.plan(spec, places, base['plan'], text)
             candidate.update(spec=spec, plan=generated, sources=places)
+            force_confirmation = True
         elif current and targeted_day and re.search(r'不去|删除', text):
             target_index = number(targeted_day[1]) - 1
             if not 0 <= target_index < spec['day_count']:
@@ -517,6 +775,8 @@ class TripService:
             self.planner.add_route_evidence(candidate['plan'], candidate['spec'], candidate['sources'],
                 current['plan'] if current and command != '刷新行程交通' else None)
         force_refresh = command == '刷新行程预约规则'
+        if candidate['plan'].pop('_local_patch',False):
+            force_confirmation=True
         changes, notes, errors, fingerprints, review = self._reminder_changes(event, candidate, force_refresh=force_refresh)
         if force_refresh and not changes and not errors:
             return '已核查行程预约规则，没有需要调整的关联提醒。\n' + '\n'.join(notes)
@@ -531,7 +791,9 @@ class TripService:
                          reminder_versions={row['reminder_id']: row['version'] for _, row in changes if 'version' in row})
             reply = self.format_trip(candidate, preview=bool(current)) + '\n关联提醒尚未变更：\n' + '\n'.join([*notes, *errors])
             reply += '\n请核对规则与日期后回复“确认行程提醒”；有规则缺口时可稍后说“重新查询行程预约规则”。'
-            return self._question(task, event, claim, slots, ('confirmation',), reply, trip=candidate if already_saved else None)
+            return self._question(task, event, claim, slots, ('confirmation',), reply, trip=candidate if already_saved else None,
+                                  expected_trip=(current['trip_id'],current['version']) if current else None,
+                                  expected_draft=day_draft_key)
         reply = ('已取消行程。' if candidate['status'] == 'cancelled' else self.format_trip(candidate))
         if notes:
             reply += '\n' + '\n'.join(notes)

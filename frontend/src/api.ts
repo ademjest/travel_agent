@@ -84,6 +84,9 @@ export interface DeletionSummary {
   active_tasks: number;
   reminders: number;
   trips: number;
+  planning_artifacts: number;
+  tool_artifacts: number;
+  conversation_summaries: number;
   scheduled_queries: number;
   policy_watches: number;
 }
@@ -114,16 +117,34 @@ export interface Job {
   created_at: string;
   updated_at: string;
 }
+export interface ExecutionReport {
+  retrieval_status?: import("./RuntimeStatusPanel").RetrievalStatus;
+  job_id: number;
+  job_status: string;
+  state: string;
+  note: string;
+  model_calls: number;
+  timeline: { id: number; stage: string; title: string; created_at: string; description: string; warning: boolean; recovered?: boolean; details: Record<string, unknown> }[];
+  report_text: string;
+  replayed: boolean;
+}
 export interface Confirmation {
+  diff?: TripDiff | null;
   id: string;
   version: number;
   command: string;
-  preview: string;
+  preview: string | null;
+  can_confirm?: boolean;
+  unavailable_reason?: string;
   expires_at: string;
 }
 export interface Trip {
   trip_id: string;
   version: number;
+  facts?: FactRow[];
+  draft_facts?: FactRow[];
+  draft_version?: number | null;
+  draft_id?: string | null;
   spec: {
     destination?: string;
     start_date?: string;
@@ -143,6 +164,27 @@ export interface Trip {
     }[];
   };
   sources: Record<string, { name?: string; address?: string }>;
+}
+export interface FactRow { field: string; label: string; value: string; source: string }
+export interface TripDiff {
+  base_version: number;
+  changes: {field: string; label: string; before: string; after: string}[];
+  changed_days: number[];
+  hotel_changed: boolean;
+  routes_changed: boolean;
+  price_note: string;
+}
+export interface PlanningArtifact {
+  artifact_id: string;
+  ordinal: number;
+  kind: "exploratory" | "research_backed";
+  title: string;
+  destination: string;
+  duration_options: number[];
+  summary: string;
+  status: string;
+  version: number;
+  created_at: string;
 }
 export interface Reminder {
   reminder_id: string;
@@ -164,8 +206,33 @@ export interface PolicyWatch {
   status: string;
   ends_at: string;
 }
+export interface ConversationUsageTotals {
+  calls: number;
+  prompt_tokens: number;
+  cached_input_tokens: number;
+  completion_tokens: number;
+  reasoning_tokens: number;
+  total_tokens: number;
+  running_calls: number;
+  estimated_cost: number;
+  cost_unknown: number;
+  cost_recalculated: number;
+  cache_detail_missing: number;
+  unknown_usage: number;
+  cost_breakdown: { currency: string; amount: number }[];
+}
+export interface ConversationUsageReport {
+  conversation_id: string;
+  totals: ConversationUsageTotals;
+  purposes: (Omit<ConversationUsageTotals, "total_tokens" | "running_calls"> & { purpose: string; model_id: string })[];
+  currency: string;
+  cost_note: string;
+  scope_note: string;
+}
 export interface Context {
+  model_usage?: ConversationUsageReport;
   trips: Trip[];
+  planning_artifacts: PlanningArtifact[];
   reminders: Reminder[];
   documents: { id: number; filename: string; created_at: string }[];
   confirmations: Confirmation[];
@@ -202,6 +269,7 @@ export interface Status {
 }
 export const emptyContext: Context = {
   trips: [],
+  planning_artifacts: [],
   reminders: [],
   documents: [],
   confirmations: [],

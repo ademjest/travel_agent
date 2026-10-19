@@ -41,7 +41,8 @@ class WebAdapter:
             attachments.append(ChatAttachment(item['filename'], '', item['content_type'], item['size'],
                                str((self.repository.root / item['relative_path']).resolve()), item['sha256']))
         return ChatEvent('web', 'group', payload['request_id'], payload['conversation_id'], OWNER,
-                         payload.get('content', ''), attachments=tuple(attachments), occurred_at=datetime.fromisoformat(payload['time']))
+                         payload.get('content', ''), attachments=tuple(attachments), occurred_at=datetime.fromisoformat(payload['time']),
+                         trip_edit=payload.get('trip_edit'))
 
     async def handle(self, payload):
         event = self.input_event(payload)
@@ -51,7 +52,10 @@ class WebAdapter:
             matches = [t for t in tasks if t.task_id == confirmation['id'] and t.version == confirmation['version']
                        and t.status == 'collecting' and 'confirmation' in t.missing_slots]
             pending = [t for t in tasks if t.task_type == (matches[0].task_type if matches else '') and t.status == 'collecting']
-            if len(matches) != 1 or len(pending) != 1:
+            previews = self.repository.context(event.scope_id)['confirmations']
+            can_confirm = any(p['id'] == confirmation['id'] and p['version'] == confirmation['version']
+                              and p['can_confirm'] for p in previews)
+            if len(matches) != 1 or len(pending) != 1 or not can_confirm:
                 # Complete the request with an explanation without invoking any business mutation.
                 claim = self.repository.store.begin_event(event.event_key)
                 if claim:

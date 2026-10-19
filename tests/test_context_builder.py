@@ -70,6 +70,14 @@ class ContextBuilderTests(unittest.TestCase):
         self.assertIn('相关性较低', context)
         self.assertIn(f'文档#{doc.document_id}', context)
 
+    def test_document_qa_does_not_inject_unrelated_latest_document(self):
+        self.store.add_document('group-a', 'member-a', 'notes.md', 'unrelated-doc-qa',
+                                '青海湖景色介绍', ['青海湖景色介绍'])
+
+        context = self.builder.build(self.event('火箭发动机参数'), purpose='document_qa')
+
+        self.assertEqual(context.document_context, '')
+
     def test_speaker_attribution_is_preserved(self):
         self.save_message(
             "a1",

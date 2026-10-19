@@ -1,7 +1,10 @@
 import json
 import uuid
+from dataclasses import replace
 
 from core.tasks import TASK_TTL, TaskRecord, TaskUpdate, utc_now
+from core.model_budget import MODEL_RUN
+import hashlib
 
 
 class TaskConflict(ValueError):
@@ -40,7 +43,7 @@ class TaskRepository:
                 );
             """)
 
-    def recent(self, platform, scope_id, owner_id, now=None, reply_to_id=''):
+    def recent(self, platform, scope_id, owner_id, now=None, reply_to_id='', include_failed_reads=False):
         timestamp = (now or utc_now()).isoformat()
         with self.store._connect() as connection:
             if reply_to_id:
@@ -49,21 +52,43 @@ class TaskRepository:
                     JOIN task_event_results e ON e.event_id=l.event_id
                     JOIN travel_tasks t ON t.task_id=e.task_id
                     WHERE l.platform=? AND l.scope_id=? AND l.message_id=?
-                    AND t.owner_id=? AND t.expires_at > ?
-                """, (platform, scope_id, reply_to_id, owner_id, timestamp)).fetchone()
+                    AND t.owner_id=? AND t.expires_at > ? AND (t.status IN ('collecting','completed','waiting_external')
+                        OR (? AND t.status='failed' AND t.task_type IN ('route','traffic','walking','transit')))
+                """, (platform, scope_id, reply_to_id, owner_id, timestamp,include_failed_reads)).fetchone()
                 if reference:
                     return (self._record(reference),)
             rows = connection.execute("""
                 SELECT * FROM travel_tasks WHERE platform=? AND scope_id=? AND owner_id=?
-                AND expires_at > ? AND status IN ('collecting', 'completed', 'waiting_external')
+                AND expires_at > ? AND (status IN ('collecting', 'completed', 'waiting_external')
+                    OR (? AND status='failed' AND task_type IN ('route','traffic','walking','transit')))
                 ORDER BY updated_at DESC, rowid DESC LIMIT 10
-            """, (platform, scope_id, owner_id, timestamp)).fetchall()
+            """, (platform, scope_id, owner_id, timestamp,include_failed_reads)).fetchall()
         return tuple(self._record(row) for row in rows)
 
     def has_history(self, platform, scope_id, owner_id):
         with self.store._connect() as connection:
             return connection.execute('SELECT 1 FROM travel_tasks WHERE platform=? AND scope_id=? AND owner_id=? LIMIT 1',
                                       (platform, scope_id, owner_id)).fetchone() is not None
+
+    def confirmation_preview(self, event, task):
+        preview = task.slots.get('confirmation_preview')
+        if isinstance(preview,str) and preview.strip():
+            return preview
+        with self.store._connect() as db:
+            row = db.execute('SELECT prepared_reply FROM processed_events WHERE event_id=?',(task.last_event_id,)).fetchone()
+            preview = row['prepared_reply'] if row else None
+            if not isinstance(preview,str) or not preview.strip():
+                row = db.execute('''SELECT assistant_content FROM conversation_turns
+                    WHERE group_openid=? AND member_openid=? AND user_msg_id=?''',
+                    (event.storage_scope_id,event.sender_id,task.last_event_id)).fetchone()
+                preview = row['assistant_content'] if row else None
+            if event.platform == 'web' and (not isinstance(preview,str) or not preview.strip()):
+                row = db.execute('''SELECT d.content FROM web_deliveries d JOIN outbox_messages o
+                    ON d.delivery_key='web:outbox:' || o.id WHERE o.event_id=? AND o.platform='web'
+                    AND o.sender_id=? AND d.conversation_id=? AND d.kind='reply' ''',
+                    (task.last_event_id,event.sender_id,event.scope_id)).fetchone()
+                preview = row['content'] if row else None
+        return preview if isinstance(preview,str) and preview.strip() else ''
 
     def command(self, event, claim):
         text = event.content.strip()
@@ -94,7 +119,16 @@ class TaskRepository:
             json.loads(row['slots_json']), tuple(json.loads(row['missing_slots_json'])),
             row['version'], row['expires_at'], row['last_event_id'])
 
-    def apply(self, connection, event, update: TaskUpdate, now):
+    def apply(self, connection, event, update: TaskUpdate, now, *, reply=None):
+        slots = dict(update.slots)
+        slots.setdefault('budget_run_key', MODEL_RUN.get() or hashlib.sha256(event.event_key.encode()).hexdigest())
+        update = replace(update,slots=slots)
+        if 'confirmation' in update.missing_slots:
+            # A confirmation outlives its delivery checkpoint; store its own snapshot.
+            slots = {key: value for key, value in update.slots.items() if key != 'confirmation_preview'}
+            if isinstance(reply, str) and reply.strip():
+                slots['confirmation_preview'] = reply
+            update = replace(update, slots=slots)
         existing = connection.execute('SELECT task_id FROM task_event_results WHERE event_id=?',
                                       (event.event_key,)).fetchone()
         if existing:
@@ -131,6 +165,16 @@ class TaskRepository:
         return task_id
 
     def prepare_result(self, event, claim, update, reply):
+        try:
+            self._prepare_result(event, claim, update, reply)
+        except TaskConflict:
+            self.store.diagnostics.record('request', {'event_key': event.event_key,
+                'status': 'task_conflict', 'error_code': 'stale_state'})
+            raise
+        self.store.diagnostics.record('request', {'event_key': event.event_key,
+            'status': 'task_prepared', 'version': update.expected_version})
+
+    def _prepare_result(self, event, claim, update, reply):
         now = utc_now()
         with self.store._connect() as connection:
             connection.execute('BEGIN IMMEDIATE')
@@ -138,7 +182,7 @@ class TaskRepository:
                                      (event.event_key,)).fetchone()
             if not row or row['status'] != 'processing' or row['claim_token'] != claim.claim_token:
                 raise TaskConflict('事件处理权已变化，请稍后重试。')
-            self.apply(connection, event, update, now)
+            self.apply(connection, event, update, now, reply=reply)
             connection.execute("""
                 UPDATE processed_events SET prepared_reply=?, prepared_memory_content=?, updated_at=?
                 WHERE event_id=? AND claim_token=?

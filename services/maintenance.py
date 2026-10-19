@@ -137,8 +137,17 @@ class MaintenanceService:
                     pass
         result.update(media_observations=media_count, media_files=deleted_media)
         with self.store._connect() as connection:
+            result['event_read_attempts'] = connection.execute('''DELETE FROM event_read_attempts
+                WHERE event_id NOT IN (SELECT event_id FROM processed_events)''').rowcount
             if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='model_calls'").fetchone():
                 result['model_calls'] = connection.execute('DELETE FROM model_calls WHERE started_at < ?', (cutoff.isoformat(),)).rowcount
+            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tool_artifacts'").fetchone():
+                result['tool_artifacts'] = connection.execute(
+                    'DELETE FROM tool_artifacts WHERE created_at < ?', (cutoff.isoformat(),)).rowcount
+            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_summaries'").fetchone():
+                result['conversation_summaries'] = connection.execute(
+                    'DELETE FROM conversation_summaries WHERE updated_at < ?', (cutoff.isoformat(),)).rowcount
+        result['personal_reminders'] = self.store.reminders.purge_expired(current)
         self.last_run_at = current
         self.last_result = result
         self.last_error = ""

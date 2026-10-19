@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from infrastructure.env_settings_store import START_ENV  # capture inherited environment before dotenv loading
+from infrastructure.env_settings_store import EnvSettingsStore  # capture inherited environment before dotenv loading
 
 from core.data_paths import PROJECT_ROOT, database_path
 from core.settings import Settings, SettingsError
@@ -58,8 +58,14 @@ class WebSettings:
 
     @classmethod
     def from_env(cls):
+        try:
+            services = EnvSettingsStore(PROJECT_ROOT)
+        except (ValueError, OSError):
+            services = None
         load_dotenv(PROJECT_ROOT / '.env', override=False)
         load_dotenv(PROJECT_ROOT.parent / '.env', override=False)
+        if services is not None:
+            services.apply_web_overrides()
         root = Path(os.getenv('WEB_DATA_DIR', 'data/web'))
         if not root.is_absolute():
             root = PROJECT_ROOT / root

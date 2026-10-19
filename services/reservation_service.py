@@ -167,7 +167,6 @@ def normalize_extraction_item(
         raise ValueError("advance_value must be an integer") from exc
 
     if not requires_reservation or advance_unit == "none":
-        requires_reservation = False
         advance_unit = "none"
         advance_value = 0
     elif advance_value < 1:
@@ -669,7 +668,7 @@ class ReservationService:
 
         draft_items = []
         for extraction in extraction_items:
-            if not extraction.requires_reservation:
+            if not extraction.requires_reservation or extraction.advance_unit == "none":
                 draft_items.append({
                     "extraction": extraction,
                     "visit_date": None,
@@ -677,7 +676,7 @@ class ReservationService:
                     "date_candidates": (),
                     "custom_reminder_times": (),
                     "reminder_policy": "none",
-                    "status": "ready",
+                    "status": "needs_input" if extraction.requires_reservation else "ready",
                 })
                 continue
 
@@ -750,6 +749,7 @@ class ReservationService:
             item
             for item in plan.items
             if item.requires_reservation
+            and item.advance_unit != "none"
             and item.visit_date is None
             and item.status in {"needs_input", "not_scheduled"}
         )
@@ -848,6 +848,9 @@ class ReservationService:
                 lines.append("   无需预约，仅保存信息")
                 if item.visit_date:
                     lines.append(f"   游览日期：{item.visit_date.isoformat()}")
+                continue
+            if item.advance_unit == "none":
+                lines.append("   需要预约，但无可用提前规则；不自动生成开约提醒，请人工核对并补充规则")
                 continue
             if item.status == "not_scheduled":
                 lines.append("   游览日期：未确定")
@@ -1125,6 +1128,8 @@ class ReservationService:
             source_text="用户手动新增",
             confidence=1.0,
         )
+        if requires_reservation and advance_unit == "none":
+            raise ValueError("需要预约但无可用提前规则，不能创建开约提醒")
         booking_date = (
             calculate_booking_date(
                 visit_date,
@@ -1187,6 +1192,8 @@ class ReservationService:
         reminders = {}
         for item in plan.items:
             if item.requires_reservation:
+                if item.advance_unit == "none":
+                    raise ValueError("需要预约但无可用提前规则，请先人工核对并补充；尚未创建开约提醒")
                 if item.status == "needs_input" or item.booking_date is None:
                     raise ValueError("请先补充所有需要预约项目的日期")
                 reminders[item.item_id] = build_reminder_occurrences(
@@ -1248,7 +1255,7 @@ class ReservationService:
                 booking = (
                     item.booking_date.isoformat()
                     if item.booking_date
-                    else "无需预约"
+                    else "未提供可用提前规则" if item.requires_reservation else "无需预约"
                 )
                 reminder_text = "无"
                 if item.booking_date and item.status == "confirmed":
@@ -1283,6 +1290,8 @@ class ReservationService:
         )
         if item is None:
             raise PermissionError("只有创建者可以修改预约提醒")
+        if item.requires_reservation and item.advance_unit == "none":
+            raise ValueError("需要预约但无可用提前规则，不能创建开约提醒")
         booking_date = calculate_booking_date(
             visit_date,
             item.advance_value,

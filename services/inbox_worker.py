@@ -7,6 +7,7 @@ import re
 
 from core.chat_transport import ChatEvent
 from core.execution_scope import CURRENT_EXECUTION, ExecutionRevoked, ExecutionScope
+from core.tool_result import ReadFailed
 from infrastructure.attachment_cache import AttachmentCache
 from infrastructure.inbox_repository import JOB_DEADLINE_SECONDS, MAX_JOB_ATTEMPTS
 from services.scheduled_query_service import scheduled_query_control
@@ -220,7 +221,9 @@ class InboxWorker:
             with suppress(asyncio.CancelledError, Exception):
                 await execution
             if not await self._recover_prepared(job):
-                state = await asyncio.to_thread(self.store.inbox.fail, job, type(exc).__name__)
+                state = await asyncio.to_thread(self.store.inbox.fail, job, type(exc).__name__,
+                    permanent=isinstance(exc, ReadFailed) and not exc.retryable,
+                    retry_after_seconds=exc.retry_after_seconds if isinstance(exc, ReadFailed) else None)
                 if state == 'failed':
                     await self._reply('inbox-notice:' + job['event_key'], job['scope_id'], job['owner_id'], job['payload'],
                         '这次请求在重试后仍未完成，请重新发送。可以用“查看任务进度”检查其他请求。', synthetic=True)

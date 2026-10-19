@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "frozen_at": "2026-10-16T02:50:30.480988+00:00",
+  "status": "frozen-before-real-evaluation",
+  "review": "assistant-reviewed acceptance seeds; no independent human labeling review yet",
+  "reference_time": "2030-09-09T02:00:00+00:00",
+  "cases": [
+    {
+      "id": "Q01",
+      "category": "query",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "出门前帮我看看天气",
+        "武汉",
+        "那后天呢？"
+      ],
+      "fixture": null,
+      "expected": [
+        "第一轮只追问地点",
+        "地点接续同一任务",
+        "后天依据新消息时间解释，不创建提醒"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "Q02",
+      "category": "query",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "从武汉的学校正门去东湖，先别帮我选门。"
+      ],
+      "fixture": null,
+      "expected": [
+        "宽泛入口先澄清",
+        "不自动把学校中心或同名门当作入口",
+        "不调用写工具"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "Q03",
+      "category": "query",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "今晚从武汉站去黄鹤楼，能坐地铁吗，还用带雨具吗？"
+      ],
+      "fixture": null,
+      "expected": [
+        "同时处理公共交通和天气",
+        "保留城市起终点",
+        "不把出发时间当提醒授权",
+        "不承诺未来精确班次或小时级降雨"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "Q04",
+      "category": "query",
+      "split": "holdout_candidate",
+      "planned_level": "L1-fault",
+      "dialogue": [
+        "帮我查一下武汉天气。"
+      ],
+      "fixture": {
+        "http_status": 403
+      },
+      "expected": [
+        "权限故障不生成虚构天气",
+        "结构化失败可追踪",
+        "不使用无关文档作为实时天气"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "R01",
+      "category": "research",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "只参考我提供的两个公开页面，看看目标日期的预约规则。"
+      ],
+      "fixture": {
+        "pages": [
+          "test-policy-old",
+          "test-policy-new"
+        ],
+        "access": "one_unavailable"
+      },
+      "expected": [
+        "严格限定来源",
+        "页面不可读时明确不足",
+        "不自动扩展其他网站"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "R02",
+      "category": "research",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "根据资料判断2030年10月2日开放时间，两份资料不一致时请说明。"
+      ],
+      "fixture": {
+        "old": "2028年公告：17点闭馆，2029年废止",
+        "new": "2030年公告：国庆期间18点闭馆"
+      },
+      "expected": [
+        "依据生效日期处理冲突",
+        "采集日期不冒充发布日期",
+        "证据不足明确未知"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "R03",
+      "category": "research",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "先看看武汉两天和三天有什么玩法。",
+        "采用前面那个方案，再加一家连锁酒店。"
+      ],
+      "fixture": null,
+      "expected": [
+        "天数无法消歧时只问缺项",
+        "保留住宿增量要求",
+        "确认前不保存为正式行程"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "R04",
+      "category": "research",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "搜索一下攻略，再按你真正读到的资料规划。"
+      ],
+      "fixture": {
+        "source_status": "snippet_only"
+      },
+      "expected": [
+        "区分搜索摘要与已读正文",
+        "不编造实时票价和预约库存",
+        "研究的未知项不在行程中变成已核实"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "C01",
+      "category": "constraints",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "修改当前行程，保留日期，走得松一点，绝对别安排打车。"
+      ],
+      "fixture": null,
+      "expected": [
+        "生成修改预览",
+        "保留原城市日期",
+        "禁止打车作为硬约束",
+        "不自动写入长期偏好"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "C02",
+      "category": "constraints",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "住宿控制在人民币每间每晚280到350元，吃饭每人每天90元。"
+      ],
+      "fixture": null,
+      "expected": [
+        "分开保存住宿和餐饮范围及单位",
+        "不把预算目标当成已核实价格",
+        "不重新追问已有单位"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "C03",
+      "category": "constraints",
+      "split": "holdout_candidate",
+      "planned_level": "L2",
+      "dialogue": [
+        "酒店选连锁的，比如汉庭或如家，之前说的舒适和靠近景点也保留。"
+      ],
+      "fixture": null,
+      "expected": [
+        "追加品牌要求而不清空既有约束",
+        "示例品牌不误当唯一允许品牌",
+        "变更仍需确认"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "C04",
+      "category": "constraints",
+      "split": "holdout_candidate",
+      "planned_level": "L1-state",
+      "dialogue": [
+        "确认刚才的行程修改。"
+      ],
+      "fixture": {
+        "pending_preview_version": 2,
+        "current_trip_version": 3
+      },
+      "expected": [
+        "已过期或已被更新的预览拒绝提交",
+        "不覆盖较新版本",
+        "错误可以按事件定位"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "M01",
+      "category": "summary",
+      "split": "known_regression",
+      "planned_level": "L2",
+      "dialogue": [],
+      "fixture": {
+        "corpus": "summary_quality_cases_v2.json",
+        "case_id": "Q01"
+      },
+      "expected": [
+        "目标人物、费用、时间和未决事实保留",
+        "未知日期或医院不编造"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "M02",
+      "category": "summary",
+      "split": "known_regression",
+      "planned_level": "L2",
+      "dialogue": [],
+      "fixture": {
+        "corpus": "summary_quality_cases_v2.json",
+        "case_id": "Q02"
+      },
+      "expected": [
+        "新费用和结束时间取代旧值",
+        "人数房型仍保留",
+        "决定不借用不改写成不需要"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "M03",
+      "category": "summary",
+      "split": "known_regression",
+      "planned_level": "L2",
+      "dialogue": [],
+      "fixture": {
+        "corpus": "summary_quality_cases_v2.json",
+        "case_id": "Q03"
+      },
+      "expected": [
+        "多主体行动时长不互换",
+        "住宿每间每晚与支出每人每天不互换"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "M04",
+      "category": "summary",
+      "split": "known_regression",
+      "planned_level": "L2",
+      "dialogue": [],
+      "fixture": {
+        "corpus": "summary_quality_cases_v2.json",
+        "case_id": "Q06"
+      },
+      "expected": [
+        "长材料中的任意名称和人数房型保留",
+        "关键原文退出两条近期历史后仍能正确使用"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "F01",
+      "category": "recovery",
+      "split": "holdout_candidate",
+      "planned_level": "L1-fault",
+      "dialogue": [
+        "查武汉当前天气。"
+      ],
+      "fixture": {
+        "weather_http_sequence": [
+          503,
+          200
+        ]
+      },
+      "expected": [
+        "暂时失败只重试失败的HTTP阶段",
+        "成功地理编码不重复请求",
+        "同事件同物理请求含恢复不超过3次"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "F02",
+      "category": "recovery",
+      "split": "holdout_candidate",
+      "planned_level": "L0-fault",
+      "dialogue": [
+        "按当前行程生成路线建议。"
+      ],
+      "fixture": {
+        "cancel_at": "retry_wait"
+      },
+      "expected": [
+        "任务取消后不发起下一次HTTP尝试",
+        "迟到结果不能写入业务"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "F03",
+      "category": "recovery",
+      "split": "holdout_candidate",
+      "planned_level": "L0-fault",
+      "dialogue": [
+        "查看我的任务结果。"
+      ],
+      "fixture": {
+        "crash_at": "after_send_before_ack"
+      },
+      "expected": [
+        "发送成功但确认丢失不重复执行业务",
+        "区分投递状态未知",
+        "不宣称QQ具备恰好一次投递"
+      ],
+      "result": "not_run"
+    },
+    {
+      "id": "F04",
+      "category": "recovery",
+      "split": "holdout_candidate",
+      "planned_level": "L1-fault",
+      "dialogue": [
+        "明天上午八点告诉我武汉天气。"
+      ],
+      "fixture": {
+        "http_status": 429,
+        "retry_after_seconds": 120,
+        "restart_at": "result_prepared"
+      },
+      "expected": [
+        "按持久化任务执行",
+        "Retry-After为最早重试时间",
+        "成功结果准备后恢复只补投递"
+      ],
+      "result": "not_run"
+    }
+  ],
+  "rules": [
+    "expected字段为评估金标准，不发送给模型",
+    "同一报告不能混算L0/L1/L2成绩",
+    "M01-M04是已知回归，不能算独立留出",
+    "真实调用使用隔离会话和明确的新预算",
+    "所有result均为not_run，不表示质量通过"
+  ]
+}
