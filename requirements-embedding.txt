@@ -1,0 +1,3 @@
+# Optional CPU-only local retrieval. Install separately from the core runtime.
+onnxruntime==1.31.0
+tokenizers==0.22.2

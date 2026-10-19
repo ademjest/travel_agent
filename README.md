@@ -6,24 +6,30 @@
 
 [Web 使用指南](docs/guides/web.md) · [QQ 使用指南](docs/guides/qq.md) · [全部指南](docs/guides/README.md)
 
+当前同步版本的功能、升级步骤与验证说明见 [2026-10-19 更新记录](docs/releases/2026-10-19.md)。
+
 ## 能做什么
 
 | 能力 | 使用示例与行为 |
 | --- | --- |
 | 联网研究 | “帮我搜索武汉三日游攻略”，汇总公开来源并标注检索时间；支持继续根据研究结果规划 |
 | 行程规划与修改 | 规划 1–14 天城市行程，保留日期、必去地点和资料来源；修改同一份行程并记录版本 |
+| 方案草稿接续 | 保存探索性方案和研究方案；支持“采用最开始的方案”“采用刚才搜索的四日方案”，确认后才成为正式行程 |
 | 理解后续偏好 | “轻松一点，尽量步行或公交地铁，少打车”，结合已有行程生成预览，保留城市和日期 |
+| 酒店与餐饮候选 | 结合品牌、评分、预算和每日景点筛选；展示可取得的酒店参考价格及餐饮人均消费，缺失价格明确标注 |
 | 天气、地点与交通 | 查询天气、预报、地点和驾车／步行／公共交通路线；基于高德结果展示依据 |
 | 文档与图片 | 导入 TXT、Markdown、DOCX、XLSX，检索相关片段；理解图片、提取预约规则 |
 | 提醒与定时查询 | 一次性文字提醒、行程关联预约提醒；到点查询天气或路况；监测预约规则变化 |
 | 偏好记忆 | 明确保存长期旅行默认，本次要求优先；当前行程修改与长期记忆分别处理 |
 | 可恢复任务 | 持久化队列、取消、失败重试与重启恢复；网页会话删除同步清理关联任务及附件 |
+| 用量与诊断 | 按应用和会话查看 token、模型用途与费用估算；查看消息处理过程，测试已保存的模型、搜索与地图服务 |
+| 内容展示 | Markdown 表格、代码与 LaTeX 数学公式；本地前端构建包含公式渲染依赖 |
 
 例如，一次完整交互可以是：
 
 ```text
 帮我搜索武汉三日游攻略
-根据研究结果规划行程，10月1日到10月三日
+根据研究结果规划行程，10月1日到10月3日
 我喜欢轻松一点的行程，不太喜欢打车，尽量步行或者公交地铁出行
 确认行程修改
 ```
@@ -56,9 +62,21 @@ cd ..
 python run_web.py
 ```
 
-已有 `.env` 时跳过复制；已有 Python / Conda 环境可直接使用。Linux/macOS 使用 `source .venv/bin/activate` 和 `cp .env.example .env` 替换对应命令。
+已有 `.env` 时跳过复制；已有 Python / Conda 环境可直接使用。Linux/macOS 的对应命令为：
 
-在 `.env` 或网页“状态与设置”中填写模型 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL_ID`，以及高德 Web 服务 `AMAP_API_KEY`。联网搜索另需 Tavily `SEARCH_API_KEY`。模型需支持 Chat Completions 与工具调用，识图还需支持图片输入；设置修改后重启后端。
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-web.txt -c constraints-py311.txt
+cp .env.example .env
+cd frontend
+npm ci
+npm run build
+cd ..
+python run_web.py
+```
+
+在 `.env` 或网页左侧“服务配置”中填写模型 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL_ID`，以及高德 Web 服务 `AMAP_API_KEY`。联网搜索另需 Tavily `SEARCH_API_KEY`。模型需支持 Chat Completions 与工具调用，识图还需支持图片输入；设置修改后重启后端。
 
 首次构建后，日常运行只需 `python run_web.py`；Windows 也可使用 `start-web.cmd`。Node.js 仅用于前端开发和构建。端口、备份、删除会话、偏好范围及故障排查见 [Web 使用指南](docs/guides/web.md)；群配置与部署见 [QQ 使用指南](docs/guides/qq.md)。
 
@@ -79,8 +97,9 @@ flowchart LR
 
 - **前端**：React 19、TypeScript、Vite、原生 CSS；提供聊天、资料、行程与设置界面。
 - **后端**：Python 3.11、FastAPI、Uvicorn；统一事件契约与领域服务对接不同入口。
-- **Agent**：兼容 OpenAI Chat Completions 的模型接口、结构化意图、受约束的工具调用、按任务组织的上下文。
-- **存储与检索**：SQLite、FTS5 文档检索、文件缓存；不要求额外部署向量数据库。
+- **Agent**：兼容 OpenAI Chat Completions 的模型接口、结构化意图、用途级上下文、受约束的工具调用和可选用途模型。
+- **成本与可靠性**：按用途记录调用、缓存／推理 token、可选真实费率与预算；检测无进展工具循环，大结果使用会话隔离 Artifact 分页读取。
+- **存储与检索**：SQLite、FTS5 文档检索、按需会话摘要、默认关闭的本地混合检索和文件缓存；不要求额外部署向量数据库。
 - **执行机制**：持久化输入队列、租约与版本校验、Outbox 投递、可取消任务及定时调度。
 
 ```text
@@ -102,12 +121,15 @@ python -m pip install -r requirements-dev.txt -c constraints-py311.txt
 python -m pip check
 python -X utf8 -m unittest discover -s tests -q
 python -X utf8 scripts/evaluate_tasks.py --output evals/ci-offline.json
+python -X utf8 scripts/evaluate_retrieval.py --output evals/retrieval-v2-local.json
 cd frontend
 npm test
 npm run build
 ```
 
 离线测试使用模拟数据，不需要真实 API 密钥。CI 覆盖 Windows / Linux 后端测试，以及 Web 测试和构建。真实接口验收脚本见各入口指南；运行前需要配置对应服务，会消耗正常调用额度。
+
+可复用评测数据和测试夹具随仓库提供；本地实验报告、模型原始调用记录和界面截图不作为运行依赖。发布前可以运行 `python scripts/check_secrets.py --all-tracked` 检查已纳入 Git 的文件。
 
 ## 数据与能力边界
 

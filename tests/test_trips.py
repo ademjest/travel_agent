@@ -82,6 +82,40 @@ class TripTests(unittest.TestCase):
         self.assertIsNone(self.store.trips.get(self.event('', 'read', 'other'), trip['trip_id']))
         self.assertEqual(len(self.store.trips.list_for_owner(self.event('', 'read'))), 1)
 
+    def test_formatted_trip_separates_day_and_candidate_sections_for_markdown(self):
+        trip={'trip_id':'TR-format','title':'开封2日行程','version':1,'status':'active',
+            'spec':{'destination':'开封','day_count':2,'start_date':'','hotel_requested':True},
+            'sources':{'a':{'name':'景点甲','address':'甲路'},'b':{'name':'景点乙','address':'乙路'},
+                       'hotel':{'name':'测试酒店','address':'酒店路'}},
+            'plan':{'days':[{'day_index':1,'date':'','activities':[{'poi_id':'a','period':'上午','reason':'文化参观'}]},
+                            {'day_index':2,'date':'','activities':[{'poi_id':'b','period':'下午','reason':'兴趣匹配'}]}],
+                    'hotel_ids':['hotel']}}
+        reply=TripService.format_trip(trip,preview=True)
+        self.assertIn('\n\n第 1 天（日期待定）\n-',reply)
+        self.assertIn('\n\n第 2 天（日期待定）\n-',reply)
+        self.assertIn('\n\n住宿候选（地点资料，未核实实时价格和营业/库存）：\n-',reply)
+
+    def test_formatted_recommendations_show_hotel_price_fields_and_dining_per_capita(self):
+        trip={'trip_id':'TR-price','title':'开封1日行程','version':1,'status':'active',
+            'spec':{'destination':'开封','day_count':1,'start_date':'','hotel_requested':True,
+                    'restaurant_requested':True},
+            'sources':{'a':{'name':'景点甲','address':'甲路'},
+                       'hotel':{'name':'测试酒店','address':'酒店路'},
+                       'food':{'name':'测试餐厅','address':'餐饮路'}},
+            'plan':{'days':[{'day_index':1,'date':'','activities':[{'poi_id':'a','period':'上午','reason':'文化参观'}]}],
+                    'hotel_ids':['hotel'],'restaurant_ids':['food'],
+                    'hotel_recommendations':[{'poi_id':'hotel','status':'partial','reasons':[],
+                        'issues':['指定日期房价待核验'],'rating':4.8,
+                        'price_info':{'average_price':260.0,'lowest_price':238.0},'distance':{}}],
+                    'restaurant_recommendations':[{'poi_id':'food','status':'partial','reasons':[],
+                        'issues':['实际账单待核验'],'rating':4.6,
+                        'price_info':{'per_capita':55.0},'distance':{}}], 'dining_options':[]}}
+        reply=TripService.format_trip(trip,preview=True)
+        self.assertIn('高德参考均价约 260 元',reply)
+        self.assertIn('高德参考最低价约 238 元',reply)
+        self.assertIn('当前接口不提供具体房型价格',reply)
+        self.assertIn('高德参考人均消费约 55 元/人',reply)
+
     def test_initial_request_can_explicitly_defer_date(self):
         self.client.completions.responses = [model_response({**SPEC, 'start_date_text': '先不定日期'}), model_response(plan_value())]
         reply = self.handle('帮我规划武汉三天行程，带老人，必去湖北省博物馆，先不定日期', 'defer-initial')
@@ -127,8 +161,11 @@ class TripTests(unittest.TestCase):
     def test_indoor_edit_preserves_other_days(self):
         self.create()
         before = self.trip()
-        self.client.completions.responses = [model_response(plan_value((('h', 'a'), ('f', 'g'), ('d', 'e'))))]
-        self.handle('第二天改为室内', 'edit')
+        self.client.completions.responses = [model_response({'activities':plan_value((('h', 'a'), ('f', 'g'), ('d', 'e')))['days'][1]['activities']})]
+        preview=self.handle('第二天改为室内', 'edit')
+        self.assertIn('累计变更',preview)
+        self.assertEqual(self.trip()['version'],1)
+        self.handle('确认行程修改','confirm-edit')
         after = self.trip()
         self.assertEqual(after['version'], 2)
         self.assertEqual(after['plan']['days'][0], before['plan']['days'][0])

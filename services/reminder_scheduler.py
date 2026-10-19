@@ -32,6 +32,7 @@ class ReminderScheduler:
 
     async def scan_once(self, now: datetime | None = None) -> int:
         current = now or self.clock()
+        await asyncio.to_thread(self.store.reminders.purge_expired, current, self.platform)
         scheduled_queued = await asyncio.to_thread(self.store.scheduled_queries.enqueue_due,
                                                    self.platform, current, self.group_allowed)
         watch_queued = await asyncio.to_thread(self.store.policy_watches.enqueue_due, self.platform, current, self.group_allowed)

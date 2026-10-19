@@ -68,7 +68,7 @@ class ReminderRepository:
                 raise TaskConflict('事件处理权已变化，请稍后重试。')
             if connection.execute('SELECT 1 FROM task_event_results WHERE event_id=?', (event.event_key,)).fetchone():
                 return current['prepared_reply'] or reply
-            task_id = self.store.tasks.apply(connection, event, task_update, now)
+            task_id = self.store.tasks.apply(connection, event, task_update, now, reply=reply)
             if action:
                 self.apply_change(connection, event, task_id, action, reminder, now)
             connection.execute('UPDATE processed_events SET prepared_reply=?, prepared_memory_content=?, updated_at=? WHERE event_id=?',
@@ -130,6 +130,34 @@ class ReminderRepository:
                 WHERE r.platform=? AND r.status='active' AND o.status='pending' AND o.scheduled_at_utc <= ?
                 ORDER BY o.scheduled_at_utc LIMIT 100
             """, (platform, now.isoformat())).fetchall())
+
+    def purge_expired(self, now, platform=None, retention=timedelta(hours=24)):
+        cutoff = (now - retention).isoformat()
+        with self.store._connect() as connection:
+            connection.execute('BEGIN IMMEDIATE')
+            parameters = [cutoff]
+            platform_sql = ''
+            if platform:
+                platform_sql = 'AND r.platform=?'
+                parameters.append(platform)
+            rows = connection.execute(f'''SELECT r.reminder_id,o.outbox_event_id
+                FROM personal_reminders r JOIN reminder_occurrences o
+                ON o.reminder_id=r.reminder_id AND o.version=r.version
+                WHERE o.scheduled_at_utc < ? {platform_sql}
+                AND o.status IN ('pending','queued','sent','missed','failed','blocked','cancelled')
+                AND NOT EXISTS (SELECT 1 FROM outbox_messages x
+                    WHERE x.event_id=o.outbox_event_id AND x.status='sending')''', parameters).fetchall()
+            for row in rows:
+                if row['outbox_event_id']:
+                    connection.execute("""UPDATE outbox_messages SET status='cancelled',
+                        claim_token=NULL,lease_expires_at=NULL,last_error='reminder_retention_expired'
+                        WHERE event_id=? AND status IN ('pending','failed')""", (row['outbox_event_id'],))
+                    connection.execute("""UPDATE processed_events SET status='completed',claim_token=NULL,
+                        lease_expires_at=NULL,prepared_reply=NULL,prepared_memory_content=NULL
+                        WHERE event_id=? AND status!='completed'""", (row['outbox_event_id'],))
+                connection.execute('DELETE FROM reminder_occurrences WHERE reminder_id=?', (row['reminder_id'],))
+                connection.execute('DELETE FROM personal_reminders WHERE reminder_id=?', (row['reminder_id'],))
+            return len(rows)
 
     def enqueue(self, reminder, payload, text, now, *, allowed=True):
         event_id = f"reminder:{reminder['reminder_id']}:v{reminder['version']}"

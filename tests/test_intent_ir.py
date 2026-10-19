@@ -1,6 +1,7 @@
 import json
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from agents.intent_compiler import IntentCompiler
 from core.intent_ir import parse_intent_ir, to_jsonable
@@ -48,3 +49,21 @@ class IntentIRTests(unittest.TestCase):
         ir = IntentCompiler(FakeClient({'schema_version': 1, 'action': 'none', 'operations': [],
             'missing_fields': [], 'requires_confirmation': False, 'source_spans': [], 'confidence': .99}), 'test').compile('午饭吃什么呀')
         self.assertFalse(ir.actionable)
+
+    def test_invalid_small_model_result_retries_once_with_default_model(self):
+        valid = {'schema_version': 1, 'action': 'none', 'operations': [],
+                 'missing_fields': [], 'requires_confirmation': False,
+                 'source_spans': [], 'confidence': .9}
+        class QueueClient:
+            def __init__(self):
+                self.values = ['not-json', json.dumps(valid)]
+                self.calls = 0
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
+            def create(self, **kwargs):
+                self.calls += 1
+                return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=self.values.pop(0)))])
+        client = QueueClient()
+        with patch.dict('os.environ', {'LLM_INTENT_MODEL_ID': 'small-model'}):
+            ir = IntentCompiler(client, 'default-model').try_compile('你好')
+        self.assertEqual(ir.action, 'none')
+        self.assertEqual(client.calls, 2)

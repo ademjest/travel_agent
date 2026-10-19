@@ -56,6 +56,9 @@ class PreferenceRepository:
                     platform TEXT, owner TEXT, scope TEXT, conversation TEXT, values_json TEXT NOT NULL,
                     version INTEGER NOT NULL, source_event TEXT NOT NULL, created_at TEXT NOT NULL,
                     PRIMARY KEY(platform,owner,scope,conversation));
+                CREATE TABLE IF NOT EXISTS summary_excluded_events (
+                    platform TEXT NOT NULL,owner TEXT NOT NULL,scope TEXT NOT NULL,event_key TEXT NOT NULL,
+                    PRIMARY KEY(platform,owner,scope,event_key));
             ''')
 
     def snapshot(self, event):
@@ -103,6 +106,20 @@ class PreferenceRepository:
             raise PreferenceConflict('偏好已经变化，请刷新后重试；未恢复旧偏好。')
         # Every explicit edit invalidates in-flight candidates, including deletions.
         db.execute('DELETE FROM preference_candidates WHERE platform=? AND owner=? AND scope=?', identity)
+        # Keep only source IDs, not forgotten preference values. Rebuilding a summary
+        # must not recover a deleted/replaced structured preference from old chat.
+        affected = list(LABELS) if clear or enabled is False else list(values)
+        for key in affected:
+            old = db.execute('SELECT source_event FROM user_preferences WHERE platform=? AND owner=? AND scope=? AND key=?',
+                             (*identity,key)).fetchone()
+            if old:
+                db.execute('INSERT OR IGNORE INTO summary_excluded_events VALUES (?,?,?,?)',(*identity,old['source_event']))
+        db.execute('INSERT OR IGNORE INTO summary_excluded_events VALUES (?,?,?,?)',(*identity,source_event or event.event_key))
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_summaries'").fetchone():
+            db.execute("""UPDATE conversation_summaries SET status='stale',generation=generation+1,
+                lease_token=NULL,lease_until=NULL,retry_after=NULL
+                WHERE platform=? AND owner_id=? AND (?='web' OR scope_id=?)""",
+                (event.platform,event.sender_id,event.platform,event.storage_scope_id))
         if clear:
             db.execute('DELETE FROM user_preferences WHERE platform=? AND owner=? AND scope=?', identity)
         for key, value in values.items():

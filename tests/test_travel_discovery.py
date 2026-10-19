@@ -23,6 +23,18 @@ class TravelDiscoveryTests(unittest.TestCase):
         self.assertEqual(self.client._get.call_args.args[1]['citylimit'], 'true')
         self.assertNotIn('price', places[0])
 
+    def test_extended_place_search_keeps_rating_reference_cost_and_pagination(self):
+        self.client._get.return_value = {'pois': [{
+            'id': 'H1', 'name': '测试酒店', 'address': '测试路', 'location': '114,30',
+            'type': '住宿服务;酒店', 'adname': '测试区', 'business_area': '中心商圈',
+            'biz_ext': {'rating': '4.8', 'cost': '260', 'lowest_price': '238'},
+        }]}
+        places = self.client.search_places('武汉', '测试酒店', offset=20, page=2, extensions='all')
+        self.assertEqual(places[0]['rating'], '4.8')
+        self.assertEqual(places[0]['lowest_price'], '238')
+        params = self.client._get.call_args.args[1]
+        self.assertEqual((params['offset'], params['page'], params['extensions']), (20, 2, 'all'))
+
     def test_walking_route_uses_walking_endpoint(self):
         self.client._get.side_effect = [
             geocode_response('起点', '114,30', '420100'), geocode_response('终点', '114.1,30.1', '420100'),
@@ -34,8 +46,12 @@ class TravelDiscoveryTests(unittest.TestCase):
         self.assertEqual(self.client._get.call_args.args[0], '/v3/direction/walking')
 
     def test_transit_route_preserves_bus_and_walking_segments(self):
+        origin=geocode_response('起点','114,30','420100')
+        destination=geocode_response('终点','114.1,30.1','420100')
+        origin['geocodes'][0]['city']='武汉市'
+        destination['geocodes'][0]['city']='武汉市'
         self.client._get.side_effect = [
-            geocode_response('起点', '114,30', '420100'), geocode_response('终点', '114.1,30.1', '420100'),
+            origin,destination,
             {'route': {'distance': '8000', 'transits': [{'duration': '1800', 'segments': [
                 {'walking': {'distance': '500'}, 'bus': {'buslines': [
                     {'name': '地铁测试线', 'departure_stop': {'name': '甲站'}, 'arrival_stop': {'name': '乙站'}}]}}
@@ -64,9 +80,12 @@ class TravelDiscoveryTests(unittest.TestCase):
         self.assertIn('不代表', reply)
 
     def test_no_transit_result_is_an_error(self):
-        self.client._get.side_effect = [geocode_response('甲', '114,30', '420100'),
-            geocode_response('乙', '115,31', '420100'), {'route': {'transits': []}}]
-        with self.assertRaises(AmapError):
+        origin=geocode_response('甲','114,30','420100')
+        destination=geocode_response('乙','115,31','420100')
+        origin['geocodes'][0]['city']='武汉市'
+        destination['geocodes'][0]['city']='武汉市'
+        self.client._get.side_effect = [origin,destination,{'route': {'transits': []}}]
+        with self.assertRaisesRegex(AmapError,'没有找到对应交通方式'):
             self.client.non_driving_route('甲', '乙', mode='transit', city='武汉')
 
     def test_place_qps_error_retries_with_spacing_but_auth_error_does_not(self):

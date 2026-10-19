@@ -34,6 +34,14 @@ class DeliveryExpiryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.transport.messages, [])
         self.assertEqual(self.store.reminders.list_for_owner('onebot', 'g', 'u')[0]['delivery_status'], 'missed')
 
+    async def test_unqueued_personal_reminder_is_removed_after_retention_window(self):
+        event = ChatEvent('onebot', 'group', 'create-old', 'g', 'u', '明天上午十点提醒我带证件')
+        PersonalReminderService(self.store, clock=lambda: self.now).handle(event, self.store.begin_event(event.event_key))
+
+        self.assertEqual(await self.scheduler.scan_once(self.now + timedelta(days=3)), 0)
+        self.assertEqual(self.store.reminders.list_for_owner('onebot', 'g', 'u'), ())
+        self.assertEqual(self.transport.messages, [])
+
     async def test_already_queued_reservation_reminder_does_not_outlive_visit(self):
         service = ReservationService(self.store)
         image, _ = self.store.create_reservation_image('onebot:g', 'onebot', 'g', 'u', 'sha', 'image.jpg', 'image/jpeg', 10, 'fake')

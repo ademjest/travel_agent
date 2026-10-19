@@ -114,9 +114,11 @@ class WebRepository:
                         hashlib.sha256(data).hexdigest(), timestamp()))
         return self.upload(identity)
 
-    def accept(self, conversation_id, content, upload_ids, request_id, confirmation=None):
+    def accept(self, conversation_id, content, upload_ids, request_id, confirmation=None, trip_edit=None):
         self.conversation(conversation_id)
         body = {'content': content, 'upload_ids': upload_ids, 'confirmation': confirmation}
+        if trip_edit is not None:
+            body['trip_edit'] = trip_edit
         digest = hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         event_key = f'web:group:{conversation_id}:{request_id}'
         now = timestamp()
@@ -131,7 +133,8 @@ class WebRepository:
                 return {'job_id': row['id'], 'status': row['status']}
             uploads = [self.upload(item, conversation_id) for item in upload_ids]
             payload = {'version': 1, 'conversation_id': conversation_id, 'request_id': request_id,
-                       'content': content, 'upload_ids': upload_ids, 'time': now, 'confirmation': confirmation}
+                       'content': content, 'upload_ids': upload_ids, 'time': now, 'confirmation': confirmation,
+                       'trip_edit':trip_edit}
             from services.scheduled_query_service import scheduled_query_control
             from services.policy_watch_service import watch_control
             priority = int(not uploads and (scheduled_query_control(content) or watch_control(content)
@@ -200,16 +203,36 @@ class WebRepository:
     def context(self, identity):
         self.conversation(identity)
         event = ChatEvent('web', 'group', '', identity, OWNER, '')
+        self.store.planning.ensure_history(event)
         tasks = self.store.tasks.recent('web', event.storage_scope_id, OWNER)
         confirmations = []
         for task in tasks:
             if task.status == 'collecting' and 'confirmation' in task.missing_slots:
                 command = {'itinerary': '确认行程修改', 'booking_reminder': '按这个规则设置提醒'}.get(task.task_type)
                 if command:
-                    with self.store._connect() as db:
-                        row = db.execute('SELECT prepared_reply FROM processed_events WHERE event_id=?', (task.last_event_id,)).fetchone()
+                    preview = self.store.tasks.confirmation_preview(event,task)
+                    available = isinstance(preview, str) and bool(preview.strip())
+                    reason = '' if available else '完整预览不可用，请重新生成并核对后再确认。'
+                    if task.task_type == 'itinerary' and task.slots.get('trip_id'):
+                        source_artifact=task.slots.get('source_artifact')
+                        if source_artifact:
+                            artifact=self.store.planning.get(event,source_artifact['artifact_id'])
+                            if (not artifact or artifact['status']!='active'
+                                    or artifact['version']!=source_artifact['version']):
+                                available=False
+                                reason='方案草稿已变化，请重新选择并生成预览。'
+                        trip = self.store.trips.get(event,task.slots['trip_id'])
+                        if trip and not task.slots.get('trip_already_saved') and task.slots.get('expected_trip_version') != trip['version']:
+                            available=False
+                            reason='行程版本已变化，旧预览不能确认，请重新生成。'
+                        draft = self.store.trips.draft(event,trip) if trip else None
+                        if draft and draft['task'].task_id == task.task_id and draft['recovered']:
+                            available = False
+                            reason = '这份旧预览遗漏了此前的草稿要求，请重新生成完整预览后再确认。'
                     confirmations.append({'id': task.task_id, 'version': task.version, 'command': command,
-                                          'preview': row['prepared_reply'] if row else task.initial_request,
+                                          'diff': task.slots.get('change_diff'),
+                                          'preview': preview if isinstance(preview,str) else '', 'can_confirm': available,
+                                          'unavailable_reason': reason,
                                           'expires_at': task.expires_at})
         with self.store._connect() as db:
             jobs = [dict(r) for r in db.execute("SELECT id,status,created_at,updated_at FROM inbox_jobs WHERE platform='web' AND scope_id=? AND owner_id=? AND status IN ('pending','running','retry') ORDER BY id", (identity, OWNER))]
@@ -221,15 +244,40 @@ class WebRepository:
                                     'reminders': [{'time': r.scheduled_at_utc, 'status': r.status}
                                                   for r in reservation_reminders if r.reservation_item_id == item.item_id]}
                                    for item in plan.items]} for plan in reservation_plans]
-        return {'trips': self.store.trips.list_for_owner(event),
+        plans=[{key:value for key,value in plan.items() if key in
+                ('artifact_id','ordinal','kind','title','destination','duration_options','summary','status','version','created_at')}
+               for plan in self.store.planning.list_for_owner(event)]
+        from core.trip_diff import facts
+        trips=[]
+        for saved in self.store.trips.list_for_owner(event):
+            draft=self.store.trips.draft(event,saved)
+            trips.append({**saved,'facts':facts(saved['spec']),
+                          'draft_facts':facts(draft['candidate']['spec']) if draft and not draft['recovered'] and draft['task'].slots.get('expected_trip_version')==saved['version'] else [],
+                          'draft_version':draft['task'].version if draft else None})
+            trips[-1]['draft_id'] = draft['task'].task_id if draft else None
+        from infrastructure.model_gateway import conversation_usage_report
+        model_usage = conversation_usage_report(self.store, identity, OWNER)
+        self.conversation(identity)
+        return {'trips': trips, 'planning_artifacts':plans,
                 'reminders': self.store.reminders.list_for_owner('web', identity, OWNER),
                 'documents': self.store.trips.document_options(event), 'confirmations': confirmations,
                 'reservations': reservations,
                 'scheduled_queries': self.store.scheduled_queries.list_for_owner(event),
-                'policy_watches': self.store.policy_watches.list_for_owner(event), 'jobs': jobs}
+                'policy_watches': self.store.policy_watches.list_for_owner(event), 'jobs': jobs,
+                'model_usage': model_usage}
 
     def notifications(self):
         with self.store._connect() as db:
+            now = datetime.now(timezone.utc)
+            reminder_cutoff = (now - timedelta(hours=24)).isoformat()
+            other_cutoff = (now - timedelta(days=7)).isoformat()
+            db.execute('''DELETE FROM web_deliveries WHERE kind='notification' AND (
+                (created_at < ? AND (
+                    EXISTS (SELECT 1 FROM outbox_messages o
+                        WHERE web_deliveries.delivery_key='web:outbox:' || o.id
+                        AND (o.event_id LIKE 'reminder:%' OR o.event_id LIKE 'reservation-reminder:%'))
+                    OR content LIKE '%提醒你：%' OR content LIKE '%景点预约提醒：%'))
+                OR created_at < ?)''', (reminder_cutoff, other_cutoff))
             rows = db.execute("SELECT d.*,c.title FROM web_deliveries d JOIN web_conversations c ON c.id=d.conversation_id WHERE d.kind='notification' AND NOT EXISTS (SELECT 1 FROM web_conversation_deletions x WHERE x.conversation_id=c.id) ORDER BY d.id DESC LIMIT 100").fetchall()
         return [dict(row) for row in rows]
 
@@ -247,6 +295,9 @@ class WebRepository:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
         with self.lifecycle.file_lock:
             with self.store._connect() as db:
+                # Reserve the writer before reading; an empty DELETE batch otherwise
+                # leaves a read snapshot that another worker can invalidate in WAL mode.
+                db.execute('BEGIN IMMEDIATE')
                 rows = db.execute('''SELECT * FROM web_uploads u WHERE created_at<? AND NOT EXISTS (
                     SELECT 1 FROM web_requests r, json_each(r.uploads_json) a WHERE a.value=u.id)
                     AND NOT EXISTS (SELECT 1 FROM web_conversation_deletions d WHERE d.conversation_id=u.conversation_id)''', (cutoff,)).fetchall()

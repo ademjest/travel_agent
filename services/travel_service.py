@@ -5,10 +5,14 @@ from infrastructure.amap_client import (
     RouteSummary,
     TrafficSegment,
     WeatherForecast,
+    PlaceResolutionError,
+    amap_failure,
 )
 from core.commands import HELP_TEXT, parse_command
 from core.settings import Settings
 from datetime import datetime, timezone
+from core.tool_result import ToolResult
+from dataclasses import asdict
 
 
 RELIABLE_TRAFFIC_COVERAGE_RATIO = 0.7
@@ -64,11 +68,13 @@ def _format_route(route: RouteSummary) -> str:
         "【高德驾车路线】",
         f"起点：{route.origin.address}",
         f"终点：{route.destination.address}",
+        f"原始请求：{route.origin.query} → {route.destination.query}",
         f"距离：{_format_distance(route.distance_meters)}",
         f"预计耗时：{_format_duration(route.duration_seconds)}",
         f"预计收费：{route.tolls_yuan} 元",
         f"红绿灯：{route.traffic_lights} 个",
         "说明：预计耗时会随高德实时路况变化。",
+        *([f"定位依据：起点POI {route.origin.poi_id or '行政地点'}；终点POI {route.destination.poi_id or '行政地点'}。入口开放及车辆准入请另行核对。"] if route.origin.poi_id or route.destination.poi_id else []),
     ])
 
 
@@ -222,6 +228,7 @@ def _format_traffic(route: RouteSummary) -> str:
         "【高德实时路线与路况】",
         f"起点：{route.origin.address}",
         f"终点：{route.destination.address}",
+        f"原始请求：{route.origin.query} → {route.destination.query}",
         f"总距离：{_format_distance(route.distance_meters)}",
         f"当前预计耗时：{_format_duration(route.duration_seconds)}",
         coverage_text,
@@ -236,6 +243,10 @@ def _format_traffic(route: RouteSummary) -> str:
 
 
 class TravelService:
+    @property
+    def manages_read_retries(self):
+        return isinstance(self.amap, AmapClient)
+
     def __init__(self, settings: Settings):
         self.llm_configured = settings.llm_configured
         self.amap = (
@@ -244,7 +255,13 @@ class TravelService:
             else None
         )
 
-    def execute_tool(self, name: str, arguments: dict[str, str]) -> str:
+    def execute_result(self, name, arguments):
+        if not isinstance(arguments, dict) or any(not isinstance(value, str) for value in arguments.values()):
+            return ToolResult('failed', name, data='工具错误：参数必须为文本字段。', error_code='invalid_argument')
+        result = self.execute_tool(name,arguments,structured=True)
+        return result if isinstance(result,ToolResult) else ToolResult.from_text(name,result)
+
+    def execute_tool(self, name: str, arguments: dict[str, str], structured=False) -> str:
         if not self.amap:
             return "工具错误：尚未配置 AMAP_API_KEY。"
 
@@ -268,21 +285,28 @@ class TravelService:
                     return '工具错误：缺少 origin 或 destination。'
                 mode = 'walking' if name == 'get_walking_route' else 'transit'
                 route = self.amap.non_driving_route(origin, destination, mode=mode, city=arguments.get('city', ''))
-                return '\n'.join((f"【高德{'步行' if mode == 'walking' else '公共交通'}方案】",
+                text = '\n'.join((f"【高德{'步行' if mode == 'walking' else '公共交通'}方案】",
                     f"{route['origin']} → {route['destination']}",
                     f"约 {_format_distance(route['distance_meters'])}，预计 {_format_duration(route['duration_seconds'])}",
                     *route['instructions'], '方案与班次可能变化，请结合出发时间再次核对。'))
+                return ToolResult('completed', name, data=text, payload=route) if structured else text
             if name == "get_current_weather":
                 location = arguments.get("location", "").strip()
                 if not location:
                     return "工具错误：缺少 location。"
-                return _format_weather(self.amap.current_weather(location))
+                weather = self.amap.current_weather(location)
+                if structured:
+                    return ToolResult('completed', name, data=_format_weather(weather), payload=asdict(weather))
+                return _format_weather(weather)
 
             if name == "get_weather_forecast":
                 location = arguments.get("location", "").strip()
                 if not location:
                     return "工具错误：缺少 location。"
-                return _format_forecast(self.amap.weather_forecast(location))
+                forecast = self.amap.weather_forecast(location)
+                if structured:
+                    return ToolResult('completed', name, data=_format_forecast(forecast), payload=asdict(forecast))
+                return _format_forecast(forecast)
 
             if name in {"get_driving_route", "get_route_traffic"}:
                 origin = arguments.get("origin", "").strip()
@@ -290,10 +314,22 @@ class TravelService:
                 if not origin or not destination:
                     return "工具错误：缺少 origin 或 destination。"
                 route = self.amap.driving_route(origin, destination)
+                if structured:
+                    return ToolResult('completed', name, data=_format_route(route) if name == 'get_driving_route'
+                                      else _format_traffic(route), payload={'origin': asdict(route.origin),
+                        'destination': asdict(route.destination), 'distance_meters': route.distance_meters,
+                        'duration_seconds': route.duration_seconds, 'tolls_yuan': route.tolls_yuan})
                 if name == "get_driving_route":
                     return _format_route(route)
                 return _format_traffic(route)
+        except PlaceResolutionError as exc:
+            if structured:
+                return ToolResult('needs_input',name,data=str(exc),error_code=exc.code,
+                                  missing_fields=(exc.field,) if exc.field else ())
+            return f'工具错误：{exc}'
         except AmapError as exc:
+            if structured:
+                return amap_failure(name, exc)
             return f"工具错误：{exc}"
 
         return f"工具错误：未知工具 {name}。"

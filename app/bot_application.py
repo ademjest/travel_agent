@@ -4,6 +4,7 @@ import asyncio
 from contextlib import suppress
 import logging
 import json
+import re
 from typing import Callable
 
 from openai import OpenAIError
@@ -14,7 +15,10 @@ from agents.travel_decision import decide_travel_action
 from core.chat_transport import ChatEvent, OutgoingMessage, ReplyRenderer
 from core.commands import ONEBOT_UPLOAD_DOCUMENT_TEXT, parse_command
 from core.execution_scope import CURRENT_EXECUTION, ExecutionRevoked
-from core.model_budget import MODEL_EVENT
+from core.model_budget import MODEL_EVENT, MODEL_RUN
+from core.tasks import read_task_continuation, location_answer, route_correction
+from core.execution_outcome import TravelReadRequest
+import hashlib
 from infrastructure.memory_store import EventClaim, MemoryStore
 from services.document_service import DocumentService
 from services.outbox_worker import OutboxWorker
@@ -82,10 +86,32 @@ class TravelBotApplication:
 
     async def handle(self, event: ChatEvent) -> None:
         token = MODEL_EVENT.set(event.event_key)
+        tasks = self.store.tasks.recent(event.platform,event.storage_scope_id,event.sender_id,reply_to_id=event.reply_to_id,
+            **({'include_failed_reads':True} if route_correction(event.content) else {}))
+        read_task, _ = read_task_continuation(event.content,tasks)
+        selected = read_task
+        if selected is None and event.reply_to_id and len(tasks)==1:
+            selected=tasks[0]
+        if selected is None:
+            from services.reminder_time import is_time_answer
+            waiting=[task for task in tasks if task.status=='collecting']
+            if len(waiting)==1 and is_time_answer(event.content):
+                selected=waiting[0]
+            elif len(waiting)==1:
+                candidate=waiting[0]
+                missing=set(candidate.missing_slots)
+                text=event.content.strip()
+                if ((missing & {'destination','city'} and location_answer(text))
+                        or (missing & {'duration','day_count','duration_text','selected_days'}
+                            and re.fullmatch(r'[一二两三四五六七八九十\d]{1,3}[天日](?:游)?',text))
+                        or ('budget_unit' in missing and re.fullmatch(r'(?:每人|总额|每间(?:房)?|每天|每晚|全程|总预算)(?:[，,、 ]*(?:每人|总额|每间(?:房)?|每天|每晚|全程|总预算))*',text))):
+                    selected=candidate
+        run_token = MODEL_RUN.set(selected.slots.get('budget_run_key','') if selected else hashlib.sha256(event.event_key.encode()).hexdigest())
         try:
             await self._handle(event)
         finally:
             MODEL_EVENT.reset(token)
+            MODEL_RUN.reset(run_token)
 
     async def _handle(self, event: ChatEvent) -> None:
         if event.channel == "group" and not self.group_allowed(event.scope_id):
@@ -107,6 +133,8 @@ class TravelBotApplication:
             self.store.begin_event,
             event.event_key,
         )
+        await asyncio.to_thread(self.store.diagnostics.record, 'request',
+            {'event_key': event.event_key, 'status': 'claimed' if claim else 'already_claimed'})
         if claim is None:
             return
         lease_task = asyncio.create_task(
@@ -136,6 +164,8 @@ class TravelBotApplication:
                 memory_content,
                 assistant_text=reply,
             )
+            await asyncio.to_thread(self.store.diagnostics.record, 'request',
+                {'event_key': event.event_key, 'status': 'output_prepared'})
         except ExecutionRevoked:
             raise
         except Exception as exc:
@@ -198,8 +228,14 @@ class TravelBotApplication:
             memory_content: str,
             claim: EventClaim) -> tuple[str, str]:
         try:
-            if not event.attachments:
-                for name in ('research_service',):
+            if event.trip_edit is not None:
+                if self.semantic_task_service is None:
+                    return '行程服务尚未配置，请在状态与设置中配置模型服务后重试；本次未修改行程。',memory_content
+                reply = await asyncio.to_thread(self.semantic_task_service.handle,event,claim)
+                return (reply if reply is not None else '当前处于观察模式，本次未生成草稿或修改行程。'), memory_content
+            from core.rule_intent import compound_boundary
+            if not event.attachments and not compound_boundary(event.content):
+                for name in ('planning_service','research_service'):
                     service = getattr(self, name, None)
                     if service is not None:
                         answer = await asyncio.to_thread(service.handle, event, claim)
@@ -208,31 +244,34 @@ class TravelBotApplication:
             task_reply = await asyncio.to_thread(self.store.tasks.command, event, claim)
             if task_reply is not None:
                 return task_reply, memory_content
+            read_request = None
             if self.semantic_task_service is not None and not event.attachments:
                 semantic_reply = await asyncio.to_thread(self.semantic_task_service.handle, event, claim)
-                if semantic_reply is not None:
+                if isinstance(semantic_reply,TravelReadRequest):
+                    read_request=semantic_reply
+                elif semantic_reply is not None:
                     return semantic_reply, memory_content
-            if not event.attachments and getattr(self, 'preference_service', None) is not None:
+            if read_request is None and not event.attachments and getattr(self, 'preference_service', None) is not None:
                 preference_reply = await asyncio.to_thread(self.preference_service.handle, event, claim)
                 if preference_reply is not None:
                     return preference_reply, memory_content
-            if self.policy_watch_service is not None and not event.attachments:
+            if read_request is None and self.policy_watch_service is not None and not event.attachments:
                 watch_reply = await asyncio.to_thread(self.policy_watch_service.handle, event, claim)
                 if watch_reply is not None:
                     return watch_reply, memory_content
-            if self.trip_service is not None and not event.attachments:
+            if read_request is None and self.trip_service is not None and not event.attachments:
                 trip_reply = await asyncio.to_thread(self.trip_service.handle, event, claim)
                 if trip_reply is not None:
                     return trip_reply, memory_content
-            if self.booking_reminder_service is not None and not event.attachments:
+            if read_request is None and self.booking_reminder_service is not None and not event.attachments:
                 booking_reply = await asyncio.to_thread(self.booking_reminder_service.handle, event, claim)
                 if booking_reply is not None:
                     return booking_reply, memory_content
-            if self.scheduled_query_service is not None and not event.attachments:
+            if read_request is None and self.scheduled_query_service is not None and not event.attachments:
                 scheduled_reply = await asyncio.to_thread(self.scheduled_query_service.handle, event, claim)
                 if scheduled_reply is not None:
                     return scheduled_reply, memory_content
-            if self.personal_reminder_service is not None and not event.attachments:
+            if read_request is None and self.personal_reminder_service is not None and not event.attachments:
                 reminder_reply = await asyncio.to_thread(
                     self.personal_reminder_service.handle, event, claim)
                 if reminder_reply is not None:
@@ -445,9 +484,19 @@ class TravelBotApplication:
                         event.content,
                     )
                 else:
+                    context_decision = decide_travel_action(event.content)
+                    document_reference = ('document' in context_decision.intents
+                        or bool(re.search(r'我们.{0,8}住|住哪里|住哪|住宿安排|之前.{0,8}(?:行程|安排)', event.content)))
+                    if document_reference and set(context_decision.intents) <= {'places', 'document', 'general'}:
+                        context_purpose = 'document_qa'
+                    elif read_request is not None or set(context_decision.intents) & {'weather', 'forecast', 'route', 'traffic', 'places', 'walking', 'transit'}:
+                        context_purpose = 'travel_lookup'
+                    else:
+                        context_purpose = 'tool_reasoning'
                     agent_context = await asyncio.to_thread(
                         self.context_builder.build,
                         event,
+                        context_purpose,
                     )
                     if isinstance(self.travel_agent, TravelAgent):
                         agent_result = await asyncio.to_thread(
@@ -456,6 +505,7 @@ class TravelBotApplication:
                             agent_context,
                             "",
                             self._tool_context(event),
+                            read_request=read_request,
                         )
                     else:
                         agent_result = await asyncio.to_thread(
@@ -464,6 +514,11 @@ class TravelBotApplication:
                             agent_context,
                         )
                     reply = agent_result.reply
+                    if getattr(self.store,'planning',None) is not None:
+                        try:
+                            await asyncio.to_thread(self.store.planning.capture,event,reply,kind='exploratory')
+                        except (ValueError, OSError):
+                            logger.info('Planning artifact capture skipped: event=%s',event.event_key)
                     if isinstance(self.travel_agent, TravelAgent) and agent_result.task_update:
                         await asyncio.to_thread(
                             self.store.tasks.prepare_result, event, claim,

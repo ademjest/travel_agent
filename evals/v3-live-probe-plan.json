@@ -1,0 +1,9 @@
+{
+  "provider": "",
+  "baseline_model": "",
+  "candidate_model": "",
+  "currency": "USD",
+  "max_calls": 60,
+  "max_cost": null,
+  "prices": []
+}

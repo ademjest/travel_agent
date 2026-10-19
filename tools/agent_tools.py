@@ -14,6 +14,7 @@ PLACE_SEARCH_TOOL = 'search_travel_places'
 WALKING_ROUTE_TOOL = 'get_walking_route'
 TRANSIT_ROUTE_TOOL = 'get_transit_route'
 ASK_USER_TOOL = 'request_missing_input'
+READ_TOOL_ARTIFACT_TOOL = 'read_tool_artifact'
 CREATE_RESERVATION_DRAFT_TOOL = "create_reservation_draft_from_image"
 UPDATE_RESERVATION_DRAFT_ITEM_TOOL = "update_reservation_draft_item"
 UPDATE_RESERVATION_DRAFT_ITEMS_TOOL = "update_reservation_draft_items"
@@ -99,6 +100,12 @@ REMINDER_TIMES = {
 
 
 TOOLS = [
+    _function_tool(READ_TOOL_ARTIFACT_TOOL,
+        '按编号分页读取本次会话中已保存的大型工具结果。不得猜测其他会话的编号。',
+        {'artifact_id': {'type': 'string', 'description': 'TA- 开头的工具结果编号'},
+         'cursor': {'type': 'integer', 'minimum': 0},
+         'max_chars': {'type': 'integer', 'minimum': 500}},
+        ('artifact_id',)),
     _function_tool(ASK_USER_TOOL,
         '缺少城市或起终点等必要信息时结束本轮并追问。只询问缺失字段，不能声称业务已完成。',
         {'question': {'type': 'string'}, 'missing_fields': {'type': 'array', 'minItems': 1, 'maxItems': 4,

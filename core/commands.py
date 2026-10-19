@@ -172,6 +172,9 @@ def _parse_route_command(command: str, prefix: str, name: str) -> Command:
 
 
 def parse_command(content: str) -> Command:
+    from core.rule_intent import unsafe_command_tail
+    if unsafe_command_tail(content):
+        return Command(name='unknown')
     command = normalize_command(content)
     lowered = command.lower()
 

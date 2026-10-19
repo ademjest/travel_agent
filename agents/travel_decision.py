@@ -219,9 +219,9 @@ def _natural_intents(text: str) -> tuple[Intent, ...]:
     elif route:
         detected.append("route")
 
-    future = _contains(text, "天气预报", "预报", "明天", "后天", "未来")
+    future = _contains(text, "天气预报", "预报", "明天", "后天", "未来", "今天下午", "今天晚上", "今晚")
     current = _contains(text, "现在天气", "当前天气", "实时天气")
-    weather = _contains(text, "天气", "气温", "下雨", "降雨", "下雪", "大风")
+    weather = _contains(text, "天气", "气温", "下雨", "降雨", "下雪", "大风", "带伞", "撑伞", "淋雨")
     if future and (weather or _contains(text, "预报")):
         detected.append("forecast")
     if current or (weather and not future):
@@ -254,4 +254,5 @@ def _contains(text: str, *signals: str) -> bool:
 
 def _has_route_endpoints(text: str) -> bool:
     parts = re.split(r"\s*(?:->|→|到|至)\s*", text, maxsplit=1)
-    return len(parts) == 2 and all(part.strip() for part in parts)
+    return (len(parts) == 2 and all(part.strip() for part in parts)) or bool(re.search(
+        r'从[^，,；;。？！?!]+?(?:去|前往)[^，,；;。？！?!]+',text))

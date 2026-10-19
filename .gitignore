@@ -3,6 +3,10 @@
 !.env.example
 botpy.log.*
 .venv/
+.local-embedding-deps/
+.models/
+.upgrade-testing/
+.build-stage/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -14,3 +18,11 @@ frontend/dist/
 frontend/*.tsbuildinfo
 frontend/test-results/
 frontend/playwright-report/
+# Generated local evaluations may contain prompts, usage and machine paths.
+# Keep reusable datasets; captured regression inputs live under tests/fixtures/.
+evals/*.json
+!evals/*_cases_v*.json
+!evals/v3-intent-probes.json
+!evals/v3-live-probe-plan.json
+evals/*.png
+evals/public_travel_sources_*/

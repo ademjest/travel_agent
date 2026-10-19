@@ -72,6 +72,9 @@ class OutboxWorker:
                     delivery_key=f"web:outbox:{row.outbox_id}" if self.platform == 'web' else '',
                 ))
             except DeliveryError as exc:
+                self.store.diagnostics.record('delivery', {'event_key': row.event_id,
+                    'outbox_id': row.outbox_id, 'status': 'delivered' if exc.delivered else 'failed',
+                    'error_code': exc.code, 'attempt_count': row.attempt_count + 1})
                 if exc.delivered:
                     sent_at = now or self.clock()
                     sent = await asyncio.to_thread(
@@ -111,6 +114,9 @@ class OutboxWorker:
                     exc.retryable,
                 )
             except Exception as exc:
+                self.store.diagnostics.record('delivery', {'event_key': row.event_id,
+                    'outbox_id': row.outbox_id, 'status': 'unknown', 'error_type': type(exc).__name__,
+                    'attempt_count': row.attempt_count + 1})
                 if self.platform == 'web' and getattr(exc, 'status_code', None) == 410:
                     await asyncio.to_thread(self.store.reminders.stop_delivery, row.outbox_id, token)
                     continue
@@ -142,6 +148,9 @@ class OutboxWorker:
                 )
                 if sent:
                     delivered += 1
+                self.store.diagnostics.record('delivery', {'event_key': row.event_id,
+                    'outbox_id': row.outbox_id, 'status': 'sent' if sent else 'confirmation_lost',
+                    'attempt_count': row.attempt_count + 1})
         return delivered
 
     async def run(self, poll_seconds: float = 5.0) -> None:

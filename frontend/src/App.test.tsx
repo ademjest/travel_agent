@@ -10,15 +10,20 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { emptyContext } from "./api";
-import type { Conversation, DeletionJob } from "./api";
+import type { Conversation, ConversationUsageReport, DeletionJob, Notice } from "./api";
 
 let sent: { url: string; options: RequestInit }[];
 let failSubmission = false;
 let reply = "";
+let userRequest = false;
 let conversationList: Conversation[] = [];
 let deletionJob: DeletionJob | null = null;
 let deletionFails = false;
 let messagesGate: Promise<void> | null = null;
+let contextResponse: unknown;
+let usageByConversation: Record<string, ConversationUsageReport>;
+let contextGates: Record<string, Promise<void> | undefined>;
+let notificationsResponse: Notice[] = [];
 const sampleConversation = (
   id = "local-conversation",
   title = "新的旅行",
@@ -33,10 +38,15 @@ beforeEach(() => {
   sent = [];
   failSubmission = false;
   reply = "";
+  userRequest = false;
   conversationList = [];
   deletionJob = null;
   deletionFails = false;
   messagesGate = null;
+  contextResponse = emptyContext;
+  usageByConversation = {};
+  contextGates = {};
+  notificationsResponse = [];
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value: function (this: HTMLDialogElement) {
@@ -72,11 +82,18 @@ beforeEach(() => {
           messages: 2,
           attachments: 1,
           trips: 1,
+          planning_artifacts: 1,
+          tool_artifacts: 1,
+          conversation_summaries: 1,
           active_tasks: 1,
           reminders: 1,
           scheduled_queries: 0,
           policy_watches: 0,
         };
+      } else if (options.method === "DELETE" && url.includes("/plans/")) {
+        body = { status: "deleted" };
+        const value = contextResponse as typeof emptyContext;
+        contextResponse = { ...value, planning_artifacts: [] };
       } else if (options.method === "DELETE") {
         const identity = url.split("/").at(-1)!;
         conversationList = conversationList.filter((c) => c.id !== identity);
@@ -100,7 +117,17 @@ beforeEach(() => {
         body = sampleConversation();
         conversationList = [body as Conversation];
       } else if (url.endsWith("/conversations")) body = conversationList;
-      else if (url.endsWith("/context")) body = emptyContext;
+      else if (url.endsWith("/notifications")) body = notificationsResponse;
+      else if (url.endsWith("/context")) {
+        const identity = url.split("/")[3];
+        body = usageByConversation[identity]
+          ? { ...(contextResponse as object), model_usage: usageByConversation[identity] } : contextResponse;
+        if (contextGates[identity]) await contextGates[identity];
+      }
+      else if (url.endsWith("/diagnostics")) body = {
+        job_id: 7, job_status: "completed", state: "处理已完成", note: "诊断测试", model_calls: 0,
+        timeline: [], report_text: "诊断测试", replayed: false,
+      };
       else if (url.endsWith("/uploads"))
         body = {
           id: "upload-one",
@@ -133,6 +160,10 @@ beforeEach(() => {
           has_more: false,
           before: null,
         };
+        if (userRequest) (body as { items: unknown[] }).items.unshift({
+          id: "u:request", role: "user", kind: "message", content: "ping", uploads: [],
+          created_at: "2026-10-16T00:00:00Z", job_id: 7, job_status: "completed",
+        });
       }
       return { ok: status === 200, status, json: async () => body };
     }),
@@ -158,6 +189,108 @@ async function ready() {
 }
 
 describe("local conversation interactions", () => {
+  it("isolates conversation usage and ignores a late response from the previous conversation", async () => {
+    const report = (identity: string, total: number): ConversationUsageReport => ({
+      conversation_id: identity, currency: "USD", cost_note: "本地估算", scope_note: "本会话", purposes: [],
+      totals: { calls: 1, prompt_tokens: total - 20, cached_input_tokens: 0, completion_tokens: 20,
+        reasoning_tokens: 0, total_tokens: total, running_calls: 0, estimated_cost: 0, cost_unknown: 1,
+        cost_recalculated: 0, cache_detail_missing: 0, unknown_usage: 0, cost_breakdown: [] },
+    });
+    conversationList = [sampleConversation("a", "窗口 A"), sampleConversation("b", "窗口 B")];
+    usageByConversation = { a: report("a", 120), b: report("b", 500) };
+    localStorage.setItem("travel-active", "a");
+    render(<App />);
+    await screen.findByText("120 token · 1 次模型调用");
+    let release!: () => void;
+    contextGates.a = new Promise(resolve => { release = resolve; });
+    usageByConversation.a = report("a", 999);
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(sent.filter(call => call.url === "/api/conversations/a/context").length).toBeGreaterThan(1));
+    fireEvent.click(screen.getByText("窗口 B"));
+    await screen.findByText("500 token · 1 次模型调用");
+    await act(async () => { release(); });
+    expect(screen.queryByText("120 token · 1 次模型调用")).toBeNull();
+    expect(screen.queryByText("999 token · 1 次模型调用")).toBeNull();
+    expect(screen.getByText("500 token · 1 次模型调用")).toBeTruthy();
+  });
+
+  it("opens diagnostics from a user message without asking for an event key", async () => {
+    conversationList = [sampleConversation("a", "测试会话")];
+    localStorage.setItem("travel-active", "a");
+    userRequest = true;
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "查看处理过程" }));
+    await screen.findByText("诊断测试", { selector: "p" });
+    expect(sent.some((item) => item.url === "/api/conversations/a/jobs/7/diagnostics")).toBe(true);
+    expect(screen.getByRole("heading", { name: "消息处理过程" })).toBeTruthy();
+  });
+  it("exposes local status, service configuration and preferences as separate sidebar modules", async () => {
+    await ready();
+    expect(screen.getByRole("button", { name: /本地空间状态/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /服务配置/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /偏好设置/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /状态与设置/ })).toBeNull();
+  });
+
+  it("shows an in-page toast when a new journey notification arrives", async () => {
+    conversationList = [sampleConversation("a", "西安行程")];
+    localStorage.setItem("travel-active", "a");
+    render(<App />);
+    await waitFor(() => expect(sent.some(call => call.url.endsWith("/notifications"))).toBe(true));
+    notificationsResponse = [{ id: 9, content: "提醒你：预约陕西历史博物馆", created_at: "2026-09-25T02:00:00Z",
+      read_at: null, conversation_id: "a", title: "西安行程" }];
+    window.dispatchEvent(new Event("focus"));
+    expect(await screen.findByText("提醒你：预约陕西历史博物馆")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /西安行程.*提醒你：预约陕西历史博物馆/ }));
+    expect(await screen.findByRole("heading", { name: "旅途通知" })).toBeTruthy();
+  });
+  it("shows planning drafts separately and fills an adoption request", async () => {
+    conversationList = [sampleConversation("a", "开封攻略")];
+    localStorage.setItem("travel-active", "a");
+    contextResponse = { ...emptyContext, planning_artifacts: [{
+      artifact_id:"P-one", ordinal:1, kind:"exploratory", title:"开封参考方案（2天／3天）",
+      destination:"开封", duration_options:[2,3], summary:"包含两套开封路线。", status:"active",
+      version:1, created_at:"2026-09-22T00:00:00Z"
+    }] };
+    render(<App />);
+    await screen.findByRole("tab", {name:"方案"});
+    fireEvent.click(screen.getByRole("tab", {name:"方案"}));
+    await screen.findByText("开封参考方案（2天／3天）");
+    fireEvent.click(screen.getByRole("button", {name:"采用 3 天方案"}));
+    expect((screen.getByLabelText("旅行问题") as HTMLTextAreaElement).value).toBe("采用方案 1 的 3 天安排");
+  });
+
+  it.each([null, {}, ""])("restores a conversation with invalid preview %j without blanking the page", async (preview) => {
+    conversationList = [sampleConversation("a", "测试 A")];
+    localStorage.setItem("travel-active", "a");
+    reply = "修改预览已生成";
+    contextResponse = { ...emptyContext, confirmations: [{
+      id: "draft-a", version: 2, preview, command: "确认行程修改", expires_at: "2030-10-01T00:00:00Z"
+    }] };
+    render(<App />);
+    await screen.findByText(/完整预览暂时不可用/);
+    expect(screen.getByRole("button", { name: "确认这次变更" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /开启新对话/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "重新生成预览" }));
+    expect((screen.getByLabelText("旅行问题") as HTMLTextAreaElement).value).toBe("重新生成行程预览");
+    expect(sent.some(call => call.url.includes("/confirmations/"))).toBe(false);
+  });
+
+  it("renders a delivered confirmation and submits its exact version", async () => {
+    conversationList = [sampleConversation("a", "测试 A")];
+    localStorage.setItem("travel-active", "a");
+    reply = "请查看确认卡片";
+    contextResponse = { ...emptyContext, confirmations: [{
+      id: "draft-a", version: 4, preview: "完整的行程和提醒预览", can_confirm: true,
+      command: "确认行程修改", expires_at: "2030-10-01T00:00:00Z"
+    }] };
+    render(<App />);
+    await screen.findByText("完整的行程和提醒预览");
+    fireEvent.click(screen.getByRole("button", { name: "确认这次变更" }));
+    await waitFor(() => expect(sent.some(call => call.url.endsWith("/confirmations/draft-a"))).toBe(true));
+    const call = sent.find(call => call.url.endsWith("/confirmations/draft-a"))!;
+    expect(JSON.parse(String(call.options.body)).version).toBe(4);
+  });
   it("deletion requires confirmation and cancelling the dialog preserves data", async () => {
     conversationList = [sampleConversation("a", "测试 A")];
     await ready();

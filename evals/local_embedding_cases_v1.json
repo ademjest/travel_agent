@@ -1,0 +1,724 @@
+{
+  "version": "bge-pilot-v1",
+  "note": "New synthetic documents, dev and holdout topics disjoint; gold only used for scoring. Not real-world source or answer-quality evidence.",
+  "cases": [
+    {
+      "id": "bge-pilot-01-1",
+      "split": "dev",
+      "category": "exact",
+      "query": "青岚展馆的大件行李如何处理？",
+      "documents": [
+        {
+          "filename": "fixture-1.md",
+          "content": "以下为虚构资料，仅用于检索测试。青岚展馆不允许携带大件行李进入展厅；大件行李可寄存在入口服务台。小包需要安检。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-1.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-01-2",
+      "split": "dev",
+      "category": "synonym",
+      "query": "拖着大号拉杆箱，进展厅之前应该放哪里？",
+      "documents": [
+        {
+          "filename": "fixture-1.md",
+          "content": "以下为虚构资料，仅用于检索测试。青岚展馆不允许携带大件行李进入展厅；大件行李可寄存在入口服务台。小包需要安检。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-1.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-01-3",
+      "split": "dev",
+      "category": "no_answer",
+      "query": "纪念品能开发票吗？",
+      "documents": [
+        {
+          "filename": "fixture-1.md",
+          "content": "以下为虚构资料，仅用于检索测试。青岚展馆不允许携带大件行李进入展厅；大件行李可寄存在入口服务台。小包需要安检。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-01-4",
+      "split": "dev",
+      "category": "no_answer",
+      "query": "自驾停车每小时多少钱？",
+      "documents": [
+        {
+          "filename": "fixture-1.md",
+          "content": "以下为虚构资料，仅用于检索测试。青岚展馆不允许携带大件行李进入展厅；大件行李可寄存在入口服务台。小包需要安检。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-02-1",
+      "split": "dev",
+      "category": "exact",
+      "query": "碧溪园哪条路线适合轮椅？",
+      "documents": [
+        {
+          "filename": "fixture-2.md",
+          "content": "以下为虚构资料，仅用于检索测试。碧溪园的湖边平整步道适合轮椅通行，每隔约五分钟步行距离设有长椅；山顶观景路线有连续石阶，不属于无障碍路线。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-2.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-02-2",
+      "split": "dev",
+      "category": "synonym",
+      "query": "同行者腿脚不方便又需要经常坐下来歇一歇，应当选择什么路段？",
+      "documents": [
+        {
+          "filename": "fixture-2.md",
+          "content": "以下为虚构资料，仅用于检索测试。碧溪园的湖边平整步道适合轮椅通行，每隔约五分钟步行距离设有长椅；山顶观景路线有连续石阶，不属于无障碍路线。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-2.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-02-3",
+      "split": "dev",
+      "category": "multi",
+      "query": "不能爬台阶而且需要休息，哪里通行比较合适？",
+      "documents": [
+        {
+          "filename": "fixture-2.md",
+          "content": "以下为虚构资料，仅用于检索测试。碧溪园的湖边平整步道适合轮椅通行，每隔约五分钟步行距离设有长椅；山顶观景路线有连续石阶，不属于无障碍路线。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-2.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-02-4",
+      "split": "dev",
+      "category": "no_answer",
+      "query": "夜间灯光几点关闭？",
+      "documents": [
+        {
+          "filename": "fixture-2.md",
+          "content": "以下为虚构资料，仅用于检索测试。碧溪园的湖边平整步道适合轮椅通行，每隔约五分钟步行距离设有长椅；山顶观景路线有连续石阶，不属于无障碍路线。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-03-1",
+      "split": "dev",
+      "category": "exact",
+      "query": "松岸旅舍双床房如何计费？",
+      "documents": [
+        {
+          "filename": "fixture-3.md",
+          "content": "以下为虚构资料，仅用于检索测试。松岸旅舍双床房由两人共用，房费为人民币每间每晚320元；早餐不包含在房费中，需另外付费。退房时间为中午十二点。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-3.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-03-2",
+      "split": "dev",
+      "category": "synonym",
+      "query": "两位旅客合住一宿，这笔住宿费是按人数收还是按房间收？",
+      "documents": [
+        {
+          "filename": "fixture-3.md",
+          "content": "以下为虚构资料，仅用于检索测试。松岸旅舍双床房由两人共用，房费为人民币每间每晚320元；早餐不包含在房费中，需另外付费。退房时间为中午十二点。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-3.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-03-3",
+      "split": "dev",
+      "category": "multi",
+      "query": "房间标价含早饭吗，退宿的截止钟点是什么？",
+      "documents": [
+        {
+          "filename": "fixture-3.md",
+          "content": "以下为虚构资料，仅用于检索测试。松岸旅舍双床房由两人共用，房费为人民币每间每晚320元；早餐不包含在房费中，需另外付费。退房时间为中午十二点。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-3.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-03-4",
+      "split": "dev",
+      "category": "no_answer",
+      "query": "能否带宠物入住？",
+      "documents": [
+        {
+          "filename": "fixture-3.md",
+          "content": "以下为虚构资料，仅用于检索测试。松岸旅舍双床房由两人共用，房费为人民币每间每晚320元；早餐不包含在房费中，需另外付费。退房时间为中午十二点。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-04-1",
+      "split": "dev",
+      "category": "exact",
+      "query": "云汀展览儿童门票优惠是什么？",
+      "documents": [
+        {
+          "filename": "fixture-4.md",
+          "content": "以下为虚构资料，仅用于检索测试。云汀常设展览：未满六岁的儿童免票，六岁至十八岁的未成年人半价；优惠按每人每次入场计算，不包含另行售票的特别展。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-4.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-04-2",
+      "split": "dev",
+      "category": "synonym",
+      "query": "五岁小朋友参观是否需要支付入场费？",
+      "documents": [
+        {
+          "filename": "fixture-4.md",
+          "content": "以下为虚构资料，仅用于检索测试。云汀常设展览：未满六岁的儿童免票，六岁至十八岁的未成年人半价；优惠按每人每次入场计算，不包含另行售票的特别展。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-4.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-04-3",
+      "split": "dev",
+      "category": "multi",
+      "query": "少年享受的折扣可以用于单独收费的专题展吗？",
+      "documents": [
+        {
+          "filename": "fixture-4.md",
+          "content": "以下为虚构资料，仅用于检索测试。云汀常设展览：未满六岁的儿童免票，六岁至十八岁的未成年人半价；优惠按每人每次入场计算，不包含另行售票的特别展。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-4.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-04-4",
+      "split": "dev",
+      "category": "no_answer",
+      "query": "地铁最后一班几点？",
+      "documents": [
+        {
+          "filename": "fixture-4.md",
+          "content": "以下为虚构资料，仅用于检索测试。云汀常设展览：未满六岁的儿童免票，六岁至十八岁的未成年人半价；优惠按每人每次入场计算，不包含另行售票的特别展。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-05-1",
+      "split": "holdout",
+      "category": "exact",
+      "query": "港湾接驳车末班几点？",
+      "documents": [
+        {
+          "filename": "fixture-5.md",
+          "content": "以下为虚构资料，仅用于检索测试。港湾接驳车末班发车时间为18:40；遇暴雨暂停运营。乘客不得携带宠物上车，导盲犬按专门规则办理。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-5.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-05-2",
+      "split": "holdout",
+      "category": "synonym",
+      "query": "傍晚最迟什么时候还能乘坐园区摆渡巴士？",
+      "documents": [
+        {
+          "filename": "fixture-5.md",
+          "content": "以下为虚构资料，仅用于检索测试。港湾接驳车末班发车时间为18:40；遇暴雨暂停运营。乘客不得携带宠物上车，导盲犬按专门规则办理。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-5.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-05-3",
+      "split": "holdout",
+      "category": "multi",
+      "query": "下大雨时还开车吗，家里的小狗能跟着乘坐吗？",
+      "documents": [
+        {
+          "filename": "fixture-5.md",
+          "content": "以下为虚构资料，仅用于检索测试。港湾接驳车末班发车时间为18:40；遇暴雨暂停运营。乘客不得携带宠物上车，导盲犬按专门规则办理。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-5.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-05-4",
+      "split": "holdout",
+      "category": "no_answer",
+      "query": "票务需要提前几天预订？",
+      "documents": [
+        {
+          "filename": "fixture-5.md",
+          "content": "以下为虚构资料，仅用于检索测试。港湾接驳车末班发车时间为18:40；遇暴雨暂停运营。乘客不得携带宠物上车，导盲犬按专门规则办理。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-06-1",
+      "split": "holdout",
+      "category": "exact",
+      "query": "松影纪念馆2026年周一开放吗？",
+      "documents": [
+        {
+          "filename": "fixture-6.md",
+          "content": "以下为虚构资料，仅用于检索测试。松影纪念馆公告：2026年规则为周一闭馆，周二至周日开放。此前2024年暑期临时周一开放的规则已经失效。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-6.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-06-2",
+      "split": "holdout",
+      "category": "synonym",
+      "query": "每星期的第一天能不能进去参观，要依据现行规定。",
+      "documents": [
+        {
+          "filename": "fixture-6.md",
+          "content": "以下为虚构资料，仅用于检索测试。松影纪念馆公告：2026年规则为周一闭馆，周二至周日开放。此前2024年暑期临时周一开放的规则已经失效。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-6.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-06-3",
+      "split": "holdout",
+      "category": "multi",
+      "query": "旧年暑期那条每周一开门的通知现在还适用吗？",
+      "documents": [
+        {
+          "filename": "fixture-6.md",
+          "content": "以下为虚构资料，仅用于检索测试。松影纪念馆公告：2026年规则为周一闭馆，周二至周日开放。此前2024年暑期临时周一开放的规则已经失效。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-6.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-06-4",
+      "split": "holdout",
+      "category": "no_answer",
+      "query": "参观需要花多少钱？",
+      "documents": [
+        {
+          "filename": "fixture-6.md",
+          "content": "以下为虚构资料，仅用于检索测试。松影纪念馆公告：2026年规则为周一闭馆，周二至周日开放。此前2024年暑期临时周一开放的规则已经失效。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-07-1",
+      "split": "holdout",
+      "category": "exact",
+      "query": "禾木食堂套餐包括什么？",
+      "documents": [
+        {
+          "filename": "fixture-7.md",
+          "content": "以下为虚构资料，仅用于检索测试。禾木食堂套餐为人民币每份60元，包含一份主食和一碗汤；有食物过敏需求须事先告知，店方不承诺完全避免过敏原交叉接触。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-7.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-07-2",
+      "split": "holdout",
+      "category": "synonym",
+      "query": "一套饭菜付六十块，米饭和汤还需要另外买单吗？",
+      "documents": [
+        {
+          "filename": "fixture-7.md",
+          "content": "以下为虚构资料，仅用于检索测试。禾木食堂套餐为人民币每份60元，包含一份主食和一碗汤；有食物过敏需求须事先告知，店方不承诺完全避免过敏原交叉接触。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-7.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-07-3",
+      "split": "holdout",
+      "category": "multi",
+      "query": "对花生过敏，能不能保证制作过程中绝对没有混入相关成分？",
+      "documents": [
+        {
+          "filename": "fixture-7.md",
+          "content": "以下为虚构资料，仅用于检索测试。禾木食堂套餐为人民币每份60元，包含一份主食和一碗汤；有食物过敏需求须事先告知，店方不承诺完全避免过敏原交叉接触。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-7.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-07-4",
+      "split": "holdout",
+      "category": "no_answer",
+      "query": "机场到城区坐哪条线？",
+      "documents": [
+        {
+          "filename": "fixture-7.md",
+          "content": "以下为虚构资料，仅用于检索测试。禾木食堂套餐为人民币每份60元，包含一份主食和一碗汤；有食物过敏需求须事先告知，店方不承诺完全避免过敏原交叉接触。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "bge-pilot-08-1",
+      "split": "holdout",
+      "category": "exact",
+      "query": "星台观测区预约要提前多久？",
+      "documents": [
+        {
+          "filename": "fixture-8.md",
+          "content": "以下为虚构资料，仅用于检索测试。星台观测区需提前两个自然日在网页选时段预约；强风天气取消开放。预约凭证只代表入场资格，不包含接送或交通保障。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-8.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-08-2",
+      "split": "holdout",
+      "category": "synonym",
+      "query": "想后天去看星星，应该什么时候在网上选择参观档期？",
+      "documents": [
+        {
+          "filename": "fixture-8.md",
+          "content": "以下为虚构资料，仅用于检索测试。星台观测区需提前两个自然日在网页选时段预约；强风天气取消开放。预约凭证只代表入场资格，不包含接送或交通保障。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-8.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-08-3",
+      "split": "holdout",
+      "category": "multi",
+      "query": "拿到入场凭据之后，大风也能保证接送到场吗？",
+      "documents": [
+        {
+          "filename": "fixture-8.md",
+          "content": "以下为虚构资料，仅用于检索测试。星台观测区需提前两个自然日在网页选时段预约；强风天气取消开放。预约凭证只代表入场资格，不包含接送或交通保障。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": [
+        "fixture-8.md:0"
+      ]
+    },
+    {
+      "id": "bge-pilot-08-4",
+      "split": "holdout",
+      "category": "no_answer",
+      "query": "寄存柜的尺寸多大？",
+      "documents": [
+        {
+          "filename": "fixture-8.md",
+          "content": "以下为虚构资料，仅用于检索测试。星台观测区需提前两个自然日在网页选时段预约；强风天气取消开放。预约凭证只代表入场资格，不包含接送或交通保障。"
+        },
+        {
+          "filename": "distractor-a.md",
+          "content": "另一座虚构城市的雕塑公园正在征集摄影作品，参与者可在社区页面提交照片。"
+        },
+        {
+          "filename": "distractor-b.md",
+          "content": "虚构的阅读空间设有书架和自习座位，周末组织读书交流活动。"
+        }
+      ],
+      "expected_chunks": []
+    }
+  ]
+}

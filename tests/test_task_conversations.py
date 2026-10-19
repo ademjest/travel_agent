@@ -144,6 +144,8 @@ class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
     def reminder_clock(self):
         now = datetime(2030, 9, 9, 2, tzinfo=timezone.utc)
         self.runtime.application.personal_reminder_service.clock = lambda: now
+        self.runtime.application.booking_reminder_service.clock = lambda: now
+        self.runtime.application.booking_reminder_service.resolver.clock = lambda: now
         return now
 
     async def test_text_reminder_collects_time_without_picture_and_delivers_once(self):
@@ -306,7 +308,7 @@ class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
         service = self.runtime.application.trip_service
         service.clock = lambda: datetime(2030, 9, 9, tzinfo=timezone.utc)
         service.planner.client = FakeClient([model_response(SPEC), model_response(plan_value()),
-            model_response(plan_value((('h', 'a'), ('f', 'g'), ('d', 'e'))))])
+            model_response({'activities':plan_value((('h', 'a'), ('f', 'g'), ('d', 'e')))['days'][1]['activities']})])
         service.planner.amap = Mock()
         service.planner.amap.search_places.return_value = list(PLACES.values())
         request = '帮我规划10月1日开始的武汉三天行程，带老人，必去湖北省博物馆'
@@ -318,6 +320,8 @@ class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
         await self.message(request, 'trip-create')
         self.assertEqual(len(self.transport.messages), sent)
         await self.message('第二天改为室内', 'trip-edit')
+        self.assertEqual(self.store.trips.get(event,trips[0]['trip_id'])['version'],1)
+        await self.message('确认行程修改','trip-confirm')
         trip = self.store.trips.get(event, trips[0]['trip_id'])
         self.assertEqual(trip['version'], 2)
         self.assertEqual(trip['spec']['indoor_days'], [2])

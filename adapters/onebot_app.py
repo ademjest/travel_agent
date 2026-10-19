@@ -655,6 +655,8 @@ def create_onebot_app(
         )
         task_supervisor.start("onebot-maintenance", maintenance.run)
         task_supervisor.start('onebot-inbox', inbox.run)
+        if getattr(getattr(application, 'store', None), 'semantic_index', None) is not None:
+            task_supervisor.start('onebot-local-index', application.store.semantic_index.run)
         app.state.background_supervisor = task_supervisor
         try:
             yield

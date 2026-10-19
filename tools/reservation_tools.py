@@ -6,6 +6,8 @@ from typing import Mapping
 from core.event_idempotency import event_operation_key
 from core.execution_scope import ensure_execution_active
 from core.tool_result import ToolResult
+from dataclasses import replace
+from core.tool_execution import retry_read
 from services.reservation_service import (
     ReservationService,
     ReservationConfirmationRequired,
@@ -15,6 +17,7 @@ from services.reservation_draft_creator import ReservationDraftCreator
 from tools.agent_tools import (
     CREATE_RESERVATION_DRAFT_TOOL,
     AgentToolContext,
+    READ_TOOL_ARTIFACT_TOOL,
     RESERVATION_TOOL_NAMES,
 )
 
@@ -295,19 +298,51 @@ class AgentToolRouter:
             self,
             travel_service,
             reservation_service: ReservationService,
-            draft_creator: ReservationDraftCreator):
+            draft_creator: ReservationDraftCreator,
+            artifact_repository=None):
         self.travel_service = travel_service
         self.reservation_tools = ReservationToolExecutor(
             reservation_service,
             draft_creator,
         )
+        self.artifact_repository = artifact_repository
 
     def execute_result(
+            self, name, arguments, context=None) -> ToolResult:
+        try:
+            result = self._execute_result(name, arguments, context)
+        except Exception as error:
+            if self.artifact_repository is not None:
+                self.artifact_repository.store.diagnostics.record('tool', {
+                    'event_key': context.event_id if context else '', 'name': name,
+                    'status': 'interrupted', 'error_type': type(error).__name__})
+            raise
+        if self.artifact_repository is not None:
+            self.artifact_repository.store.diagnostics.record('tool', {
+                'event_key': context.event_id if context else '', 'name': name,
+                'status': result.status, 'error_code': result.error_code, 'attempts': result.attempts,
+                'effect_status': result.effect_status, 'state_version': result.state_version,
+                'operation_key': result.operation_key})
+        return result
+
+    def _execute_result(
             self,
             name: str,
             arguments: Mapping[str, object],
             context: AgentToolContext | None = None) -> ToolResult:
         resource_id = str(arguments.get("plan_code") or arguments.get("item_code") or "")
+        if name == READ_TOOL_ARTIFACT_TOOL:
+            if context is None or self.artifact_repository is None:
+                return ToolResult('failed', name, data='工具结果存储暂不可用。', error_code='not_available')
+            try:
+                page = self.artifact_repository.read(
+                    context, str(arguments.get('artifact_id') or ''),
+                    int(arguments.get('cursor') or 0), int(arguments.get('max_chars') or 4000))
+                return ToolResult('completed', name, page['artifact_id'], data=__import__('json').dumps(page, ensure_ascii=False))
+            except PermissionError as exc:
+                return ToolResult('failed', name, data=str(exc), error_code='permission_denied')
+            except (TypeError, ValueError) as exc:
+                return ToolResult('failed', name, data=str(exc), error_code='invalid_argument')
         if name in RESERVATION_TOOL_NAMES and context is not None:
             try:
                 text = self.reservation_tools.execute(name, arguments, context)
@@ -317,8 +352,50 @@ class AgentToolRouter:
                 return ToolResult("failed", name, resource_id, data=str(exc),
                                   error_code="permission_denied" if isinstance(exc, PermissionError) else "invalid_state_or_arguments")
         else:
-            text = self.execute(name, arguments, context)
-        return ToolResult.from_text(name, text, resource_id)
+            if callable(getattr(type(self.travel_service),'execute_result',None)):
+                typed = self._read_with_receipt(name,arguments,context)
+            else:
+                typed = ToolResult.from_text(name, self.execute(name,arguments,context))
+            text = typed.data
+        if (context is not None and self.artifact_repository is not None
+                and name not in RESERVATION_TOOL_NAMES and len(text) > 6000):
+            result = typed if name not in RESERVATION_TOOL_NAMES else ToolResult.from_text(name,text,resource_id)
+            artifact_id = self.artifact_repository.save(context, name, text)
+            text = text[:4000].rstrip() + (
+                f'\n[结果已保存为 {artifact_id}；存储上限500000字符，超出部分未保存。需要更多内容时调用 {READ_TOOL_ARTIFACT_TOOL} 分页读取。]')
+            return replace(result,data=text,artifact_id=artifact_id)
+        if name not in RESERVATION_TOOL_NAMES:
+            return typed
+        result = ToolResult.from_text(name, text, resource_id)
+        return replace(result,effect_status='committed' if result.status=='completed' and name!='list_reservation_plans' else 'none',
+                       operation_key=event_operation_key(context.event_id,name,arguments) if context else '')
+
+    def _read_with_receipt(self,name,arguments,context):
+        import json
+        store = self.artifact_repository.store if self.artifact_repository else None
+        max_attempts = 1 if getattr(self.travel_service, 'manages_read_retries', False) is True else 3
+        if store is None or context is None or store.get_event_status(context.event_id) is None:
+            return retry_read(lambda: self.travel_service.execute_result(name,arguments), max_attempts=max_attempts)
+        from infrastructure.place_resolution import PLACE_RESOLUTION_VERSION
+        version=':'+PLACE_RESOLUTION_VERSION if name in {'get_driving_route','get_route_traffic','get_walking_route','get_transit_route'} else ''
+        key = event_operation_key(context.event_id,'read:'+name+version,arguments)
+        cached = store.get_event_tool_result(key)
+        if cached is not None:
+            return ToolResult(**json.loads(cached))
+        def operation():
+            with store._connect() as db:
+                db.execute('BEGIN IMMEDIATE')
+                attempts = db.execute('SELECT attempts FROM event_read_attempts WHERE operation_key=?',(key,)).fetchone()
+                total = db.execute('SELECT coalesce(sum(attempts),0) FROM event_read_attempts WHERE event_id=?',(context.event_id,)).fetchone()[0]
+                if (attempts and attempts['attempts']>=3) or total>=12:
+                    return ToolResult('failed',name,data='本次查询重试额度已用完，请稍后重新发起。',error_code='attempt_limit')
+                db.execute('''INSERT INTO event_read_attempts VALUES (?,?,1)
+                    ON CONFLICT(operation_key) DO UPDATE SET attempts=attempts+1''',(key,context.event_id))
+            return self.travel_service.execute_result(name,arguments)
+        result=retry_read(operation, max_attempts=max_attempts)
+        if result.status=='completed':
+            store.save_event_tool_result(key,context.event_id,name,arguments,result.to_json())
+        return result
 
     def execute(
             self,

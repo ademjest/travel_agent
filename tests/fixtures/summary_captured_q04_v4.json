@@ -1,0 +1,18 @@
+{
+  "note": "Synthetic evaluation conversations; only regression inputs/outputs retained. Provider, pricing, timing, credentials and machine metadata omitted.",
+  "physical_requests": [
+    {
+      "purpose": "conversation_summary",
+      "event_key": "summary-live:Q04",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "{\"previous_items\": [], \"new_turns\": [{\"message_id\": 2, \"offset\": 0, \"user\": \"纪念册还没有确定名字。轮椅是否借用尚未决定。\"}, {\"message_id\": 3, \"offset\": 0, \"user\": \"你刚才提到的名称和决定都不是我的决定。请按我的原话处理，不自行补全。\"}, {\"message_id\": 4, \"offset\": 0, \"user\": \"请通用介绍摄影中的顺光、侧光和逆光，写600—800字，用虚构例子说明，不结合前面的个人背景。\"}, {\"message_id\": 5, \"offset\": 0, \"user\": \"请通用介绍照片按时间、颜色和主题分类的优缺点，写600—800字，不回顾前面的个人背景。\"}, {\"message_id\": 6, \"offset\": 0, \"user\": \"请通用介绍观察建筑材料与形状的角度，写600—800字，只讲方法，不涉及具体地点。\"}, {\"message_id\": 7, \"offset\": 0, \"user\": \"请通用介绍展品说明中的年代、材质和背景信息各有什么作用，写600—800字，不涉及具体场馆。\"}, {\"message_id\": 8, \"offset\": 0, \"user\": \"请通用介绍笔记的流水式、主题式和问答式写法，写600—800字，不引用前面的个人信息。\"}, {\"message_id\": 9, \"offset\": 0, \"user\": \"请通用介绍照片的本地副本、云端副本和命名规则，写600—800字，不回顾前面的个人背景。\"}]}"
+          }
+        ]
+      },
+      "content": "{\"items\":[{\"kind\":\"unresolved\",\"text\":\"纪念册的名字尚未确定。\",\"sources\":[{\"message_id\":2,\"quote\":\"纪念册还没有确定名字。\"}]},{\"kind\":\"unresolved\",\"text\":\"是否借用轮椅尚未决定。\",\"sources\":[{\"message_id\":2,\"quote\":\"轮椅是否借用尚未决定。\"}]},{\"kind\":\"correction\",\"text\":\"不要将未经用户明确表达的名称或决定归于用户；应按用户原话处理，不自行补全。\",\"sources\":[{\"message_id\":3,\"quote\":\"你刚才提到的名称和决定都不是我的决定。请按我的原话处理，不自行补全。\"}]}]}"
+    }
+  ]
+}

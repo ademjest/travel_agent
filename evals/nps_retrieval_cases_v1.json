@@ -1,0 +1,528 @@
+{
+  "version": "nps-real-excerpt-v1",
+  "note": "Actual NPS visitor page excerpts; split by park/source including distractors; 0.5 fixed before evaluation; retrieval evidence is not a statement of current policy validity.",
+  "cases": [
+    {
+      "id": "nps-grca-1",
+      "split": "dev",
+      "category": "exact",
+      "query": "Grand Canyon South Rim is open for how many days each year?",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "grca.md:0"
+      ]
+    },
+    {
+      "id": "nps-grca-2",
+      "split": "dev",
+      "category": "synonym",
+      "query": "Grand Canyon South Rim：不想自己开车，有没有免费的园内接驳？",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "grca.md:1"
+      ]
+    },
+    {
+      "id": "nps-grca-3",
+      "split": "dev",
+      "category": "multi",
+      "query": "Grand Canyon South Rim 的开放时段与免费接驳分别如何描述？",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "grca.md:0",
+        "grca.md:1"
+      ]
+    },
+    {
+      "id": "nps-grca-4",
+      "split": "dev",
+      "category": "no_answer",
+      "query": "Grand Canyon South Rim 成人门票的确切人民币金额是多少？",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "nps-yell-1",
+      "split": "dev",
+      "category": "exact",
+      "query": "What does the Yellowstone page say about activities with pets?",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "yell.md:0"
+      ]
+    },
+    {
+      "id": "nps-yell-2",
+      "split": "dev",
+      "category": "synonym",
+      "query": "Yellowstone 能从这份片段找到官方公园地图吗？",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "yell.md:1"
+      ]
+    },
+    {
+      "id": "nps-yell-3",
+      "split": "dev",
+      "category": "exact",
+      "query": "Yellowstone 片段列举了哪两种服务例子？",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "yell.md:2"
+      ]
+    },
+    {
+      "id": "nps-yell-4",
+      "split": "dev",
+      "category": "no_answer",
+      "query": "Yellowstone 的允许宠物路线具体有几条？",
+      "documents": [
+        {
+          "filename": "grca.md",
+          "content": "The South Rim is open 24 hours a day, 365 days a year.\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village.",
+          "chunks": [
+            "Grand Canyon — NPS source excerpt\nThe South Rim is open 24 hours a day, 365 days a year.",
+            "Grand Canyon — NPS source excerpt\nA free shuttle bus system operates on the South Rim, in the Grand Canyon Village area. Save gas and frustration; park your vehicle and ride the free shuttles around the park.",
+            "Grand Canyon — NPS source excerpt\nEven though the average distance across the canyon is only 10 miles/ 16 km, it takes 5 hours to drive the 215 miles / 346 km between the park's South Rim Village and the North Rim Village."
+          ],
+          "url": "https://www.nps.gov/grca/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "yell.md",
+          "content": "Activities with pets are very limited in Yellowstone.\nView or download the official park map and other trip-planning information.\nFrom cell phone service to RV repair, see what's offered in the park.",
+          "chunks": [
+            "Yellowstone — NPS source excerpt\nActivities with pets are very limited in Yellowstone.",
+            "Yellowstone — NPS source excerpt\nView or download the official park map and other trip-planning information.",
+            "Yellowstone — NPS source excerpt\nFrom cell phone service to RV repair, see what's offered in the park."
+          ],
+          "url": "https://www.nps.gov/yell/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "nps-yose-1",
+      "split": "holdout",
+      "category": "exact",
+      "query": "How many square miles does the Yosemite page say the park includes?",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "yose.md:0"
+      ]
+    },
+    {
+      "id": "nps-yose-2",
+      "split": "holdout",
+      "category": "synonym",
+      "query": "Yosemite 片段在哪个月份区间提醒查询防滑链相关信息？",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "yose.md:2"
+      ]
+    },
+    {
+      "id": "nps-yose-3",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Does the Yosemite excerpt describe different seasons while saying it is always open?",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "yose.md:1"
+      ]
+    },
+    {
+      "id": "nps-yose-4",
+      "split": "holdout",
+      "category": "no_answer",
+      "query": "Yosemite 入园预约的确切放号时刻是多少？",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": []
+    },
+    {
+      "id": "nps-zion-1",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Does Zion stay open all year, and are facility hours constant?",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "zion.md:0"
+      ]
+    },
+    {
+      "id": "nps-zion-2",
+      "split": "holdout",
+      "category": "synonym",
+      "query": "Zion 的免费班车还服务旁边哪个小镇？",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "zion.md:1"
+      ]
+    },
+    {
+      "id": "nps-zion-3",
+      "split": "holdout",
+      "category": "multi",
+      "query": "Zion 全年开放与购买入园凭证分别如何描述？",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": [
+        "zion.md:0",
+        "zion.md:2"
+      ]
+    },
+    {
+      "id": "nps-zion-4",
+      "split": "holdout",
+      "category": "no_answer",
+      "query": "Zion 片段是否给出了成人通票的确切美元价格？",
+      "documents": [
+        {
+          "filename": "yose.md",
+          "content": "Yosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.\nLearn about what Yosemite is like in the different seasons (we're always open).\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)",
+          "chunks": [
+            "Yosemite — NPS source excerpt\nYosemite National Park includes nearly 1,200 square miles of mountainous scenery, including high cliffs, deep valleys, tall waterfalls, ancient giant sequoias, and a large wilderness. Millions of people visit Yosemite each year to experience its beauty and its many opportunities for enjoyment.",
+            "Yosemite — NPS source excerpt\nLearn about what Yosemite is like in the different seasons (we're always open).",
+            "Yosemite — NPS source excerpt\nHow to get around Yosemite, including information about public transportation and tire chain use (if you're visiting October through April)"
+          ],
+          "url": "https://www.nps.gov/yose/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        },
+        {
+          "filename": "zion.md",
+          "content": "Zion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park.",
+          "chunks": [
+            "Zion — NPS source excerpt\nZion National Park is open all year. Facility operating hours and shuttle schedules change with the seasons.",
+            "Zion — NPS source excerpt\nLearn about the free shuttle service in Zion Canyon and the neighboring town of Springdale.",
+            "Zion — NPS source excerpt\nAll park visitors are required to purchase a recreational use pass upon entering Zion National Park."
+          ],
+          "url": "https://www.nps.gov/zion/planyourvisit/basicinfo.htm",
+          "retrieved_date": "2026-10-18"
+        }
+      ],
+      "expected_chunks": []
+    }
+  ]
+}

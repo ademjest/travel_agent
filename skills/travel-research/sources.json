@@ -1,0 +1,19 @@
+{
+  "groups": {
+    "china_community": ["xiaohongshu.com", "zhihu.com"],
+    "china_travel": ["mafengwo.cn", "ctrip.com", "qunar.com", "qyer.com"],
+    "international_travel": ["tripadvisor.com", "lonelyplanet.com", "wikivoyage.org", "roughguides.com"]
+  },
+  "aliases": {
+    "xiaohongshu.com": ["小红书", "xiaohongshu"],
+    "zhihu.com": ["知乎", "zhihu"],
+    "mafengwo.cn": ["马蜂窝", "mafengwo"],
+    "ctrip.com": ["携程", "ctrip"],
+    "qunar.com": ["去哪儿", "qunar"],
+    "qyer.com": ["穷游", "qyer"],
+    "tripadvisor.com": ["tripadvisor", "猫途鹰"],
+    "lonelyplanet.com": ["lonely planet", "lonelyplanet", "孤独星球"],
+    "wikivoyage.org": ["wikivoyage", "维基导游"],
+    "roughguides.com": ["rough guides", "roughguides"]
+  }
+}

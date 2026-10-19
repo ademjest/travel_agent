@@ -46,6 +46,9 @@ class ConversationDeletionService:
                 'reminders': count("SELECT count(*) FROM personal_reminders r JOIN reminder_occurrences o ON o.reminder_id=r.reminder_id AND o.version=r.version WHERE r.platform='web' AND r.group_id=? AND r.status='active' AND o.status IN ('pending','queued','failed')", identity)
                     + count("SELECT count(*) FROM reservation_reminders WHERE platform='web' AND group_id=? AND status IN ('pending','queued')", identity),
                 'trips': count("SELECT count(*) FROM trips WHERE platform='web' AND scope_id=?", scope),
+                'planning_artifacts': count("SELECT count(*) FROM planning_artifacts WHERE platform='web' AND scope_id=? AND status='active'", scope),
+                'tool_artifacts': count("SELECT count(*) FROM tool_artifacts WHERE platform='web' AND scope_id=?", identity),
+                'conversation_summaries': count("SELECT count(*) FROM conversation_summaries WHERE platform='web' AND scope_id=? AND status='active'", scope),
                 'scheduled_queries': count("SELECT count(*) FROM scheduled_queries WHERE platform='web' AND group_id=? AND status IN ('active','queued')", identity),
                 'policy_watches': count("SELECT count(*) FROM policy_watches WHERE platform='web' AND group_id=? AND status IN ('active','queued')", identity)}
 
@@ -117,7 +120,16 @@ class ConversationDeletionService:
 
     def _purge_records(self, db, identity, events):
         scope = 'web:' + identity
+        if self._table_exists(db, 'execution_diagnostics'):
+            db.execute("DELETE FROM execution_diagnostics WHERE platform='web' AND scope_id=?", (identity,))
         db.execute("DELETE FROM research_runs WHERE platform='web' AND scope=?", (identity,))
+        db.execute("DELETE FROM research_contexts WHERE platform='web' AND scope=?", (identity,))
+        db.execute("DELETE FROM planning_artifacts WHERE platform='web' AND scope_id=?", (scope,))
+        db.execute("DELETE FROM planning_history_watermarks WHERE platform='web' AND scope_id=?", (scope,))
+        if self._table_exists(db, 'tool_artifacts'):
+            db.execute("DELETE FROM tool_artifacts WHERE platform='web' AND scope_id=?", (identity,))
+        if self._table_exists(db, 'conversation_summaries'):
+            db.execute("DELETE FROM conversation_summaries WHERE platform='web' AND scope_id=?", (scope,))
         db.execute("DELETE FROM preference_candidates WHERE platform='web' AND conversation=?", (identity,))
         db.execute('CREATE TEMP TABLE deletion_events (id TEXT PRIMARY KEY)')
         db.executemany('INSERT OR IGNORE INTO deletion_events VALUES (?)', [(key,) for key in events])
@@ -131,6 +143,9 @@ class ConversationDeletionService:
         db.execute("DELETE FROM inbox_jobs WHERE platform='web' AND scope_id=?", (identity,))
         db.execute('DELETE FROM outbox_messages WHERE event_id IN (SELECT id FROM deletion_events)')
         db.execute('DELETE FROM event_tool_results WHERE event_id IN (SELECT id FROM deletion_events)')
+        db.execute('DELETE FROM event_read_attempts WHERE event_id IN (SELECT id FROM deletion_events)')
+        if self._table_exists(db, 'http_read_attempts'):
+            db.execute('DELETE FROM http_read_attempts WHERE event_id IN (SELECT id FROM deletion_events)')
         db.execute("DELETE FROM outbound_message_links WHERE (platform='web' AND scope_id=?) OR event_id IN (SELECT id FROM deletion_events)", (scope,))
         db.execute('DELETE FROM task_event_results WHERE event_id IN (SELECT id FROM deletion_events)')
         db.execute("DELETE FROM trip_versions WHERE trip_id IN (SELECT trip_id FROM trips WHERE platform='web' AND scope_id=?)", (scope,))
@@ -143,6 +158,7 @@ class ConversationDeletionService:
         db.execute("DELETE FROM travel_tasks WHERE platform='web' AND scope_id=?", (scope,))
         db.execute('DELETE FROM document_chunks WHERE document_id IN (SELECT id FROM documents WHERE group_openid=?)', (scope,))
         db.execute('DELETE FROM documents WHERE group_openid=?', (scope,))
+        db.execute("DELETE FROM summary_excluded_events WHERE platform='web' AND event_key IN (SELECT user_msg_id FROM conversation_turns WHERE group_openid=? UNION SELECT id FROM deletion_events)",(scope,))
         db.execute('DELETE FROM conversation_turns WHERE group_openid=?', (scope,))
         db.execute("DELETE FROM chat_messages WHERE platform='web' AND group_id=?", (identity,))
         db.execute('DELETE FROM upload_bindings WHERE group_openid=?', (scope,))

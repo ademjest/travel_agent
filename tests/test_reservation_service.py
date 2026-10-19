@@ -22,6 +22,12 @@ from services.reservation_service import (
 
 
 class ReservationRuleTests(unittest.TestCase):
+    def test_no_advance_does_not_mean_no_reservation(self):
+        item = normalize_extraction_item({'attraction_name': '测试展馆', 'requires_reservation': True,
+            'advance_value': 0, 'advance_unit': 'none', 'source_text': '需要预约，无需提前', 'confidence': 1})
+        self.assertTrue(item.requires_reservation)
+        self.assertEqual(item.advance_unit, 'none')
+        self.assertIsNone(calculate_booking_date(date(2030, 1, 1), item.advance_value, item.advance_unit))
     def test_days_are_subtracted_as_natural_beijing_dates(self):
         self.assertEqual(
             calculate_booking_date(date(2026, 8, 16), 3, "day"),
@@ -681,6 +687,16 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(plan.items[0].status, "ready")
         self.assertEqual(plan.items[0].reminder_policy, "none")
         self.assertEqual(resolver.calls, [])
+
+    def test_reservation_without_advance_rule_remains_visible_and_blocks_confirmation(self):
+        service = ReservationService(self.store, itinerary_resolver=FakeItineraryResolver({}))
+        plan = service.create_draft(self.image, (self.item('测试展馆', True, 0, 'none'),))
+        self.assertTrue(plan.items[0].requires_reservation)
+        self.assertEqual(plan.items[0].status, 'needs_input')
+        self.assertIn('需要预约，但无可用提前规则', service.format_draft(plan))
+        self.assertNotIn('无需预约', service.format_plan_list((plan,)))
+        with self.assertRaisesRegex(ValueError, '无可用提前规则'):
+            service.confirm_plan(plan.platform, plan.group_id, plan.creator_id, plan.plan_code)
 
     def test_empty_extraction_still_creates_manual_draft(self):
         service = ReservationService(
