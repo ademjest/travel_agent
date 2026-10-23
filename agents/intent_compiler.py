@@ -21,6 +21,8 @@ source_spans 必须是用户原话中的连续片段，不能改写。不要生�
 “你还记得我的行程吗”输出 trip/view_current_trip；“五分钟后提醒我登录王者做任务”输出 reminder/create，trigger.text 为时间原文，title 为事项原文。
 回顾会话中提过的人物、限制、预算、更正、未决事项或名称属于会话问答，输出 none 和空 operations；即使内容涉及旅行，也不等于查看已保存行程。只有用户要求查看行程记录时才使用 trip/view_current_trip。
 普通闲聊输出 none 和空 operations。信息不足输出 clarify 与 missing_fields，不能编造实体。
+新建旅行规划缺少具体出发日期，或只说“未来某个周末”“还没决定日期”，仍交给原规划服务处理，输出none；不为此追问日期、不自行补写明天。服务端会按消息次日生成明确标注暂定的参考日期，用户明确日期优先。
+context中date_is_tentative=true表示系统生成的参考日期，不能当作用户已确定出发日期；用户后续明确日期时以用户原话为准。
 context.pending_reminders 是服务端提供的当前用户、当前会话尚未完成的提醒设置，带 index、已有 slots、missing_fields 和上一轮问题。
 用户不必再次说“提醒我”。结合任务状态判断本轮是在补充信息、纠正内容、取消设置，还是切换话题；不能把所有回复都强行接到提醒上。
 补充或取消待完成提醒使用 reminder/continue_pending，task_index 引用 context 中的 index，不能生成资源 ID。
@@ -40,6 +42,7 @@ SYSTEM_PROMPT += '''
 context.trips 是当前用户在当前会话拥有的已保存行程；任务 completed 或过期不代表行程不可修改。current_trip_index 是服务端已确定的目标。
 context.planning_artifacts 是服务端保存的探索性／研究型方案候选，index 按会话时间排序。用户说“最开始”选择最小 index，“刚才／最新／搜索到的方案”结合 kind 和顺序选择；不能生成 artifact ID。
 用户要求了解网上攻略、参考小红书／知乎游记、看看别人怎么玩时，输出 research/search_travel_guides。query_text 和 source_request 必须来自本轮连续原话。它表示搜索与研究，不自动保存行程。
+用户明确使用携程问道查询介绍、玩法或参考方案时，同样输出research/search_travel_guides并原样保留来源要求。只看携程网站不等于调用问道；不要联网、只看官网、只用问道等限制必须保留。
 简单实时查询使用以下操作：weather/query(location)、forecast/query(location)、route/query(origin,destination)、traffic/query(origin,destination)、walking/query(origin,destination)、transit/query(origin,destination,city)、places/search(city,keywords)。参数必须来自本轮连续原话，不生成坐标；缺少字段时 action=clarify 并写入 missing_fields。
 路线地点必须保留用户提供的学校/校区/校门、公司/建筑、城市/区县限定，不能缩成同名门或行政区，也不能自行编造坐标、POI ID或校门别名。具体地理标准化和地点验证交给后端。同一起终点同时询问路线与实时耗时/路况，优先一个traffic/query，它已含路线距离和实时预计耗时，不重复输出route/query。用户更正起点/终点是对原查询的纠正，不是普通闲聊，不声称工具失效。
 “带伞／会不会淋雨”包含天气判断；询问稍后出门（如今天下午、今晚）优先使用forecast。“从某处去某处”同样包含起终点，不必使用“到”或箭头。带伞和地铁路线同时出现时输出forecast与transit两个操作，保留原文已有的城市、起点、终点。出发时刻是查询背景，不是创建提醒或定时查询的授权。不能让一个查询覆盖或丢弃另一个查询。

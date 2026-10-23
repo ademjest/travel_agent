@@ -253,12 +253,26 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
 
     @app.get('/api/conversations/{identity}/research')
     def research_results(identity: str):
+        from core.attraction_projection import attraction_report
         repository.conversation(identity)
         event = ChatEvent('web', 'group', '', identity, OWNER, '')
         # No full source bodies in progress responses.
         rows = store.research.latest(event)
-        return [{'stage': row['stage'], 'updated_at': row['updated_at'], 'report': row.get('report', ''),
-                 'source_count': len(row.get('sources', []))} for row in rows]
+        from core.attraction_answers import has_provider
+        from core.travel_answer import presentation, render, fingerprint, VERSION as ANSWER_VERSION
+        result = []
+        for row in rows:
+            view = presentation(row) if has_provider(row) and row.get('report') else None
+            identity_key = fingerprint([(s.get('content_hash'),s.get('retrieved_at')) for s in row.get('sources',[])])[:16]
+            item = {'stage':row['stage'],'updated_at':row['updated_at'], 'research_id':fingerprint(row['research_id'])[:16] if row.get('research_id') else identity_key,
+                    'report':render(view,detailed=True) if view else
+                        attraction_report(row,detailed=True) if row.get('fact_schema')=='attraction-facts-v1' and row.get('report') else row.get('report',''),
+                    'source_count':len(row.get('sources',[]))}
+            if view:
+                item['presentation'] = {**view,'replayed_saved_answer':row.get('answer_schema')!=ANSWER_VERSION}
+            item['content_version'] = fingerprint(item)
+            result.append(item)
+        return result
 
     @app.post('/api/conversations', status_code=201)
     def create_conversation():

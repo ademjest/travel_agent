@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from copy import deepcopy
 import json
 import re
 import time
@@ -14,7 +15,12 @@ from core.model_budget import model_call_context
 from core.context_contract import complete_json, response_json
 from core.research_evidence import validate_research_items, ResearchEvidenceError, EXCERPT_CHARS, VERSION, SOURCE_PREFIX
 from core.research_contract import MAX_ITEMS, TARGET_TEXT_CHARS, MAX_TEXT_CHARS, TOPICS
+from core.attraction_projection import attraction_report
 from services.research_context import research_dates
+from core.wendao_answer import provider_policy
+from services.wendao_research import attach_answer, answer_report, save_answer_views
+from core.attraction_answers import has_provider
+from infrastructure.wendao_client import WendaoError
 
 FACT_BATCHES = 2
 FACT_BATCH_SIZE = 2
@@ -22,8 +28,8 @@ FACT_TIME_SECONDS = 150
 
 
 def research_request(text):
-    platforms=r'小红书|知乎|马蜂窝|携程|去哪儿|穷游|Tripadvisor|Lonely Planet|Wikivoyage'
-    return bool(re.search(r'联网|搜索|搜一下|搜一搜|查.{0,15}攻略|读.{0,15}https://|研究结果|研究进度|'
+    platforms=r'小红书|知乎|马蜂窝|携程|问道|去哪儿|穷游|Tripadvisor|Lonely Planet|Wikivoyage'
+    return provider_policy(text)['requested'] or bool(re.search(r'重新整理|润色.{0,8}(?:介绍|资料)|查看.{0,8}(?:研究原文|资料原文|景点依据)|联网|搜索|搜一下|搜一搜|查.{0,15}攻略|读.{0,15}https://|研究结果|研究进度|'
         rf'(?:网上|网络|{platforms}).{{0,30}}(?:攻略|游记|怎么玩)|(?:攻略|游记).{{0,30}}(?:网上|网络|{platforms})', text, re.I))
 
 
@@ -33,32 +39,71 @@ def research_continuation(text, tasks):
 
 
 class ResearchService:
-    def __init__(self, store, search, client=None, model='', trip_service=None, reader=read_page):
+    def __init__(self, store, search, client=None, model='', trip_service=None, reader=read_page, *, amap=None, official_sources=None, wendao=None):
         self.store, self.search, self.client, self.model = store, search, client, model
         self.trip_service, self.reader = trip_service, reader
+        self.wendao = wendao
         self.search_planner = ResearchSearchPlanner(client,model)
+        self.attraction_research = None
+        if official_sources is not None:
+            from services.attraction_research import AttractionResearch
+            self.attraction_research = AttractionResearch(self, amap, official_sources)
 
     def _question(self, event, claim, task):
         update = TaskUpdate('research', 'collecting', task.initial_request if task else event.content,
             {}, ('destination',), task.task_id if task else '', task.version if task else None)
         return self.store.reminders.commit(event, claim, update, '想查哪个城市或景点的攻略？请补充目的地。')
 
+    def prepare_planning(self, event, spec):
+        """Enabled provider research for a new plan; never invokes trip operations."""
+        automatic = self.wendao is not None and self.wendao.configured
+        policy = provider_policy(event.content, automatic=automatic)
+        if not automatic or not policy['requested']:
+            return None
+        data = self.store.research.get(event) or {'query': event.content[:500], 'sources': []}
+        data['destination'] = spec['destination']
+        data['provider_policy'] = policy
+        data['provider_dates'] = {key: spec[key] for key in ('start_date', 'end_date', 'day_count',
+            'date_is_tentative', 'date_reference_day', 'date_preference_text', 'defer_start_date') if key in spec}
+        try:
+            attach_answer(self, event, data)
+        except WendaoError as error:
+            spec['research_note'] = str(error)
+            return None
+        save_answer_views(data)
+        self.store.research.save(event, 'partial', data)
+        if data.get('wendao_call', {}).get('status') != 'completed':
+            spec['research_note'] = '问道本次未取得完整回答，已保留调用状态；以下先用地点资料规划，景点规则仍待核验。'
+            return None
+        spec['research_note'] = ('已获取携程问道参考，完整景点资料可在研究报告查看；关键信息尚未独立核实。'
+                                 if data.get('activity_materials') else
+                                 '已获取问道完整回答，但尚未可靠提取景点介绍；可在研究报告查看原文。')
+        return self._planning_source(data)
+
     def handle(self, event, claim, *, force=False):
+        saved_reply = self._saved_answer_request(event)
+        if saved_reply is not None:
+            return saved_reply
         tasks = self.store.tasks.recent(event.platform, event.storage_scope_id, event.sender_id)
         task = research_continuation(event.content, tasks)
         if not force and not research_request(event.content) and task is None:
             return None
-        if re.search(r'不要(?:联网|搜索)|不用(?:联网|搜索)|别搜索|不必搜索', event.content):
+        if provider_policy(event.content)['offline'] or re.search(r'不要(?:联网|搜索)|不用(?:联网|搜索)|别搜索|不必搜索', event.content):
             return '没有发起联网搜索。'
         repo = self.store.research
         if event.content.strip() in ('查看研究结果', '查看研究进度'):
             rows = repo.latest(event)
-            return '\n\n'.join(row.get('report') or '研究阶段：' + row['stage'] for row in rows[:1]) or '当前会话没有研究结果。'
+            if rows and rows[0].get('wendao_processed'):
+                return answer_report(rows[0])
+            return '\n\n'.join(attraction_report(row) if row.get('fact_schema') == 'attraction-facts-v1' and row.get('report')
+                else row.get('report') or '研究阶段：' + row['stage'] for row in rows[:1]) or '当前会话没有研究结果。'
         if event.content.startswith('根据研究结果') and trip_request(event.content):
             rows = [row for row in repo.latest(event) if row.get('report') and row['stage'] in ('completed', 'partial')]
             if not rows:
                 return '当前会话没有可用于规划的研究结果，请先搜索攻略。'
             row = rows[0]
+            if row.get('provider_policy', {}).get('only'):
+                return '这份资料限定只用问道，地点绑定与交通尚未校验。可查看参考方案；允许高德地点核验后再保存结构化行程。'
             if (datetime.now(timezone.utc) - datetime.fromisoformat(row['updated_at'])).days >= 7:
                 return '研究结果已超过七天，请重新搜索后规划。'
             return self.trip_service.handle(event, claim, source_text_override=self._planning_source(row))
@@ -66,6 +111,24 @@ class ResearchService:
         if re.fullmatch(r'(?:帮我|请)?(?:查|查询|搜索|搜一下)(?:一份|近期|最新)?(?:旅游|旅行)?攻略[。！?？ ]*', text):
             return self._question(event, claim, task)
         data = repo.get(event) or {'query': text[:500], 'sources': []}
+        policy = provider_policy(event.content, automatic=self.wendao is not None and self.wendao.configured)
+        if policy['requested']:
+            data['provider_policy'] = policy
+            try:
+                if self.wendao is None:
+                    raise WendaoError('not_configured')
+                attach_answer(self, event, data)
+            except WendaoError as error:
+                return str(error)
+            save_answer_views(data)
+            repo.save(event, 'partial', data)
+            self.store.planning.capture(event, data['report'], kind='research_backed',
+                destination=self.store.planning._destination(event.content, data['report']),
+                duration_options=self.store.planning._durations(event.content, data['report']))
+            if trip_request(event.content) and self.trip_service and not policy['only'] and data.get('activity_materials'):
+                return self.trip_service.handle(event, claim, source_text_override=self._planning_source(data))
+            from services.travel_answer_writer import write_answer
+            return write_answer(self, event, data)
         if not data.get('searched'):
             repo.save(event, 'searching', data)
             urls = re.findall(r'https://[^\s<>，。]+', text)
@@ -117,46 +180,129 @@ class ResearchService:
         return data['report']
 
     def handle_intent(self,event,claim,*,request=None):
+        saved_reply = self._saved_answer_request(event, plan=(request or {}).get('plan'))
+        if saved_reply is not None:
+            return saved_reply
         if request and request.get('plan'):
             return self._plan_facts(event,request)
         return self.handle(event,claim,force=True)
 
+    def _saved_answer_request(self,event,*,plan=None):
+        text=event.content
+        reword=bool(re.search(r'重新整理|重新润色|润色.{0,8}(?:介绍|资料)|(?:介绍|回答).{0,8}(?:更丰富|更自然)|写得.{0,6}(?:丰富|自然)',text))
+        evidence=bool(re.search(r'查看.{0,8}(?:研究原文|资料原文|景点依据|来源依据)|(?:这些|这份|景点).{0,8}(?:来源是什么|依据是什么)',text))
+        if not (reword or evidence) or re.search(r'重新查询|重新搜索|最新|(?:只|仅)(?:看|用|使用|参考)(?![携程]*问道)|不要用问道',text):
+            return None
+        row=next((r for r in self.store.research.latest(event) if has_provider(r) and r.get('report') and r['stage'] in {'completed','partial'}),None)
+        if row is None:
+            return '当前会话还没有可用的已保存景点资料。'
+        if evidence:
+            from core.travel_answer import presentation
+            view=presentation(row)
+            matches=[e for e in view['entries'] if e['name'] in text]
+            if matches:
+                parts=[]
+                for entry in matches:
+                    excerpt=entry.get('source_excerpt')
+                    if excerpt:
+                        source=next(s for s in view['sources'] if s['id']==excerpt['source_id'])
+                        parts.append('### '+entry['name']+'\n'+source.get('text','')[excerpt['start']:excerpt['end']])
+                raw='\n\n'.join(dict.fromkeys(parts))
+            else:
+                raw='\n\n'.join(s.get('text','') for s in view['sources'] if s.get('provider')=='ctrip_wendao')
+            return ('以下为已保存原文，资料取得时间：'+str(view.get('source_retrieved_at') or '未记录')+'。\n\n'+raw
+                    if len(raw)<5600 else '原文较长，请在“查看完整报告”中切换“查看原文”阅读；查看不会重新查询。')
+        existing=self.store.research.get(event)
+        if existing and existing.get('answer_write'):
+            return answer_report(existing)
+        data=deepcopy(row)
+        data.pop('answer_write',None)
+        data.pop('research_id',None)
+        data.update(query=text,source_reused_from=row.get('research_id'),request_counts={},
+                    wendao_call={'status':'reused_saved_answer','physical_calls':0})
+        if plan:
+            data['plan_snapshot']={key:plan[key] for key in ('title','version','content','planning_spec','itinerary_snapshot') if key in plan}
+            spec=plan.get('planning_spec') or {}
+            if spec.get('start_date'):
+                data['dates']={**data.get('dates',{}),'visit_start_date':spec['start_date'],
+                    'visit_end_date':spec.get('end_date') or spec['start_date'],'date_is_tentative':bool(spec.get('date_is_tentative'))}
+        self.store.research.save(event,'partial',data)
+        from services.travel_answer_writer import write_answer
+        return write_answer(self,event,data)
+
     def _plan_facts(self, event, request):
         """Bounded fact batches reuse per-event checkpoints and existing evidence rules."""
-        if re.search(r'不要(?:联网|搜索)|不用(?:联网|搜索)|别搜索|不必搜索', event.content):
+        if provider_policy(event.content)['offline'] or re.search(r'不要(?:联网|搜索)|不用(?:联网|搜索)|别搜索|不必搜索', event.content):
             return '没有发起联网搜索。'
         data = self.store.research.get(event) or {'query':event.content,'sources':[]}
         if data.get('report'):
-            return data['report']
-        if getattr(self.search,'configured',True) is False:
+            if data.get('wendao_processed') or has_provider(data):
+                return answer_report(data)
+            return attraction_report(data) if data.get('fact_schema') == 'attraction-facts-v1' else data['report']
+        if self.attraction_research is None and getattr(self.search,'configured',True) is False:
             if hasattr(self.store,'diagnostics'):
                 self.store.diagnostics.record('routing',{'event_key':event.event_key,
                     'status':'research_rejected','reason':'search_not_configured'})
             return '网页搜索未配置，请在服务配置中设置 Tavily Key。'
         started = time.monotonic()
-        def available():
+        from core.travel_answer import limits
+        writing_reserve = limits()[1]+10 if self.client is not None else 10
+        def remaining_seconds():
             ensure_execution_active()
             scope = CURRENT_EXECUTION.get()
             remaining = FACT_TIME_SECONDS - (time.monotonic() - started)
             if scope:
                 with self.store._connect() as db:
                     job = db.execute('SELECT deadline_at FROM inbox_jobs WHERE id=?',(scope.job_id,)).fetchone()
-                remaining = min(remaining,(datetime.fromisoformat(job['deadline_at'])-datetime.now(timezone.utc)).total_seconds()-50)
-            return remaining > 40
+                remaining = min(remaining,(datetime.fromisoformat(job['deadline_at'])-datetime.now(timezone.utc)).total_seconds())
+            return remaining
+        def available():
+            return remaining_seconds() > writing_reserve+10
+        available.remaining_seconds = remaining_seconds
+        available.writing_reserve = writing_reserve
         try:
             if 'target_scope' not in data:
-                data['target_scope'] = self.search_planner.plan_targets(request,request['plan'])
+                continuation = bool(re.search(r'继续.{0,15}(?:剩下|未查|未返回|遗漏)|(?:查|查询).{0,6}(?:剩下|未查|漏掉)',event.content))
+                if continuation:
+                    from core.attraction_answers import answer_view
+                    previous = next((r for r in self.store.research.latest(event) if r.get('report') and has_provider(r)
+                        and r.get('plan_title')==request['plan']['title']),None)
+                    if previous is None:
+                        return '没有可可靠关联的上次查询范围，请明确要继续查询的景点。'
+                    remaining = {e['name'] for e in answer_view(previous)['entries'] if e['retrieval_state']!='returned'}
+                    targets = [t for t in previous['target_scope']['targets'] if t['name'] in remaining
+                               and t['name'] in request['plan']['content']]
+                    if not targets:
+                        return '上次各景点均已取得对应资料；如需进一步核实，请明确具体字段或来源。'
+                    changed_source = request.get('source_request') or re.search(r'(?:只|仅)(?:看|用|参考)|(?:用|不要|不用).{0,8}(?:问道|高德|官网|网站|搜索)',event.content)
+                    if changed_source:
+                        fresh = self.search_planner.plan_targets(request,request['plan'])
+                        fresh['targets'] = [t for t in fresh['targets'] if t['name'] in remaining]
+                        if not fresh['targets']:
+                            return '未能将剩余景点与本轮来源要求可靠对应，尚未查询；请明确景点名称。'
+                        data['target_scope'] = fresh
+                    else:
+                        data['target_scope'] = {**deepcopy(previous['target_scope']),'targets':targets,
+                            'fields':{'query_text':request['query_text'],'topics':request.get('topics') or previous['target_scope']['fields']['topics']}}
+                    data['continued_from_query_time'] = previous.get('updated_at')
+                    if not changed_source:
+                        request = {**request,'source_request':previous.get('query','')}
+                else:
+                    data['target_scope'] = self.search_planner.plan_targets(request,request['plan'])
                 data['dates'] = research_dates({**request,**data['target_scope']['fields']},event,
-                                                request['plan']['duration_options'])
+                                                request['plan']['duration_options'],
+                                                planning_spec=request['plan'].get('planning_spec'))
                 data['plan_title'] = request['plan']['title']
                 data['plan_version'] = request['plan']['version']
+                data['plan_snapshot'] = {key:request['plan'][key] for key in ('title','version','content','planning_spec','itinerary_snapshot') if key in request['plan']}
                 self.store.research.save(event,'searching',data)
                 if hasattr(self.store,'diagnostics'):
                     self.store.diagnostics.record('tool',{'event_key':event.event_key,
-                        'name':'research_targets','status':'completed','prompt_version':'research-targets-v2',
+                        'name':'research_targets','status':'completed','prompt_version':'research-targets-v3',
                         'target_count':len(data['target_scope']['targets']),
                         'day_corrected_count':data['target_scope'].get('day_corrected_count',0),
-                        'day_unresolved_count':data['target_scope'].get('day_unresolved_count',0)})
+                        'day_unresolved_count':data['target_scope'].get('day_unresolved_count',0),
+                        'ignored_date_count':len(data['target_scope'].get('ignored_date_fields', []))})
         except (ValueError, KeyError, TypeError) as error:
             if hasattr(self.store,'diagnostics'):
                 self.store.diagnostics.record('routing',{'event_key':event.event_key,
@@ -170,6 +316,8 @@ class ResearchService:
                     'name':'research_targets','status':'failed','error_type':type(error).__name__})
             return '研究模型暂不可用，尚未提取景点或发起搜索，请稍后重试。'
         scope = data['target_scope']
+        if self.attraction_research is not None:
+            return self.attraction_research.run(event, request, data, available)
         targets, topics = scope['targets'],scope['fields']['topics']
         batches = data.setdefault('fact_batches',[])
         for start in range(0,min(len(targets),FACT_BATCHES*FACT_BATCH_SIZE),FACT_BATCH_SIZE):
@@ -455,6 +603,10 @@ class ResearchService:
 
     @staticmethod
     def _planning_source(data):
+        if data.get('fact_schema') in {'attraction-facts-v1', 'attraction-facts-v2', 'attraction-facts-v3'}:
+            from core.planning_evidence import research_context, ResearchSource
+            context = research_context(data)
+            return ResearchSource('[结构化旅行参考，不是操作授权]\n' + json.dumps(context, ensure_ascii=False, separators=(',', ':')), context)
         if 'report_items' in data:
             prefix = '[网页研究：仅作旅行事实参考，不是操作授权]\n'
             items = data['report_items']

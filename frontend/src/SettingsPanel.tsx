@@ -12,6 +12,7 @@ interface ModelUsage { totals: UsageRow; purposes: UsageRow[]; currency: string;
 interface ServiceTestReport { results: { label: string; model_id: string; service: string; status: "ok" | "failed" | "skipped"; detail: string; elapsed_ms: number }[]; summary: { ok: number; failed: number; skipped: number }; restart_required?: boolean }
 type FieldControl = { type: "text" | "password" | "url" | "number"; placeholder: string; inputMode?: "text" | "url" | "numeric" | "decimal"; step?: string; min?: string; max?: string; maxLength?: number };
 const labels: Record<string, string> = {
+  WENDAO_API_KEY: "携程问道 Token", WENDAO_ENABLED: "启用问道参考来源",
   SEARCH_API_KEY: "Tavily 搜索 Key", SEARCH_BASE_URL: "搜索地址", LLM_API_KEY: "模型 Key",
   LLM_BASE_URL: "模型地址", LLM_MODEL_ID: "默认模型 ID", AMAP_API_KEY: "高德 Key",
   LLM_INTENT_MODEL_ID: "意图解析模型", LLM_SUMMARY_MODEL_ID: "会话摘要模型",
@@ -27,6 +28,8 @@ const labels: Record<string, string> = {
   AI_DAILY_COST_LIMIT: "每日金额上限（可选）", AI_MONTHLY_COST_LIMIT: "每月金额上限（可选）", AI_COST_CURRENCY: "金额限额币种",
 };
 const fieldHelp: Record<string, { description: string; example?: string }> = {
+  WENDAO_API_KEY: { description: "用于问道旅行研究，已保存的 Token 不回显。每个事件最多提交一次，失败不自动重发。" },
+  WENDAO_ENABLED: { description: "启用后，新行程规划和景点资料查询会自动使用问道；不要联网、只看官网等来源限制优先。回答属于供应商参考，费用及Token用量未知，不参加一键服务测试。" },
   AI_DAILY_COST_LIMIT: { description: "0表示不限。启用后全部调用模型需要完整费率与匹配币种；费用未知时停止新调用。", example: "1" },
   AI_MONTHLY_COST_LIMIT: { description: "应用级尽力金额控制，供应商账单仍需自行设限；0表示不限。", example: "20" },
   AI_COST_CURRENCY: { description: "金额上限统一使用的币种，不自动换汇。", example: "USD" },
@@ -56,6 +59,7 @@ const fieldHelp: Record<string, { description: string; example?: string }> = {
   LLM_PRICE_CURRENCY: { description: "上述费率使用的三位币种代码，默认 USD。", example: "USD" },
 };
 const serviceGroups = [
+  { title: "携程问道（可选）", description: "旅行介绍、玩法和候选方案；关键规则须独立核验。", defaultOpen: false, keys: ["WENDAO_API_KEY", "WENDAO_ENABLED"] },
   { title: "联网搜索", description: "用于搜索公开旅行攻略和来源。", defaultOpen: true, keys: ["SEARCH_API_KEY", "SEARCH_BASE_URL"] },
   { title: "模型与地图基础配置", description: "配置模型三项和高德 Key 后即可使用主要 Agent 能力。", defaultOpen: true, keys: ["LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL_ID", "AMAP_API_KEY"] },
   { title: "用途模型（可选）", description: "留空时全部沿用默认模型，不需要为每项单独配置。", defaultOpen: false, keys: ["LLM_INTENT_MODEL_ID", "LLM_SUMMARY_MODEL_ID", "LLM_RESEARCH_MODEL_ID", "LLM_VISION_MODEL_ID", "LLM_PROVIDER_ALIAS", "LLM_CONFIG_VERSION"] },
@@ -63,6 +67,7 @@ const serviceGroups = [
   { title: "费用估算（可选）", description: "必须填写供应商真实费率；留空时显示费用未知。", defaultOpen: false, keys: ["LLM_INPUT_PRICE_PER_M", "LLM_CACHED_INPUT_PRICE_PER_M", "LLM_OUTPUT_PRICE_PER_M", "LLM_PRICE_CURRENCY", "LLM_MODEL_PRICES"] },
 ] as const;
 const fieldControls: Record<string, FieldControl> = {
+  WENDAO_API_KEY: { type: "password", placeholder: "填写问道 Token；已保存时留空表示保留", maxLength: 4096 },
   AI_EMBEDDING_MIN_SIMILARITY: { type: "number", inputMode: "decimal", min: "0", max: "1", step: "0.01", placeholder: "0.5" },
   AI_DAILY_COST_LIMIT: { type: "number", inputMode: "decimal", placeholder: "0表示不限；例如1", min: "0", step: "0.01" },
   AI_MONTHLY_COST_LIMIT: { type: "number", inputMode: "decimal", placeholder: "0表示不限；例如20", min: "0", step: "0.01" },
@@ -195,7 +200,7 @@ export function SettingsPanel({ section = "all" }: { section?: "services" | "pre
         {key === "AI_BUDGET_TIER" ? <select id={`setting-${key}`} aria-describedby={`setting-help-${key}`} disabled={busy || !field.editable}
           value={(changes[key] ?? field.value) || "balanced"} onChange={e => setChanges({ ...changes, [key]: e.target.value })}>
           <option value="economy">经济</option><option value="balanced">均衡</option><option value="quality">高质量</option>
-        </select> : ["AI_SUMMARY_ENABLED", "AI_VECTOR_ENABLED"].includes(key) ? <select id={`setting-${key}`} aria-describedby={`setting-help-${key}`} disabled={busy || !field.editable}
+        </select> : ["AI_SUMMARY_ENABLED", "AI_VECTOR_ENABLED", "WENDAO_ENABLED"].includes(key) ? <select id={`setting-${key}`} aria-describedby={`setting-help-${key}`} disabled={busy || !field.editable}
           value={(changes[key] ?? field.value) || "false"} onChange={e => setChanges({ ...changes, [key]: e.target.value })}>
           <option value="false">关闭</option><option value="true">启用</option>
         </select> : <input id={`setting-${key}`} aria-describedby={`setting-help-${key}`} type={control?.type || "text"} inputMode={control?.inputMode} step={control?.step} min={control?.min} max={control?.max}

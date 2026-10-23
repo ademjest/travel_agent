@@ -1,0 +1,58 @@
+{
+  "schema_version": "official-sources-v1",
+  "entries": [
+    {
+      "entity_key": "hubei-museum", "canonical_name": "湖北省博物馆", "aliases": [],
+      "city": "武汉", "adcode": "420106", "poi_id": "B001B0JYXS", "operator_name": "湖北省博物馆",
+      "allowed_hosts": ["www.hbww.org.cn"], "path_prefixes": ["/fuwu", "/p"],
+      "policy_urls": ["https://www.hbww.org.cn/fuwu/index.html"], "notice_index_urls": [],
+      "identity_evidence_url": "https://www.hbww.org.cn/fuwu/index.html",
+      "identity_evidence_quote": "＠1953-2026 湖北省博物馆 版权所有",
+      "identity_content_hash": "28a40e43f2112e6c68b35b34918aea49299f89c7dfd308eda3df2a2fb0683843",
+      "verified_at": "2026-10-19", "registry_version": "2026-10-19.1", "booking_host_links": []
+    },
+    {
+      "entity_key": "palace-museum", "canonical_name": "故宫博物院", "aliases": ["故宫"],
+      "city": "北京", "adcode": "110101", "poi_id": "B000A8UIN8", "operator_name": "故宫博物院",
+      "allowed_hosts": ["www.dpm.org.cn"], "path_prefixes": ["/Visit.html", "/classify"],
+      "policy_urls": ["https://www.dpm.org.cn/Visit.html"], "notice_index_urls": [],
+      "identity_evidence_url": "https://www.chnmuseum.cn/cg/", "identity_evidence_quote": "故宫博物院",
+      "identity_link_target": "https://www.dpm.org.cn/",
+      "identity_content_hash": "28ac4e0f30b634b67e9303e14c78d671f9063f5b35f6093dcd2cb5e4eb482c40",
+      "verified_at": "2026-10-19", "registry_version": "2026-10-19.1", "booking_host_links": []
+    },
+    {
+      "entity_key": "national-museum-china", "canonical_name": "中国国家博物馆", "aliases": ["国家博物馆"],
+      "city": "北京", "adcode": "110101", "poi_id": "B000A83U0P", "operator_name": "中国国家博物馆",
+      "allowed_hosts": ["www.chnmuseum.cn"], "path_prefixes": ["/cg"],
+      "policy_urls": ["https://www.chnmuseum.cn/cg/"], "notice_index_urls": [],
+      "identity_evidence_url": "https://www.chnmuseum.cn/cg/", "identity_evidence_quote": "中国国家博物馆版权所有",
+      "identity_content_hash": "28ac4e0f30b634b67e9303e14c78d671f9063f5b35f6093dcd2cb5e4eb482c40",
+      "verified_at": "2026-10-19", "registry_version": "2026-10-19.1", "booking_host_links": []
+    },
+    {
+      "entity_key": "capital-museum-main", "canonical_name": "首都博物馆", "aliases": ["首都博物馆本馆"],
+      "city": "北京", "adcode": "110102", "poi_id": null, "operator_name": "首都博物馆",
+      "entity_scope": "木樨地本馆，不适用于北京大运河博物馆等分馆",
+      "page_entity_markers": ["首都博物馆", "木樨地"],
+      "allowed_hosts": ["www.capitalmuseum.org.cn"], "path_prefixes": ["/visit", "/news"],
+      "policy_urls": ["https://www.capitalmuseum.org.cn/visit"], "notice_index_urls": [],
+      "identity_evidence_url": "https://www.capitalmuseum.org.cn/visit",
+      "identity_evidence_quote": "Copyright © 2025 首都博物馆 版权所有",
+      "identity_content_hash": "25ea0bf15d311268015d198b40f55a30f2c291deee3ede988a110a88fe24b2af",
+      "verified_at": "2026-10-19", "registry_version": "2026-10-19.1", "booking_host_links": []
+    },
+    {
+      "entity_key": "shanghai-museum-east", "canonical_name": "上海博物馆东馆", "aliases": [],
+      "city": "上海", "adcode": "310115", "poi_id": null, "operator_name": "上海博物馆",
+      "entity_scope": "仅东馆，不适用于人民广场馆或馆内需专项预约的体验空间",
+      "page_entity_markers": ["上海博物馆", "东馆", "世纪大道1952号"],
+      "allowed_hosts": ["www.shanghaimuseum.cn"], "path_prefixes": ["/mu/frontend/pg/service/visit-east"],
+      "policy_urls": ["https://www.shanghaimuseum.cn/mu/frontend/pg/service/visit-east"], "notice_index_urls": [],
+      "identity_evidence_url": "https://www.shanghaimuseum.cn/mu/frontend/pg/service/visit-east",
+      "identity_evidence_quote": "Copyright © 2015 ShanghaiMuseum.cn 上海博物馆 版权所有",
+      "identity_content_hash": "62cfccbf63c16e45f3d7dafe2c4482a3fe091bf338ecf96a331523929c999d96",
+      "verified_at": "2026-10-19", "registry_version": "2026-10-19.1", "booking_host_links": []
+    }
+  ]
+}

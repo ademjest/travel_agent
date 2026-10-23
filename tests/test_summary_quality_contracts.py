@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -224,8 +223,7 @@ class SummaryQualityContractTests(unittest.TestCase):
     def test_manual_templates_are_not_excluded_or_realtime_queries(self):
         from agents.travel_decision import decide_travel_action
         from services.conversation_summary_service import excluded_turn
-        plan=(ROOT/'docs/conversation-summary-quality-test-plan-v2-2026-10-14.md').read_text(encoding='utf-8')
-        messages=re.findall(r'```text\n(.*?)```',plan,re.S)+re.findall(r'^\| \d+ \| (.*?) \|$',plan,re.M)
+        messages=json.loads((ROOT/'tests/fixtures/summary_manual_messages.json').read_text(encoding='utf-8'))
         self.assertEqual(len(messages),22)
         for message in messages:
             with self.subTest(message=message[:30]):

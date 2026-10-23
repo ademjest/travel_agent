@@ -53,6 +53,17 @@ class TripRepository:
                 WHERE trip_id=? AND platform=? AND scope_id=? AND owner_id=?''',
                 (trip_id, event.platform, event.storage_scope_id, event.sender_id)).fetchone())
 
+    def planning_dates_for_event(self, event, source_event):
+        with self.store._connect() as db:
+            row = db.execute('''SELECT v.snapshot_json FROM trip_versions v JOIN trips t ON t.trip_id=v.trip_id
+                WHERE v.event_id=? AND t.platform=? AND t.scope_id=? AND t.owner_id=?''',
+                (source_event, event.platform, event.storage_scope_id, event.sender_id)).fetchone()
+        if not row:
+            return None
+        spec = json.loads(row['snapshot_json'])['spec']
+        return {key: spec[key] for key in ('start_date', 'end_date', 'day_count', 'date_is_tentative',
+                'date_reference_day', 'date_preference_text', 'defer_start_date') if key in spec}
+
     def document_options(self, event):
         with self.store._connect() as connection:
             return tuple(dict(row) for row in connection.execute(

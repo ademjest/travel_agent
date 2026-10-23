@@ -15,7 +15,8 @@ FIELDS = frozenset('status purpose prompt_version prompt_hash context_policy_ver
     'name error_code attempts effect_status state_version output_limit input_estimate request_bytes '
     'elapsed_seconds finish_reason attempt_count outbox_id candidate_count operation_key '
     'summary_pending_chars summary_information_incomplete schema_version plan_resolution '
-    'target_count topic_count covered_count remaining_count batch_count day_corrected_count day_unresolved_count'.split())
+    'target_count topic_count covered_count remaining_count batch_count day_corrected_count day_unresolved_count '
+    'platform_fact_count conflict_count amap_requests read_pages search_requests physical_calls elapsed_ms bytes usage cost ignored_date_count'.split())
 
 
 def metadata(details):

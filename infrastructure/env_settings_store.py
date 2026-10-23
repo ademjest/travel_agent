@@ -23,6 +23,7 @@ from core.model_pricing import parse_profiles
 
 FIELDS = (
     'SEARCH_API_KEY', 'SEARCH_BASE_URL', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL_ID', 'AMAP_API_KEY',
+    'WENDAO_API_KEY', 'WENDAO_ENABLED',
     'LLM_INTENT_MODEL_ID', 'LLM_SUMMARY_MODEL_ID', 'LLM_RESEARCH_MODEL_ID', 'LLM_VISION_MODEL_ID',
     'LLM_PROVIDER_ALIAS', 'LLM_CONFIG_VERSION',
     'AI_BUDGET_TIER', 'AI_DAILY_TOKEN_LIMIT', 'AI_MONTHLY_TOKEN_LIMIT',
@@ -30,7 +31,7 @@ FIELDS = (
     'LLM_INPUT_PRICE_PER_M', 'LLM_CACHED_INPUT_PRICE_PER_M', 'LLM_OUTPUT_PRICE_PER_M',
     'LLM_PRICE_CURRENCY', 'LLM_MODEL_PRICES', 'AI_DAILY_COST_LIMIT', 'AI_MONTHLY_COST_LIMIT', 'AI_COST_CURRENCY',
 )
-SECRET_FIELDS = {'SEARCH_API_KEY', 'LLM_API_KEY', 'AMAP_API_KEY'}
+SECRET_FIELDS = {'SEARCH_API_KEY', 'LLM_API_KEY', 'AMAP_API_KEY', 'WENDAO_API_KEY'}
 SEARCH_URL = 'https://api.tavily.com'
 WEB_OVERRIDES_KEY = 'WEB_SETTINGS_OVERRIDE_KEYS'
 START_ENV = {key: os.environ[key] for key in FIELDS if key in os.environ}
@@ -146,7 +147,7 @@ class EnvSettingsStore:
             values[key] = (self.inherited if source == 'environment' else expanded if source == 'project' else parent).get(key) or ''
             sources[key] = source
         values['SEARCH_BASE_URL'] = values['SEARCH_BASE_URL'] or SEARCH_URL
-        defaults = {'AI_BUDGET_TIER': 'balanced', 'AI_DAILY_TOKEN_LIMIT': '0',
+        defaults = {'WENDAO_ENABLED': 'false', 'AI_BUDGET_TIER': 'balanced', 'AI_DAILY_TOKEN_LIMIT': '0',
                     'AI_MONTHLY_TOKEN_LIMIT': '0', 'AI_SUMMARY_ENABLED': 'false',
                     'AI_VECTOR_ENABLED': 'false', 'AI_EMBEDDING_MIN_SIMILARITY': '0.5', 'LLM_PRICE_CURRENCY': 'USD'}
         for key, default in defaults.items():
@@ -201,7 +202,7 @@ class EnvSettingsStore:
                 valid = False
             if not valid:
                 raise ValueError('语义检索相似度门槛必须为0到1。')
-        if key in {'AI_SUMMARY_ENABLED', 'AI_VECTOR_ENABLED'} and value.lower() not in {'', 'true', 'false'}:
+        if key in {'AI_SUMMARY_ENABLED', 'AI_VECTOR_ENABLED', 'WENDAO_ENABLED'} and value.lower() not in {'', 'true', 'false'}:
             raise ValueError('开关值必须是 true 或 false。')
         if key in {'AI_DAILY_TOKEN_LIMIT', 'AI_MONTHLY_TOKEN_LIMIT'} and value:
             if not value.isdigit() or not 0 <= int(value) <= 10**12:

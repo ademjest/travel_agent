@@ -16,6 +16,7 @@ from core.chat_transport import (
     OutgoingMessage,
 )
 from core.settings import Settings, SettingsError
+from core.data_paths import log_directory
 
 
 logger = logging.get_logger()
@@ -86,6 +87,10 @@ class QQOfficialReplyRenderer:
 
 class TravelRiskBot(botpy.Client):
     def __init__(self, settings: Settings, **kwargs):
+        if kwargs.get('ext_handlers', True) is True:
+            logs = log_directory()
+            logs.mkdir(parents=True, exist_ok=True)
+            kwargs['ext_handlers'] = {**logging.DEFAULT_FILE_HANDLER, 'filename': str(logs / '%(name)s.log')}
         super().__init__(**kwargs)
         self.settings = settings
         self.reply_renderer = QQOfficialReplyRenderer()

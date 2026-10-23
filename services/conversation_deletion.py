@@ -123,6 +123,7 @@ class ConversationDeletionService:
         if self._table_exists(db, 'execution_diagnostics'):
             db.execute("DELETE FROM execution_diagnostics WHERE platform='web' AND scope_id=?", (identity,))
         db.execute("DELETE FROM research_runs WHERE platform='web' AND scope=?", (identity,))
+        db.execute("DELETE FROM wendao_calls WHERE platform='web' AND scope=?", (identity,))
         db.execute("DELETE FROM research_contexts WHERE platform='web' AND scope=?", (identity,))
         db.execute("DELETE FROM planning_artifacts WHERE platform='web' AND scope_id=?", (scope,))
         db.execute("DELETE FROM planning_history_watermarks WHERE platform='web' AND scope_id=?", (scope,))

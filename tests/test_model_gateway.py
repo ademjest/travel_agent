@@ -15,6 +15,20 @@ from infrastructure.model_gateway import ModelGateway, estimate_input, usage_rep
 
 
 class ModelGatewayTests(unittest.TestCase):
+    def test_travel_outputs_follow_tiers_and_planning_multiplier_stays_bounded(self):
+        for tier,limit in [('economy',4096),('balanced',6144),('quality',8192)]:
+            with patch.dict(os.environ,{'AI_BUDGET_TIER':tier}):
+                for purpose in ('travel_answer_write','trip_plan','trip_plan_repair'):
+                    with model_call_context(purpose):
+                        self.gateway.create(model='fake',messages=[{'role':'user','content':'saved material'}])
+                    self.assertEqual(self.requests[-1]['max_completion_tokens'],limit)
+                with model_call_context('trip_plan',output_multiplier=2):
+                    self.gateway.create(model='fake',messages=[{'role':'user','content':'long trip'}])
+                self.assertLessEqual(self.requests[-1]['max_completion_tokens'],8192)
+        with model_call_context('intent_parse'):
+            self.gateway.create(model='fake',messages=[{'role':'user','content':'short'}])
+        self.assertEqual(self.requests[-1]['max_completion_tokens'],1024)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

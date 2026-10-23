@@ -4,6 +4,7 @@ import re
 import math
 import json
 import sqlite3
+import hashlib
 from contextlib import closing
 import threading
 import time
@@ -177,6 +178,35 @@ def _polyline_endpoints(
     return format_point(matches[0]), format_point(matches[-1])
 
 
+def normalize_poi_detail(poi, path, retrieved_at):
+    """Retain a finite, key-free field snapshot and exact API evidence paths."""
+    def scalar(value):
+        return str(value).strip() if isinstance(value, (str, int, float)) and str(value).strip() else None
+
+    business = poi.get('business') if isinstance(poi.get('business'), dict) else {}
+    navi = poi.get('navi') if isinstance(poi.get('navi'), dict) else {}
+    fields = {key: scalar(poi.get(source)) for key, source in {
+        'poi_id': 'id', 'name': 'name', 'parent_id': 'parent', 'typecode': 'typecode',
+        'location': 'location', 'address': 'address', 'city': 'cityname', 'adcode': 'adcode'}.items()}
+    mapping = {'opening_today_raw': ('business.opentime_today', business.get('opentime_today')),
+               'opening_week_raw': ('business.opentime_week', business.get('opentime_week')),
+               'phone': ('business.tel', business.get('tel')),
+               'average_cost_raw': ('business.cost', business.get('cost')),
+               'entrance_location': ('navi.entr_location', navi.get('entr_location')),
+               'exit_location': ('navi.exit_location', navi.get('exit_location'))}
+    fields.update({key: scalar(value) for key, (_, value) in mapping.items()})
+    fields['children'] = [{key: scalar(child.get(key)) for key in ('id', 'name', 'location', 'address', 'typecode')}
+                          for child in _as_list(poi.get('children'))[:20] if isinstance(child, dict)]
+    snapshot = {'id': fields['poi_id'], **{source: poi.get(source) for source in
+                ('name', 'parent', 'typecode', 'location', 'address', 'cityname', 'adcode')},
+                'business': {key: scalar(business.get(key)) for key in ('opentime_today', 'opentime_week', 'tel', 'cost')},
+                'navi': {key: scalar(navi.get(key)) for key in ('entr_location', 'exit_location')}}
+    return {**fields, 'provider': 'amap', 'api_version': 'v5', 'interface_path': path,
+            'retrieved_at': retrieved_at, 'timezone': 'Asia/Shanghai', 'snapshot': snapshot,
+            'content_hash': hashlib.sha256(json.dumps(snapshot, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
+            'field_paths': {key: field for key, (field, _) in mapping.items()}}
+
+
 class AmapClient:
     def __init__(
             self,
@@ -215,6 +245,8 @@ class AmapClient:
                 if checkpoint:
                     self._reserve_http(checkpoint)
                 value = self._get_once(path, params)
+                if path.startswith('/v5/place/'):
+                    value['_retrieved_at'] = datetime.now(timezone.utc).isoformat()
                 return ToolResult('completed', path)
             except AmapError as caught:
                 error = caught
@@ -421,6 +453,33 @@ class AmapClient:
             if result.get('name'):
                 results.append(result)
         return tuple(results)
+
+    def search_poi_details(self, city: str, keywords: str, *, page_size: int = 5) -> tuple[dict, ...]:
+        """POI 2.0 only; never reinterpret business.cost as a ticket price."""
+        if not isinstance(keywords, str) or not 1 <= len(keywords.strip()) <= 80 or not 1 <= page_size <= 5:
+            raise ValueError('Invalid detailed POI search')
+        params = {'keywords': keywords, 'page_size': page_size, 'page_num': 1,
+                  'show_fields': 'business,navi,children', 'city_limit': 'true' if city else 'false'}
+        if city:
+            params['region'] = city
+        return self._poi_details('/v5/place/text', params, page_size)
+
+    def get_poi_detail(self, poi_id: str) -> dict | None:
+        if not isinstance(poi_id, str) or not re.fullmatch(r'[A-Za-z0-9]{5,40}', poi_id):
+            raise ValueError('Invalid POI ID')
+        rows = self._poi_details('/v5/place/detail', {'id': poi_id, 'show_fields': 'business,navi,children'}, 1)
+        return rows[0] if rows and rows[0]['poi_id'] == poi_id else None
+
+    def _poi_details(self, path, params, limit):
+        with self._place_lock:
+            delay = max(0.0, self._next_place_request_at - time.monotonic())
+            if delay:
+                self.sleeper(delay)
+            self._next_place_request_at = time.monotonic() + 1.05
+            data = self._get(path, params)
+        instant = data.get('_retrieved_at') or datetime.now(timezone.utc).isoformat()
+        return tuple(normalize_poi_detail(poi, path, instant) for poi in _as_list(data.get('pois'))[:limit]
+                     if isinstance(poi, dict) and isinstance(poi.get('id'), str) and poi['id'])
 
     def non_driving_route(self, origin: str, destination: str, *, mode: str, city: str = '') -> dict:
         if mode not in {'walking', 'transit'}:

@@ -291,6 +291,23 @@ describe("local conversation interactions", () => {
     const call = sent.find(call => call.url.endsWith("/confirmations/draft-a"))!;
     expect(JSON.parse(String(call.options.body)).version).toBe(4);
   });
+  it("rereads persistent activity introductions and tips in the trip details", async () => {
+    conversationList = [sampleConversation("a", "成都参考")];
+    localStorage.setItem("travel-active", "a");
+    contextResponse = { ...emptyContext, trips: [{ trip_id: "TR-a", version: 1,
+      spec: { destination: "成都", day_count: 1 }, sources: { B1: { name: "文殊坊", address: "测试街" } },
+      plan: { days: [{ day_index: 1, date: "2026-10-22", activities: [{ poi_id: "B1", period: "下午",
+        description: { intro: { text: "川西风格的院落间分布着茶馆和非遗工坊。", source_ids: [1] },
+          why_visit: "留出自由游览时间。", tips: [{ text: "可以挑一两条街巷慢慢逛。", source_ids: [1], kind: "advice" }] } }] }] } }] };
+    render(<App />);
+    fireEvent.click(await screen.findByRole("tab", { name: "行程" }));
+    fireEvent.click(await screen.findByText("介绍与玩法"));
+    expect(screen.getByText(/川西风格的院落/)).toBeTruthy();
+    expect(screen.getByText(/可以挑一两条街巷/)).toBeTruthy();
+    expect(screen.queryByText(/小时级时间、预约场次和交通加总尚未校验/)).toBeNull();
+    expect(screen.queryByText(/携程问道参考 · 来源/)).toBeNull();
+    expect(sent.some(s => s.options.method === "POST")).toBe(false);
+  });
   it("deletion requires confirmation and cancelling the dialog preserves data", async () => {
     conversationList = [sampleConversation("a", "测试 A")];
     await ready();

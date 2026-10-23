@@ -4,19 +4,15 @@ from datetime import date, datetime, time, timedelta, timezone
 import hashlib
 from html.parser import HTMLParser
 import re
-from urllib.parse import urlparse
 
-import requests
 from core.execution_scope import ensure_execution_active
 
-from infrastructure.secure_download import download_https
 from services.reminder_time import BEIJING
+from services.official_sources import OfficialSources, public_policy_url, scoped_url
 
 
 # This is a source registry, not a hard-coded booking policy. Rules are read afresh.
-OFFICIAL_SOURCES = {
-    '湖北省博物馆': 'https://www.hbww.org.cn/fuwu/index.html',
-}
+OFFICIAL_SOURCES = OfficialSources().policy_sources()
 
 
 class PolicyUnavailable(ValueError):
@@ -62,6 +58,8 @@ class BookingPolicy:
     caveats: tuple[str, ...] = ()
     closed_weekdays: tuple[int, ...] = ()
     holiday_exceptions: bool = False
+    identity_basis: dict | None = None
+    date_applicability: dict | None = None
 
     def opening_at(self, visit_date: date) -> datetime:
         hour, minute = map(int, self.release_time.split(':'))
@@ -72,37 +70,36 @@ class BookingPolicy:
 
 
 class BookingPolicyResolver:
-    def __init__(self, *, sources=None, fetch_text=None, clock=None):
-        self.sources = dict(OFFICIAL_SOURCES if sources is None else sources)
-        self.fetch_text = fetch_text or self._fetch_text
+    def __init__(self, *, sources=None, fetch_text=None, clock=None, registry=None):
+        self.registry = registry or OfficialSources()
+        self.injected_sources = sources is not None
+        self.sources = dict(self.registry.policy_sources() if sources is None else sources)
+        self.fetch_text = fetch_text
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
-    @staticmethod
-    def _fetch_text(url):
+    def resolve(self, entity, *, source_url='', visit_date=None):
         ensure_execution_active()
-        # Do not downgrade certificate failures to HTTP or disable certificate verification.
-        with requests.Session() as session:
-            session.trust_env = False
-            data, _ = download_https(session, url, max_bytes=2_000_000, timeout=(10, 20),
-                max_redirects=0, allowed_content_types={'text/html', 'text/plain', 'application/xhtml+xml'})
-        parser = PolicyTextParser()
-        parser.feed(data.decode('utf-8-sig', errors='replace'))
-        return parser.text()
-
-    def resolve(self, entity, *, source_url=''):
-        url = source_url or self.sources.get(entity, '')
+        entry = self.registry.match(entity) if not self.injected_sources else None
+        url = source_url or self.sources.get(entity, '') or (entry['policy_urls'][0] if entry else '')
         canonical = self.sources.get(entity, '')
         if canonical.endswith('/index.html') and url.rstrip('/') == canonical.removesuffix('/index.html'):
             url = canonical
         if not url:
             raise PolicyUnavailable('还没有找到该场馆可核实的官方说明，请提供官方预约说明的 HTTPS 页面链接。')
-        parsed_url = urlparse(url)
-        if parsed_url.scheme != 'https' or not parsed_url.hostname or parsed_url.username or parsed_url.password:
+        if not public_policy_url(url):
             raise PolicyUnavailable('请提供公开的 HTTPS 预约说明页面链接。')
         try:
-            text = self.fetch_text(url)
+            if self.fetch_text is not None:
+                payload = self.fetch_text(url)
+                text, final_url = (payload['text'], payload['url']) if isinstance(payload, dict) else (payload, url)
+            else:
+                from infrastructure.web_reader import read_page
+                page = read_page(url, **({'url_allowed': lambda candidate: scoped_url(candidate, entry)}
+                                        if entry and scoped_url(url, entry) else {}))
+                text, final_url = page['text'], page['url']
         except ValueError as exc:
             raise PolicyUnavailable('暂时无法读取预约说明，请稍后重试或提供可读取的官方说明链接。') from exc
+        ensure_execution_active()
         if entity not in text:
             raise PolicyUnavailable('该页面没有明确对应到这个场馆，请提供能核对场馆名称的预约说明。')
         if re.search(r'暂停预约|停止预约|暂停开放|闭馆公告', text):
@@ -142,17 +139,23 @@ class BookingPolicyResolver:
         if len({(days, clock) for days, clock, _ in rules}) != 1:
             raise PolicyUnavailable('页面规则不完整或存在不同放票时刻，请核对适用的预约说明。')
         days, clock, excerpt = rules[0]
-        official = url == self.sources.get(entity)
+        identity = self.registry.verify(entity, final_url) if not self.injected_sources else {
+            'status': 'verified' if final_url == self.sources.get(entity) else 'unverified', 'basis': 'explicit_source_injection'}
+        official = identity['status'] == 'verified'
         caveats = []
         if not official:
             caveats.append('这是你提供的页面，程序尚未独立核实其官方身份。')
         if re.search(r'暑期|寒假|节假日|另行通知|试行|调整', text):
             caveats.append('页面同时含季节或节假日说明，需要你核对该规则适用于所选参观日期。')
-        fingerprint = hashlib.sha256(f'{entity}\n{url}\n{text}'.encode()).hexdigest()
+        from core.source_applicability import rule_applicability
+        applicability = rule_applicability({'status': 'read', 'text': text}, excerpt, visit_date)
+        if visit_date and applicability['date_status'] == 'unknown':
+            caveats.append('目标日期适用性尚未充分核实，请人工核对规则范围。')
+        fingerprint = hashlib.sha256(f'{entity}\n{final_url}\n{text}\n{identity}'.encode()).hexdigest()
         closed_weekdays = tuple(sorted({
             '一二三四五六日'.index(day.replace('天', '日'))
             for day in re.findall(r'每周(?:周)?([一二三四五六日天])闭馆', text)
         }))
-        return BookingPolicy(entity, url, excerpt[:4000], days, clock,
+        return BookingPolicy(entity, final_url, excerpt[:4000], days, clock,
                              self.clock().isoformat(), fingerprint, official, tuple(caveats),
-                             closed_weekdays, '国家法定节假日除外' in text)
+                             closed_weekdays, '国家法定节假日除外' in text, identity, applicability)

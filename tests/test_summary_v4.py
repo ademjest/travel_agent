@@ -133,7 +133,7 @@ class SummaryV4SemanticsTests(unittest.TestCase):
     def test_prompt_is_exact_user_file_and_versioned_by_content(self):
         from core.summary_contract import load_summary_prompt, PROMPT_VERSION
         prompt, digest = load_summary_prompt()
-        path = Path(__file__).resolve().parents[1] / 'docs/prompt_design/abstract_design_prompts.md'
+        path = Path(__file__).resolve().parents[1] / 'prompts/conversation_summary.md'
         import hashlib
         self.assertEqual(prompt, path.read_text(encoding='utf-8'))
         self.assertEqual(digest, hashlib.sha256(prompt.encode()).hexdigest())

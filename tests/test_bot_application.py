@@ -232,6 +232,22 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.travel_agent.calls, [])
         self.assertIn("8000", str(self.transport.messages[0].payload))
 
+    async def test_multi_target_research_brief_survives_real_outbox_without_cutting(self):
+        from core.attraction_projection import attraction_report
+        from test_attraction_projection import sample_data
+        data = sample_data()
+        for fact in data['facts']:
+            if fact['topic'] in {'ticket_price', 'reservation_rules'}:
+                fact['value_raw'] = '普通门票60元；实名预约，须携带有效证件原件，未预约不得入馆。'
+        brief = attraction_report(data)
+        self.travel_agent.run = lambda content, context: SimpleNamespace(reply=brief, traces=())
+        await self.application.handle(self.group_event('research-length', '请核对方案景点'))
+        sent = self.transport.messages[0].payload['content']
+        self.assertEqual(sent, brief)
+        self.assertNotIn('[回复已截断]', sent)
+        self.assertIn('### 景点4', sent)
+        self.assertIn('须携带有效证件原件，未预约不得入馆。', sent)
+
     async def test_document_context_is_passed_to_agent(self):
         self.store.add_document(
             "group-a",

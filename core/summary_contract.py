@@ -8,7 +8,7 @@ MAX_SOURCES = 4
 MAX_QUOTE_CHARS = 500
 KINDS = frozenset({'decision', 'correction', 'unresolved', 'reference'})
 PROMPT_VERSION = 'conversation-summary-v4'
-PROMPT_PATH = Path(__file__).resolve().parents[1] / 'docs/prompt_design/abstract_design_prompts.md'
+PROMPT_PATH = Path(__file__).resolve().parents[1] / 'prompts/conversation_summary.md'
 OUTPUT_SCHEMA = {
     'type': 'object', 'required': ['items'], 'additionalProperties': False,
     'properties': {'items': {'type': 'array', 'maxItems': MAX_ITEMS, 'items': {

@@ -11,6 +11,27 @@ SOURCE_PREFIX = '来源原文：'
 SCOPES = r'周[一二三四五六日天]|工作日|节假日|儿童|成人|学生|老人'
 
 
+def official_page_evidence(source, quote, entity_quote, *, quote_start=None):
+    """A separate exact-page branch; legacy/model excerpt guards stay unchanged."""
+    text = source.get('text', '')
+    if (source.get('status') != 'read' or source.get('official_identity', {}).get('status') != 'verified'
+            or not entity_quote or entity_quote not in text or not 1 <= len(quote) <= MAX_QUOTE_CHARS
+            or quote not in text):
+        raise ValueError('official_evidence_mismatch')
+    start = text.index(quote) if quote_start is None else quote_start
+    if not isinstance(start, int) or start < 0 or text[start:start + len(quote)] != quote:
+        raise ValueError('official_evidence_mismatch')
+    if source.get('truncated') and start + len(quote) == len(text):
+        raise ValueError('truncated_official_clause')
+    if (text[:start].strip() and not re.search(r'[\n。；;]\s*$', text[:start])):
+        raise ValueError('incomplete_official_clause')
+    if text[start + len(quote):].strip() and not re.match(r'\s*[\n。；;]', text[start + len(quote):]):
+        raise ValueError('incomplete_official_clause')
+    entity_start = text.index(entity_quote)
+    return [{'kind': 'web_entity', 'quote': entity_quote, 'start': entity_start, 'end': entity_start + len(entity_quote)},
+            {'kind': 'web_quote', 'quote': quote, 'start': start, 'end': start + len(quote)}]
+
+
 class ResearchEvidenceError(ValueError):
     def __init__(self, code, index):
         super().__init__(code)

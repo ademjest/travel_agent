@@ -148,6 +148,9 @@ export interface Trip {
   spec: {
     destination?: string;
     start_date?: string;
+    date_is_tentative?: boolean;
+    date_reference_day?: string;
+    date_preference_text?: string;
     day_count?: number;
     preferences?: string[];
   };
@@ -160,6 +163,12 @@ export interface Trip {
         poi_id?: string;
         period?: string;
         reason?: string;
+        description?: {
+          intro?: { text: string; source_ids: number[] };
+          why_visit?: string;
+          tips?: { text: string; source_ids: number[]; kind: string }[];
+          source_status?: string;
+        };
       }[];
     }[];
   };

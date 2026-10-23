@@ -62,6 +62,25 @@ class WebTests(unittest.TestCase):
         self.assertEqual(other.state.repository.messages(self.identity)['items'][-1]['content'], 'pong')
         self.assertEqual(self.store.get_recent_turns(f'web:{self.identity}', OWNER)[-1].assistant_content, 'pong')
 
+    def test_research_progress_can_be_read_before_fact_report_exists(self):
+        event = self.event('核对景点', 'research-progress')
+        self.store.research.save(event, 'reading', {'fact_schema': 'attraction-facts-v1', 'sources': []})
+        response = self.client.get(f'/api/conversations/{self.identity}/research')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]['report'], '')
+
+    def test_legacy_full_research_report_is_projected_without_rewriting_history(self):
+        from test_attraction_projection import sample_data
+        event = self.event('核对景点', 'research-full')
+        data = sample_data()
+        data['report'] = '旧报告原文，不应被覆盖'
+        self.store.research.save(event, 'partial', data)
+        response = self.client.get(f'/api/conversations/{self.identity}/research')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('来源与核验依据', response.json()[0]['report'])
+        self.assertIn('景点19', response.json()[0]['report'])
+        self.assertEqual(self.store.research.get(event)['report'], data['report'])
+
     def test_conversation_context_includes_scoped_usage_and_protects_missing_or_deleted_scopes(self):
         response=self.client.get(f'/api/conversations/{self.identity}/context')
         usage=response.json()['model_usage']
@@ -342,6 +361,50 @@ class WebTests(unittest.TestCase):
         self.assertEqual(trips[0]['spec']['destination'], '武汉')
         self.assertEqual(len(trips[0]['plan']['days']), 3)
         self.assertEqual(trips[0]['sources']['h']['name'], '湖北省博物馆')
+
+    def test_preliminary_trip_uses_reference_date_then_accepts_exact_date(self):
+        from dataclasses import replace
+        from unittest.mock import patch
+        from agents.trip_planner import TripPlanner
+        from core.intent_ir import IntentIR
+        from services.semantic_task_service import SemanticTaskService
+        from services.trip_service import TripService
+        from test_travel_agent import FakeClient
+        from test_trips import PLACES, model_response, plan_value
+        now = datetime(2030, 9, 9, 2, tzinfo=timezone.utc)
+        places = {key: {**row, 'name': '南京测试景点' + key} for key, row in PLACES.items()}
+        places.update(hotel={'id': 'hotel', 'name': '测试酒店', 'type': '住宿服务'},
+                      food={'id': 'food', 'name': '测试餐厅', 'type': '餐饮服务'})
+        amap = Mock()
+        amap.search_places.return_value = list(places.values())
+        amap.route_for_pois.return_value = {'duration_seconds': 600}
+        extraction = {'destination': '南京', 'duration_text': '两天', 'start_date_text': '后面的某个周末',
+                      'hotel': {'value': '住宿', 'source': '住宿', 'requested': True},
+                      'dining': {'value': '餐饮', 'source': '餐饮', 'requested': True}}
+        plan = {**plan_value((('h', 'a'), ('b', 'c'))), 'hotel_ids': ['hotel'], 'restaurant_ids': ['food']}
+        client = FakeClient([model_response(extraction), model_response(plan)])
+        trip_service = TripService(self.store, TripPlanner(client, 'test', amap))
+        self.runtime.application.trip_service = trip_service
+        compiler = Mock(try_compile=Mock(return_value=IntentIR(1, 'none', ())))
+        self.runtime.application.semantic_task_service = SemanticTaskService(self.store, compiler,
+            trip_service=trip_service, mode='execute')
+        original_input = self.worker.adapter.input_event
+        with patch.object(self.worker.adapter, 'input_event', side_effect=lambda row: replace(original_input(row), occurred_at=now)):
+            self.send('我想去南京玩两天，计划是后面的某个周末，我希望你为我规划一个旅游计划，从每天的出行到住宿以及餐饮。')
+            self.run_job()
+            trip = self.store.trips.list_for_owner(self.event(''))[0]
+            self.assertEqual(trip['spec']['start_date'], '2030-09-10')
+            self.assertEqual(trip['plan']['days'][1]['date'], '2030-09-11')
+            self.assertTrue(trip['spec']['date_is_tentative'])
+            self.assertIn('日期暂定', self.messages()[-1]['content'])
+            self.assertNotIn('具体哪天', self.messages()[-1]['content'])
+            self.send('我确定10月25日出发', key='actual-date')
+            self.run_job()
+            updated = self.store.trips.list_for_owner(self.event(''))[0]
+            self.assertEqual(updated['spec']['start_date'], '2030-10-25')
+            self.assertEqual(updated['plan']['days'][1]['date'], '2030-10-26')
+            self.assertFalse(updated['spec']['date_is_tentative'])
+            self.assertEqual(len(client.completions.requests), 2)
 
     def test_policy_monitor_change_delivers_web_notification_and_can_stop(self):
         from services.booking_policy import BookingPolicyResolver

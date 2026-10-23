@@ -6,7 +6,7 @@
 
 [Web 使用指南](docs/guides/web.md) · [QQ 使用指南](docs/guides/qq.md) · [全部指南](docs/guides/README.md)
 
-当前同步版本的功能、升级步骤与验证说明见 [2026-10-19 更新记录](docs/releases/2026-10-19.md)。
+当前同步版本的功能、升级步骤与验证说明见 [2026-10-23 更新记录](docs/releases/2026-10-23.md)。
 
 ## 能做什么
 
@@ -119,13 +119,13 @@ docs/guides/     Web 与 QQ 使用指南
 ```powershell
 python -m pip install -r requirements-dev.txt -c constraints-py311.txt
 python -m pip check
-python -X utf8 -m unittest discover -s tests -q
+python -X utf8 scripts/verify_v3_regression.py
+python -X utf8 scripts/verify_v3_regression.py --frontend
 python -X utf8 scripts/evaluate_tasks.py --output evals/ci-offline.json
 python -X utf8 scripts/evaluate_retrieval.py --output evals/retrieval-v2-local.json
-cd frontend
-npm test
-npm run build
 ```
+
+统一回归入口会自动将后端测试、前端测试和构建日志，以及 JSON 验收报告，保存到项目同级的 `travel_agent_val_log` 目录；本地路径为 `E:\Agent\travel_agent_val_log`。重复运行会覆盖同名文件；`--output` 可另行指定 JSON 报告路径。
 
 离线测试使用模拟数据，不需要真实 API 密钥。CI 覆盖 Windows / Linux 后端测试，以及 Web 测试和构建。真实接口验收脚本见各入口指南；运行前需要配置对应服务，会消耗正常调用额度。
 
@@ -139,4 +139,4 @@ npm run build
 - 天气和交通结果受数据覆盖与时效限制；开放时间、实时价格、余票及道路封闭不保证被核实。
 - Web 仅支持本机访问，尚未提供多人账号和公网部署。现有 NapCat Docker 配置不代表完整 Web 容器化已经验收。
 
-详细变更与实施记录保存在 [docs/](docs/)，使用操作统一从 [指南目录](docs/guides/README.md) 查阅。
+版本更新见 [发布记录](docs/releases/)，使用操作统一从 [指南目录](docs/guides/README.md) 查阅。

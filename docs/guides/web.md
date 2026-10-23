@@ -34,6 +34,19 @@ $env:WEB_PYTHON = '你的Python环境完整路径\python.exe'
 
 关闭启动终端或按 Ctrl+C 停止服务；网页关闭不会停止后端。再次启动会恢复同一数据目录中的记录。
 
+运行日志统一写入项目同级的 `travel_agent_val_log` 目录。本地位置为 `E:\Agent\travel_agent_val_log`，Web 文件为 `travel-web.log`，同时保留控制台输出；QQ SDK 日志也使用该目录的 `botpy.log`。修改后在下次启动时生效。
+
+验证日志通过现有统一回归入口自动保存到同一目录，无需手动重定向。在项目目录执行：
+
+```powershell
+python -X utf8 scripts/verify_v3_regression.py
+python -X utf8 scripts/verify_v3_regression.py --frontend
+```
+
+后端输出保存为 `backend-tests.log`，前端输出保存为 `frontend-tests.log`、`frontend-build.log`；日志使用 UTF-8，包含标准输出和标准错误。JSON 验收报告默认为 `backend-regression.json`、`frontend-regression.json`，仍可用 `--output` 指定报告路径。重复运行会覆盖同名文件。直接执行 `unittest`、`npm test` 或其他验证脚本时，仍需将输出重定向到该目录。
+
+如使用 PowerShell `Start-Process` 启动后台服务，`-RedirectStandardOutput` 和 `-RedirectStandardError` 也应分别指向该目录下的 `travel-web.stdout.log`、`travel-web.stderr.log`，不要再指向 `E:\Agent` 根目录。
+
 ## 2. 配置
 
 默认优先使用进程环境变量，其次项目 `.env`，最后兼容父目录 `.env` 中未设置的值。网页左侧“服务配置”会将你明确保存的修改合并到**项目根目录 `.env`**；模型 Key、模型地址、模型名称和高德 Key 都可以替换，已有密钥不回显到前端。
@@ -211,13 +224,13 @@ python -X utf8 scripts/smoke_web.py
 
 确认前可以继续补充品牌等要求，新预览会接续当前草稿。确认过期后，草稿需求仍可用于生成新预览，旧确认按钮不会恢复执行资格。若看到预览不可用，或希望恢复旧会话中待修改的要求，可发送“重新生成行程预览”，核对完整内容后再确认；多份行程时附上具体行程编号。页面遇到渲染异常会显示恢复入口，返回首页不会删除服务器会话。
 
-支持用“10月1日到10月三日”等日期区间规划三天，不必再补充天数。修复详情与验证范围见 [行程偏好接续修复与验收](../itinerary-preference-context-fix-2026-09-20.md)。
+支持用“10月1日到10月三日”等日期区间规划三天，不必再补充天数。
 
 ## 7. 常见问题
 
 查询或回答出现异常时，可直接点击**提问下面的“查看处理过程”**，查看中文结论和各环节时间线，再点击“复制诊断报告”交给维护者分析。不需要PowerShell或手动查事件键。查看记录不会重跑查询或产生模型费用；没有记录时无法据此确定原因。旧版后端需先重启才能使用新入口。
 
-本地BGE的准备、评测结果及启用边界见[诊断与embedding升级说明](../diagnostics-embedding-delivery-2026-10-16.md)。默认仍保持关闭。
+本地 BGE 语义检索默认关闭。启用前需安装 `requirements-embedding.txt` 中的可选依赖，将模型准备到 `AI_EMBEDDING_MODEL_DIR` 指定的本地目录，再设置 `AI_VECTOR_ENABLED=true` 并重启；运行时不会自动下载模型。混合检索仍属实验能力，召回结果不代表事实已核实。
 
 | 现象 | 处理 |
 | --- | --- |

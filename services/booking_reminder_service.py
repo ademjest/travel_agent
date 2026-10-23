@@ -90,6 +90,7 @@ class BookingReminderService:
         if task is None and not booking_request(text) and not query_only:
             return None
         slots = dict(task.slots) if task else {}
+        previous_visit_date = slots.get('visit_date')
         if task is None:
             slots['mode'] = 'query' if query_only else 'reminder'
             extracted = self._extract(text, require_date=not query_only)
@@ -128,11 +129,18 @@ class BookingReminderService:
         slots['visit_date'] = parsed.day
         previous_fingerprint = slots.get('policy', {}).get('fingerprint')
         try:
-            policy = self.resolver.resolve(slots['entity'], source_url=slots.get('source_url', ''))
+            kwargs = {'visit_date': date.fromisoformat(parsed.day)} if isinstance(self.resolver, BookingPolicyResolver) else {}
+            policy = self.resolver.resolve(slots['entity'], source_url=slots.get('source_url', ''), **kwargs)
         except PolicyUnavailable as exc:
             return self._question(event, claim, task, slots, ('source_url',),
                 str(exc) + '\n目前没有创建开约提醒。也可以另行指定日期和时刻提醒你预约。')
         slots['policy'] = self.store.policies.record(policy)
+        if not policy.official:
+            return self._question(event, claim, task, slots, ('source_url',),
+                '页面官方身份尚未核实，不能按该规则自动计算开约提醒。请提供可核验官方说明，或另行指定个人提醒的日期和时刻。')
+        applicability = getattr(policy, 'date_applicability', None) or {}
+        if applicability.get('date_status') in {'expired', 'not_yet_effective', 'outside_declared_window', 'conflicting_range'}:
+            return self._question(event, claim, task, slots, ('source_url',), '该规则不适用于目标日期或有效期冲突，尚未创建提醒；请补充适用公告。')
         if date.fromisoformat(parsed.day).weekday() in policy.closed_weekdays and not policy.holiday_exceptions:
             return self._question(event, claim, task, slots, ('visit_date',),
                 '按页面常规开放安排，这天是闭馆日。当前没有创建提醒，请选择其他参观日期或提供适用的新公告。')
@@ -145,7 +153,7 @@ class BookingReminderService:
                    f"对应提醒时刻：{opening:%Y-%m-%d %H:%M}（北京时间）。\n"
                    f"来源：{policy.source_url}\n核查时间：{policy.retrieved_at}\n")
         confirmed = bool(task and 'confirmation' in task.missing_slots and text in CONFIRM_POLICY)
-        if ((confirmed and previous_fingerprint != policy.fingerprint)
+        if ((confirmed and (previous_fingerprint != policy.fingerprint or previous_visit_date != parsed.day))
                 or (policy.caveats and not confirmed)):
             prefix = '规则内容发生变化，请重新核对。\n' if confirmed else ''
             return self._question(event, claim, task, slots, ('confirmation',),

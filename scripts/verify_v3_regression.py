@@ -1,4 +1,4 @@
-"""Record final regression evidence with tool/version metadata, not test payloads."""
+"""Save regression logs and evidence with tool/version metadata."""
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -12,6 +12,19 @@ import sys
 import time
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+
+from core.data_paths import log_directory
+
+
+def run_logged(command,cwd,filename):
+    logs=log_directory()
+    logs.mkdir(parents=True,exist_ok=True)
+    result=subprocess.run(command,cwd=cwd,capture_output=True,text=True,encoding='utf-8',errors='replace')
+    target=logs/filename
+    target.write_text(result.stdout+result.stderr,encoding='utf-8')
+    print(f'Log: {target}',flush=True)
+    return result
 
 
 def source_snapshot(folders=('adapters','agents','app','core','infrastructure','services','tools','tests'), pattern='*.py'):
@@ -25,8 +38,8 @@ def source_snapshot(folders=('adapters','agents','app','core','infrastructure','
 def main(output):
     before=source_snapshot()
     started=time.monotonic()
-    result=subprocess.run([sys.executable,'-X','utf8','-m','unittest','discover','-s','tests','-q'],
-                          cwd=ROOT,capture_output=True,text=True,encoding='utf-8',errors='replace')
+    result=run_logged([sys.executable,'-X','utf8','-m','unittest','discover','-s','tests','-q'],
+                      ROOT,'backend-tests.log')
     match=re.search(r'Ran (\d+) tests in ([\d.]+)s',result.stderr)
     source=source_snapshot()
     report={'generated_at':datetime.now(timezone.utc).isoformat(),'python':platform.python_version(),
@@ -46,9 +59,9 @@ def frontend(output,out_dir=None):
     before=source_snapshot(('frontend/src',),'*')
     started=time.monotonic()
     npm='npm.cmd' if os.name=='nt' else 'npm'
-    tested=subprocess.run([npm,'test','--','--run'],cwd=ROOT/'frontend',capture_output=True,text=True,encoding='utf-8',errors='replace')
+    tested=run_logged([npm,'test','--','--run'],ROOT/'frontend','frontend-tests.log')
     build_command=[npm,'run','build']+(['--','--outDir',str(out_dir)] if out_dir else [])
-    built=subprocess.run(build_command,cwd=ROOT/'frontend',capture_output=True,text=True,encoding='utf-8',errors='replace')
+    built=run_logged(build_command,ROOT/'frontend','frontend-build.log')
     raw=re.sub(r'\x1b\[[0-9;]*m','',tested.stdout)
     match=re.search(r'Tests\s+(\d+) passed\s+\((\d+)\)',raw)
     after=source_snapshot(('frontend/src',),'*')
@@ -65,11 +78,12 @@ def frontend(output,out_dir=None):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--output',type=Path,help='JSON report path; defaults to the shared log directory')
     parser.add_argument('--frontend',action='store_true')
     parser.add_argument('--frontend-out-dir',type=Path)
     args=parser.parse_args()
+    output=args.output or log_directory()/('frontend-regression.json' if args.frontend else 'backend-regression.json')
     if args.frontend:
-        frontend(args.output,args.frontend_out_dir)
+        frontend(output,args.frontend_out_dir)
     else:
-        main(args.output)
+        main(output)

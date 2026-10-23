@@ -231,12 +231,14 @@ class ResearchPlanRepairTests(unittest.TestCase):
         self.assertEqual(reason,'explicit_reference')
         with self.store._connect() as db:
             db.execute("UPDATE planning_artifacts SET status='adopted'")
-        trip = {'title':'北京已保存行程','spec':{'destination':'北京','day_count':3},'version':2}
+        trip = {'trip_id':'TR-saved','title':'北京已保存行程','spec':{'destination':'北京','day_count':3},
+                'version':2,'plan':{'days':[]},'sources':{}}
         self.store.trips.list_for_owner = Mock(return_value=[trip])
         with patch('services.trip_service.TripService.format_trip',return_value=PLAN):
             selected, reason = resolve_plan(self.store,self.event,self.request)
         self.assertEqual(reason,'saved_trip')
         self.assertEqual(selected['content'],PLAN)
+        self.assertEqual(selected['itinerary_snapshot']['trip_id'],'TR-saved')
 
     def test_target_extraction_grounding_and_exterior_optional(self):
         client = FakeClient([model_response(scope_value([target('鸟巢',3,False,'exterior'),target('国家博物馆',3,True)]))])

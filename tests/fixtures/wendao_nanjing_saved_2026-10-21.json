@@ -1,0 +1,1455 @@
+{
+  "provenance": "Real saved provider response and necessary Amap fields; exported offline, no new requests.",
+  "retrieved_at": "2026-10-21T09:58:54.949692+00:00",
+  "response_sha256": "594e73059168a2f4afc03ccc89af21e0e4cc09f50d6c91d7a498c377b350b1fc",
+  "city": "南京",
+  "targets": [
+    {
+      "name": "六朝博物馆",
+      "source_text": "- 上午：六朝博物馆｜长江路302号；文化参观",
+      "optional": false,
+      "visit_mode": "entry",
+      "day_index": 1,
+      "day_resolution": "source_grounded"
+    },
+    {
+      "name": "总统府",
+      "source_text": "- 下午：总统府｜长江路292号；文化参观",
+      "optional": false,
+      "visit_mode": "entry",
+      "day_index": 1,
+      "day_resolution": "source_grounded"
+    },
+    {
+      "name": "江宁织造博物馆",
+      "source_text": "- 晚上：江宁织造博物馆｜长江路123号；文化参观",
+      "optional": false,
+      "visit_mode": "entry",
+      "day_index": 1,
+      "day_resolution": "source_grounded"
+    },
+    {
+      "name": "古鸡鸣寺",
+      "source_text": "- 上午：古鸡鸣寺｜鸡鸣寺路1号钟山风景名胜区玄武湖景区内西南侧；文化参观",
+      "optional": false,
+      "visit_mode": "entry",
+      "day_index": 2,
+      "day_resolution": "source_grounded"
+    },
+    {
+      "name": "南京城墙景区(神策门至太平门)",
+      "source_text": "- 下午：南京城墙景区(神策门至太平门)｜解放门8号；户外休闲",
+      "optional": false,
+      "visit_mode": "entry",
+      "day_index": 2,
+      "day_resolution": "source_grounded"
+    },
+    {
+      "name": "玄武湖景区",
+      "source_text": "- 晚上：玄武湖景区｜玄武门路1号钟山风景名胜区西侧；户外休闲",
+      "optional": false,
+      "visit_mode": "entry",
+      "day_index": 2,
+      "day_resolution": "source_grounded"
+    }
+  ],
+  "dates": {
+    "timezone": "Asia/Shanghai",
+    "reference_date": "2026-10-21",
+    "arrival_date": "",
+    "visit_start_date": "2026-10-22",
+    "visit_end_date": "2026-10-23",
+    "basis": "saved_trip_system_reference",
+    "date_is_tentative": true,
+    "year_inferred": true
+  },
+  "sources": [
+    {
+      "id": 1,
+      "type": "provider_answer",
+      "provider": "ctrip_wendao",
+      "status": "provider_unverified",
+      "title": "携程问道参考",
+      "text": "以下为您整理南京<长江路>沿线四座景点的开放时间、门票及预约信息，按2026-10-22起连续2天参考。所有票价及规则来源于景区官方披露数据。\n\n### <六朝博物馆>\n\n位于南京市玄武区长江路302号，紧邻总统府东侧。馆内负一层保留1700年前六朝建康宫城夯土墙遗址，二层展出青瓷、陶俑、瓦当等大批珍贵文物，由贝聿铭之子贝建中担纲设计，是了解六朝历史的核心专题博物馆。\n\n- **开放时间**：4月7日-12月31日 周二至周日 09:00-17:30（17:00停止入园）；4月7日-12月31日 周一闭馆。2026-10-22为周四，正常开放。\n- **预约要求**：需通过景区公众号预约购票，路径为公众号进入后点击服务-线上购票-<六朝博物馆>。凭电子凭证直接验证入园。\n- **票务咨询**：025-52326032 / 025-52326021\n- **推荐游玩时长**：2-3小时\n- **玩法建议**：从负一层六朝夯土墙遗址开始，依次向上游览一层临展、二层青瓷精华展厅（国宝级文物青瓷釉下彩羽人纹盘口壶不可错过），三层六朝人杰展厅。馆内提供免费行李寄存和景区讲解服务，停车场参考价6元/小时（库位123个）。\n\n门票价格（适用日期：2026-10-22，来源：官方景点信息）：\n- 成人票：27元（18周岁含至60周岁不含，未持优待证件）\n- 学生票（大学生）：13元（18周岁含以上，全日制大学在读，凭学生证）\n- 老人票（60周岁含至70周岁不含）：13元\n- 家庭票（2大1小）：54元（2名成人+1名18周岁以下儿童）\n- 免票人群：18周岁以下未成年人（凭相关证件在监护人陪同下）、70周岁及以上老人、现役/退役军人、残疾人、离休干部、消防救援人员、无偿献血奉献奖获得者等\n\n- [预定链接](<https://m.ctrip.com/webapp/you/gspoi/sight/9/0.html?poiId=15009231&seo=0&isHideNavBar=YES&poiType=3>)\n\n### <南京总统府>\n\n位于南京市玄武区长江路292号，是中国近代建筑遗存中规模较大、保存较完整的建筑群，至今已有600多年历史。府内分为中、西、东三个参观区域，既有西式办公楼和回廊，又有江南园林煦园，是了解近代史的重要遗址。\n\n- **开放时间**：每年3月1日-10月14日 周二至周日 08:30-18:00（17:00停止入园）；周一闭馆（法定节假日除外）。2026-10-22为周四，处于此时段内，正常开放08:30-18:00。\n- **预约要求**：需通过公众号预约购票，路径为进入公众号-点击服务-官方预约-门票预约。入园当日务必携带身份证原件。同一有效证件60天内仅可购买1份。\n- **票务咨询**：025-84578888\n- **推荐游玩时长**：2-4小时\n- **玩法建议**：沿中轴线游览大堂、子超楼，再从尾端进入西区煦园看江南园林（石舫、夕佳楼、漪澜阁），最后到东区看行政院和太平天国展馆。景区售票处提供人工讲解，10人以下中文100元/英文150元，全程约1小时。行李寄存免费，童车租赁免费（押金200元）。\n\n门票价格（适用日期：2026-10-22，来源：官方景点信息）：\n- 70周岁及以上老人（凭有效身份证或护照）：免费\n- 18周岁以下未成年人（在家长陪同下，凭有效身份证件，每位家长限陪同2名）：免费\n- 现役和退休军人（凭军官证/士兵证/军人退休证）：免费\n- 离休干部（凭有效证件）：免费\n- 残疾人（凭国家残联残疾证，盲人及重度残疾人允许1名陪护免费）：免费\n- 南京市低保人员（凭本人有效相关证件）：免费\n- 60周岁至69周岁老人：享优惠价\n- 18周岁至22周岁学生（需携带学生证查验）：享优惠价\n- 22周岁以上全日制大专、本科生（凭身份证、学生证到窗口购买）：半价优惠\n\n- [预定链接](<https://m.ctrip.com/webapp/you/gspoi/sight/9/0.html?poiId=75717&seo=0&isHideNavBar=YES&poiType=3>)\n\n### <江宁织造博物馆>\n\n位于南京市玄武区长江路123号，在清代江宁织造旧址上建造，由两院院士吴良镛先生担纲设计。馆内设云锦天衣、红楼梦曲、江宁织造、中国旗袍四个常设展厅，展出皇家云锦织物、龙袍旗袍及多版本《红楼梦》相关文物。\n\n- **开放时间**：全年 周二至周日 09:00-17:30（17:00停止入园）；全年周一闭馆。2026-10-22为周四，正常开放。\n- **预约要求**：需提前1天23:59前线上预订，凭电子凭证直接验证入园。每笔订单最多购买10份。\n- **票务咨询**：025-83416802 / 025-83410337\n- **推荐游玩时长**：2-3小时\n- **玩法建议**：地下一层看云锦天衣展厅（元代织金大袖袍服为最早运用云锦织金工艺的实物）和红楼梦曲展厅，一层看江宁织造历史沿革（曹雪芹祖父曹寅密折、《康熙南巡图》动态视频），二层看中国旗袍展厅。讲解器租赁收费，地址在一楼和负一楼租赁处。\n\n门票价格（适用日期：2026-10-22，来源：官方景点信息）：\n- 成人票：27元（18周岁含至60周岁不含，未持优待证件）\n- 学生票（大学生）：13元（18周岁含以上，全日制大学在读，凭学生证）\n- 老人票（60周岁含至69周岁含）：13元\n- 家庭票（2大1小）：54元（2名成人+1名18周岁以下儿童）\n- 免票人群：18周岁以下未成年人（凭相关证件在监护人陪同下）、70周岁及以上老人、现役军人/伤残军人/有军籍军校学员、退役军人（凭优待证）、残疾人（重度残疾人允许1名陪护免费）、离休干部（允许1名陪护免费）、消防救援人员、无偿献血奉献奖获得者、三属（凭优待证）\n\n- [预定链接](<https://m.ctrip.com/webapp/you/gspoi/sight/9/0.html?poiId=10770621&seo=0&isHideNavBar=YES&poiType=3>)\n\n### <鸡鸣寺>\n\n位于南京市玄武区<鸡鸣寺>路1号，北临玄武湖，始建于西晋，是南京较为古老的佛寺之一，有\"南朝第一寺\"之美誉。寺内主要建筑包括大雄宝殿（毗卢宝殿）、药师佛塔、观音楼、胭脂井等，药师佛塔曾为《新白娘子传奇》中雷峰塔的取景地。\n\n- **开放时间**：全年 07:30-17:00开放（16:45停止入园）；每月农历初一、十五开放时间为05:30-17:00。2026-10-23为周五，按常规07:30-17:00开放。\n- **预约要求**：需通过公众号购买线上香花券，凭香花券二维码入寺。\n- **票务咨询**：025-57715595\n- **推荐游玩时长**：1-2小时\n- **玩法建议**：从山门石级步入，依次游览弥勒殿、大雄宝殿（毗卢佛及文殊普贤两大菩萨）、观音楼，再到药师佛塔登塔眺望玄武湖，寺东北侧有胭脂井。寺内可求签、写许愿牌。出口可衔接明城墙解放门段，城墙之上可拍古塔与紫峰大厦同框。\n\n门票价格（适用日期：2026-10-23，来源：官方景点信息）：\n- 鸡鸣寺普通门票（香花券）具体金额：官方景点信息中未直接列出单一门票金额，但在含讲解套餐信息中备注\"门票十元/人，赠送三柱清香\"（来源：官方景点信息中套餐费用说明）\n- 免票人群：1.4米含以下儿童、60周岁含以上老人（凭身份证等）、残疾人（凭残疾证）、军人（凭军官证）、江苏省获国家无偿献血奉献奖/造血干细胞奖/献血志愿服务终身荣誉奖的个人、持鸡鸣寺和南京市佛教协会皈依证者\n\n- [预定链接](<https://m.ctrip.com/webapp/you/gspoi/sight/9/0.html?poiId=75715&seo=0&isHideNavBar=YES&poiType=3>)",
+      "retrieved_at": "2026-10-21T09:58:13.657275+00:00",
+      "content_hash": "594e73059168a2f4afc03ccc89af21e0e4cc09f50d6c91d7a498c377b350b1fc"
+    },
+    {
+      "id": 2,
+      "type": "api",
+      "provider": "amap",
+      "status": "provider_reference",
+      "title": "六朝博物馆",
+      "retrieved_at": "2026-10-21T09:58:14.347779+00:00",
+      "content_hash": "5f66d06b2d31fee39bbb5df9d0e0cb56718b9d71409ef4a97eb47faa994c8fb0",
+      "interface_path": "/v5/place/text",
+      "poi_id": "B0019135C5",
+      "snapshot": {
+        "id": "B0019135C5",
+        "name": "六朝博物馆",
+        "parent": "B0FFHCCI7J",
+        "typecode": "140100",
+        "location": "118.799124,32.042840",
+        "address": "长江路302号",
+        "cityname": "南京市",
+        "adcode": "320102",
+        "business": {
+          "opentime_today": "09:00-17:30",
+          "opentime_week": "周二至周日 09:00-17:30",
+          "tel": "025-52326032",
+          "cost": null
+        },
+        "navi": {
+          "entr_location": "118.799244,32.042144",
+          "exit_location": null
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "api",
+      "provider": "amap",
+      "status": "provider_reference",
+      "title": "总统府",
+      "retrieved_at": "2026-10-21T09:58:23.843863+00:00",
+      "content_hash": "d8633c9fe9ccc5ab14f5a9c999326c3cbea5cd0bc47760b062357dbd8bb828bf",
+      "interface_path": "/v5/place/text",
+      "poi_id": "B00190BMRC",
+      "snapshot": {
+        "id": "B00190BMRC",
+        "name": "总统府",
+        "parent": "",
+        "typecode": "110202",
+        "location": "118.797398,32.044228",
+        "address": "长江路292号",
+        "cityname": "南京市",
+        "adcode": "320102",
+        "business": {
+          "opentime_today": "08:30-18:00",
+          "opentime_week": "08:30-18:00（17:00停止入场，周一闭馆）(数据来源:江苏省文旅厅公共服务平台苏心游)",
+          "tel": "025-84578716;025-84578888",
+          "cost": null
+        },
+        "navi": {
+          "entr_location": "118.797561,32.042579",
+          "exit_location": null
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "api",
+      "provider": "amap",
+      "status": "provider_reference",
+      "title": "江宁织造博物馆",
+      "retrieved_at": "2026-10-21T09:58:36.602720+00:00",
+      "content_hash": "74aeb2dae4415ba1f0c485945c23622f5a33dc12aea160acc2b52e8bafa76ba9",
+      "interface_path": "/v5/place/text",
+      "poi_id": "B001911KPA",
+      "snapshot": {
+        "id": "B001911KPA",
+        "name": "江宁织造博物馆",
+        "parent": "B0FFHCCI7J",
+        "typecode": "140100",
+        "location": "118.794071,32.042136",
+        "address": "长江路123号",
+        "cityname": "南京市",
+        "adcode": "320102",
+        "business": {
+          "opentime_today": null,
+          "opentime_week": "周二至周日09:00-17:30(17:00停止入馆),周一闭馆（法定节假日正常开放） 5月18日国际博物馆日9:00-17:30开放(17:30停止入馆),(数据来源:江苏省文旅厅公共服务平台苏心游)",
+          "tel": "025-52243204",
+          "cost": null
+        },
+        "navi": {
+          "entr_location": "118.794812,32.043069",
+          "exit_location": null
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "api",
+      "provider": "amap",
+      "status": "provider_reference",
+      "title": "古鸡鸣寺",
+      "retrieved_at": "2026-10-21T09:58:47.254782+00:00",
+      "content_hash": "d1fbfb9798291a8ee66590a3ca3ffa390f4833d34b1a73b7197b3156ee165c46",
+      "interface_path": "/v5/place/text",
+      "poi_id": "B0FFH62KNA",
+      "snapshot": {
+        "id": "B0FFH62KNA",
+        "name": "古鸡鸣寺",
+        "parent": "",
+        "typecode": "110205",
+        "location": "118.795246,32.061061",
+        "address": "鸡鸣寺路1号钟山风景名胜区玄武湖景区内西南侧",
+        "cityname": "南京市",
+        "adcode": "320102",
+        "business": {
+          "opentime_today": null,
+          "opentime_week": "07:00-17:00；月初周一、15开放时间为:05:30-17:00,16:45停止入园,2026年春节期间07:00-18:00",
+          "tel": "025-57715595",
+          "cost": null
+        },
+        "navi": {
+          "entr_location": "118.795823,32.060155",
+          "exit_location": null
+        }
+      }
+    }
+  ],
+  "legacy_facts": [
+    {
+      "schema_version": "attraction-facts-v2",
+      "target_id": "target-1",
+      "entity_poi_id": null,
+      "topic": "opening_hours",
+      "value_raw": "4月7日-12月31日 周二至周日 09:00-17:30（17:00停止入园）；4月7日-12月31日 周一闭馆。2026-10-22为周四，正常开放。",
+      "source_id": 1,
+      "statement_kind": "rule",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown",
+        "product": "general",
+        "product_kind": "admission",
+        "product_label": "",
+        "time_role": "mixed"
+      },
+      "evidence": [
+        {
+          "kind": "provider_response_span",
+          "quote": "4月7日-12月31日 周二至周日 09:00-17:30（17:00停止入园）；4月7日-12月31日 周一闭馆。2026-10-22为周四，正常开放。",
+          "start": 198,
+          "end": 275
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "pending",
+        "content_support": "exact_provider_span",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_answer_reference",
+      "extraction_status": "candidate",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_scope": {
+        "bucket": "provider_answer",
+        "date_relevance": "unknown"
+      },
+      "statements": [
+        {
+          "text": "4月7日-12月31日 周二至周日 09:00-17:30（17:00停止入园）；",
+          "kind": "rule",
+          "start": 0,
+          "end": 41
+        },
+        {
+          "text": "4月7日-12月31日 周一闭馆。",
+          "kind": "rule",
+          "start": 41,
+          "end": 58
+        },
+        {
+          "text": "2026-10-22为周四，",
+          "kind": "reference",
+          "start": 58,
+          "end": 72
+        },
+        {
+          "text": "正常开放。",
+          "kind": "reference",
+          "start": 72,
+          "end": 77
+        }
+      ],
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v2",
+      "target_id": "target-1",
+      "entity_poi_id": null,
+      "topic": "reservation_rules",
+      "value_raw": "需通过景区公众号预约购票，路径为公众号进入后点击服务-线上购票-<六朝博物馆>。凭电子凭证直接验证入园。",
+      "source_id": 1,
+      "statement_kind": "rule",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown",
+        "product": "general",
+        "product_kind": "admission",
+        "product_label": "",
+        "time_role": null
+      },
+      "evidence": [
+        {
+          "kind": "provider_response_span",
+          "quote": "需通过景区公众号预约购票，路径为公众号进入后点击服务-线上购票-<六朝博物馆>。凭电子凭证直接验证入园。",
+          "start": 287,
+          "end": 339
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "pending",
+        "content_support": "exact_provider_span",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_answer_reference",
+      "extraction_status": "candidate",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_scope": {
+        "bucket": "provider_answer",
+        "date_relevance": "unknown"
+      },
+      "statements": [
+        {
+          "text": "需通过景区公众号预约购票，",
+          "kind": "reference",
+          "start": 0,
+          "end": 13
+        },
+        {
+          "text": "路径为公众号进入后点击服务-线上购票-<六朝博物馆>。",
+          "kind": "reference",
+          "start": 13,
+          "end": 40
+        },
+        {
+          "text": "凭电子凭证直接验证入园。",
+          "kind": "reference",
+          "start": 40,
+          "end": 52
+        }
+      ],
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v2",
+      "target_id": "target-1",
+      "entity_poi_id": null,
+      "topic": "advice",
+      "value_raw": "从负一层六朝夯土墙遗址开始，依次向上游览一层临展、二层青瓷精华展厅（国宝级文物青瓷釉下彩羽人纹盘口壶不可错过），三层六朝人杰展厅。馆内提供免费行李寄存和景区讲解服务，停车场参考价6元/小时（库位123个）。",
+      "source_id": 1,
+      "statement_kind": "advice",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown",
+        "product": "general",
+        "product_kind": "admission",
+        "product_label": "",
+        "time_role": null
+      },
+      "evidence": [
+        {
+          "kind": "provider_response_span",
+          "quote": "从负一层六朝夯土墙遗址开始，依次向上游览一层临展、二层青瓷精华展厅（国宝级文物青瓷釉下彩羽人纹盘口壶不可错过），三层六朝人杰展厅。馆内提供免费行李寄存和景区讲解服务，停车场参考价6元/小时（库位123个）。",
+          "start": 409,
+          "end": 512
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "pending",
+        "content_support": "exact_provider_span",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_answer_reference",
+      "extraction_status": "candidate",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_scope": {
+        "bucket": "provider_answer",
+        "date_relevance": "unknown"
+      },
+      "statements": [
+        {
+          "text": "从负一层六朝夯土墙遗址开始，",
+          "kind": "reference",
+          "start": 0,
+          "end": 14
+        },
+        {
+          "text": "依次向上游览一层临展、二层青瓷精华展厅（国宝级文物青瓷釉下彩羽人纹盘口壶不可错过），",
+          "kind": "reference",
+          "start": 14,
+          "end": 56
+        },
+        {
+          "text": "三层六朝人杰展厅。",
+          "kind": "reference",
+          "start": 56,
+          "end": 65
+        },
+        {
+          "text": "馆内提供免费行李寄存和景区讲解服务，",
+          "kind": "reference",
+          "start": 65,
+          "end": 83
+        },
+        {
+          "text": "停车场参考价6元/小时（库位123个）。",
+          "kind": "reference",
+          "start": 83,
+          "end": 103
+        }
+      ]
+    },
+    {
+      "schema_version": "attraction-facts-v2",
+      "target_id": "target-3",
+      "entity_poi_id": null,
+      "topic": "opening_hours",
+      "value_raw": "全年 周二至周日 09:00-17:30（17:00停止入园）；全年周一闭馆。2026-10-22为周四，正常开放。",
+      "source_id": 1,
+      "statement_kind": "rule",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown",
+        "product": "general",
+        "product_kind": "admission",
+        "product_label": "",
+        "time_role": "mixed"
+      },
+      "evidence": [
+        {
+          "kind": "provider_response_span",
+          "quote": "全年 周二至周日 09:00-17:30（17:00停止入园）；全年周一闭馆。2026-10-22为周四，正常开放。",
+          "start": 1870,
+          "end": 1928
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "pending",
+        "content_support": "exact_provider_span",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_answer_reference",
+      "extraction_status": "candidate",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "matching",
+        "explicit_override": false
+      },
+      "rule_scope": {
+        "bucket": "provider_answer",
+        "date_relevance": "unknown"
+      },
+      "statements": [
+        {
+          "text": "全年 周二至周日 09:00-17:30（17:00停止入园）；",
+          "kind": "rule",
+          "start": 0,
+          "end": 32
+        },
+        {
+          "text": "全年周一闭馆。",
+          "kind": "rule",
+          "start": 32,
+          "end": 39
+        },
+        {
+          "text": "2026-10-22为周四，",
+          "kind": "reference",
+          "start": 39,
+          "end": 53
+        },
+        {
+          "text": "正常开放。",
+          "kind": "reference",
+          "start": 53,
+          "end": 58
+        }
+      ],
+      "rule_resolution": "adopted"
+    },
+    {
+      "schema_version": "attraction-facts-v2",
+      "target_id": "target-3",
+      "entity_poi_id": null,
+      "topic": "reservation_rules",
+      "value_raw": "需提前1天23:59前线上预订，凭电子凭证直接验证入园。每笔订单最多购买10份。",
+      "source_id": 1,
+      "statement_kind": "rule",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown",
+        "product": "general",
+        "product_kind": "admission",
+        "product_label": "",
+        "time_role": null
+      },
+      "evidence": [
+        {
+          "kind": "provider_response_span",
+          "quote": "需提前1天23:59前线上预订，凭电子凭证直接验证入园。每笔订单最多购买10份。",
+          "start": 1940,
+          "end": 1980
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "pending",
+        "content_support": "exact_provider_span",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_answer_reference",
+      "extraction_status": "candidate",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_scope": {
+        "bucket": "provider_answer",
+        "date_relevance": "unknown"
+      },
+      "statements": [
+        {
+          "text": "需提前1天23:59前线上预订，",
+          "kind": "reference",
+          "start": 0,
+          "end": 16
+        },
+        {
+          "text": "凭电子凭证直接验证入园。",
+          "kind": "reference",
+          "start": 16,
+          "end": 28
+        },
+        {
+          "text": "每笔订单最多购买10份。",
+          "kind": "reference",
+          "start": 28,
+          "end": 40
+        }
+      ],
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v2",
+      "target_id": "target-3",
+      "entity_poi_id": null,
+      "topic": "advice",
+      "value_raw": "地下一层看云锦天衣展厅（元代织金大袖袍服为最早运用云锦织金工艺的实物）和红楼梦曲展厅，一层看江宁织造历史沿革（曹雪芹祖父曹寅密折、《康熙南巡图》动态视频），二层看中国旗袍展厅。讲解器租赁收费，地址在一楼和负一楼租赁处。",
+      "source_id": 1,
+      "statement_kind": "advice",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown",
+        "product": "general",
+        "product_kind": "admission",
+        "product_label": "",
+        "time_role": null
+      },
+      "evidence": [
+        {
+          "kind": "provider_response_span",
+          "quote": "地下一层看云锦天衣展厅（元代织金大袖袍服为最早运用云锦织金工艺的实物）和红楼梦曲展厅，一层看江宁织造历史沿革（曹雪芹祖父曹寅密折、《康熙南巡图》动态视频），二层看中国旗袍展厅。讲解器租赁收费，地址在一楼和负一楼租赁处。",
+          "start": 2050,
+          "end": 2159
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "pending",
+        "content_support": "exact_provider_span",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_answer_reference",
+      "extraction_status": "candidate",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_scope": {
+        "bucket": "provider_answer",
+        "date_relevance": "unknown"
+      },
+      "statements": [
+        {
+          "text": "地下一层看云锦天衣展厅（元代织金大袖袍服为最早运用云锦织金工艺的实物）和红楼梦曲展厅，",
+          "kind": "reference",
+          "start": 0,
+          "end": 43
+        },
+        {
+          "text": "一层看江宁织造历史沿革（曹雪芹祖父曹寅密折、《康熙南巡图》动态视频），",
+          "kind": "reference",
+          "start": 43,
+          "end": 78
+        },
+        {
+          "text": "二层看中国旗袍展厅。",
+          "kind": "reference",
+          "start": 78,
+          "end": 88
+        },
+        {
+          "text": "讲解器租赁收费，",
+          "kind": "reference",
+          "start": 88,
+          "end": 96
+        },
+        {
+          "text": "地址在一楼和负一楼租赁处。",
+          "kind": "reference",
+          "start": 96,
+          "end": 109
+        }
+      ]
+    },
+    {
+      "schema_version": "attraction-facts-v1",
+      "target_id": "target-1",
+      "entity_poi_id": "B0019135C5",
+      "topic": "opening_hours",
+      "value_raw": "09:00-17:30",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown"
+      },
+      "source_id": 2,
+      "evidence": [
+        {
+          "kind": "api_field",
+          "path": "business.opentime_today",
+          "raw_value": "09:00-17:30"
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "verified",
+        "content_support": "exact_field",
+        "date_applicability": "not_target_day"
+      },
+      "status": "provider_reference",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v1",
+      "target_id": "target-1",
+      "entity_poi_id": "B0019135C5",
+      "topic": "opening_hours",
+      "value_raw": "周二至周日 09:00-17:30",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown"
+      },
+      "source_id": 2,
+      "evidence": [
+        {
+          "kind": "api_field",
+          "path": "business.opentime_week",
+          "raw_value": "周二至周日 09:00-17:30"
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "verified",
+        "content_support": "exact_field",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_reference",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v1",
+      "target_id": "target-2",
+      "entity_poi_id": "B00190BMRC",
+      "topic": "opening_hours",
+      "value_raw": "08:30-18:00",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown"
+      },
+      "source_id": 6,
+      "evidence": [
+        {
+          "kind": "api_field",
+          "path": "business.opentime_today",
+          "raw_value": "08:30-18:00"
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "verified",
+        "content_support": "exact_field",
+        "date_applicability": "not_target_day"
+      },
+      "status": "provider_reference",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v1",
+      "target_id": "target-2",
+      "entity_poi_id": "B00190BMRC",
+      "topic": "opening_hours",
+      "value_raw": "08:30-18:00（17:00停止入场，周一闭馆）(数据来源:江苏省文旅厅公共服务平台苏心游)",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown"
+      },
+      "source_id": 6,
+      "evidence": [
+        {
+          "kind": "api_field",
+          "path": "business.opentime_week",
+          "raw_value": "08:30-18:00（17:00停止入场，周一闭馆）(数据来源:江苏省文旅厅公共服务平台苏心游)"
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "verified",
+        "content_support": "exact_field",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_reference",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v1",
+      "target_id": "target-2",
+      "entity_poi_id": null,
+      "clause_start": 450,
+      "topic": "reservation_rules",
+      "value_raw": "温馨提示：微信搜索公众号【南京本地宝】，关注后在对话框回复【总统府】可获总统府门票购买/预约入口、团队预约入口/预约指南、门票优惠政策、景区导览图、游玩路线等信息。",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "team",
+        "product": "general",
+        "audience_label": "团队",
+        "product_kind": "admission"
+      },
+      "source_id": 7,
+      "evidence": [
+        {
+          "kind": "web_quote",
+          "quote": "温馨提示：微信搜索公众号【南京本地宝】，关注后在对话框回复【总统府】可获总统府门票购买/预约入口、团队预约入口/预约指南、门票优惠政策、景区导览图、游玩路线等信息。",
+          "start": 450,
+          "end": 532
+        }
+      ],
+      "applicability": {
+        "visit_date": "2026-10-22",
+        "date_status": "unknown",
+        "effective_from": null,
+        "effective_until": null,
+        "basis": "not_provided"
+      },
+      "verification": {
+        "identity": "unverified",
+        "entity_match": "verified",
+        "content_support": "exact_quote",
+        "date_applicability": "unknown"
+      },
+      "status": "unverified_source",
+      "rule_scope": {
+        "bucket": "variants",
+        "date_relevance": "unknown",
+        "date_basis": "not_provided"
+      },
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v1",
+      "target_id": "target-3",
+      "entity_poi_id": "B001911KPA",
+      "topic": "opening_hours",
+      "value_raw": "周二至周日09:00-17:30(17:00停止入馆),周一闭馆（法定节假日正常开放） 5月18日国际博物馆日9:00-17:30开放(17:30停止入馆),(数据来源:江苏省文旅厅公共服务平台苏心游)",
+      "scope": {
+        "visit_date": "2026-10-22",
+        "visit_mode": "entry",
+        "visitor_type": "unknown"
+      },
+      "source_id": 10,
+      "evidence": [
+        {
+          "kind": "api_field",
+          "path": "business.opentime_week",
+          "raw_value": "周二至周日09:00-17:30(17:00停止入馆),周一闭馆（法定节假日正常开放） 5月18日国际博物馆日9:00-17:30开放(17:30停止入馆),(数据来源:江苏省文旅厅公共服务平台苏心游)"
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "verified",
+        "content_support": "exact_field",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_reference",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_resolution": "pending"
+    },
+    {
+      "schema_version": "attraction-facts-v1",
+      "target_id": "target-4",
+      "entity_poi_id": "B0FFH62KNA",
+      "topic": "opening_hours",
+      "value_raw": "07:00-17:00；月初周一、15开放时间为:05:30-17:00,16:45停止入园,2026年春节期间07:00-18:00",
+      "scope": {
+        "visit_date": "2026-10-23",
+        "visit_mode": "entry",
+        "visitor_type": "unknown"
+      },
+      "source_id": 14,
+      "evidence": [
+        {
+          "kind": "api_field",
+          "path": "business.opentime_week",
+          "raw_value": "07:00-17:00；月初周一、15开放时间为:05:30-17:00,16:45停止入园,2026年春节期间07:00-18:00"
+        }
+      ],
+      "verification": {
+        "identity": "provider",
+        "entity_match": "verified",
+        "content_support": "exact_field",
+        "date_applicability": "unknown"
+      },
+      "status": "provider_reference",
+      "temporal_rule": {
+        "kind": "regular",
+        "effective_from": null,
+        "effective_to": null,
+        "applicability": "unknown",
+        "explicit_override": false
+      },
+      "rule_resolution": "pending"
+    }
+  ],
+  "place_details": [
+    {
+      "target_id": "target-1",
+      "status": "matched",
+      "detail": {
+        "poi_id": "B0019135C5",
+        "name": "六朝博物馆",
+        "parent_id": "B0FFHCCI7J",
+        "typecode": "140100",
+        "location": "118.799124,32.042840",
+        "address": "长江路302号",
+        "city": "南京市",
+        "adcode": "320102",
+        "opening_today_raw": "09:00-17:30",
+        "opening_week_raw": "周二至周日 09:00-17:30",
+        "phone": "025-52326032",
+        "average_cost_raw": null,
+        "entrance_location": "118.799244,32.042144",
+        "exit_location": null,
+        "children": [
+          {
+            "id": "B0H0Y5K6G3",
+            "name": "六朝博物馆地下停车场",
+            "location": "118.799169,32.043090",
+            "address": "长江路302号六朝博物馆",
+            "typecode": "150904"
+          },
+          {
+            "id": "B0H0Y5I29Z",
+            "name": "六朝博物馆东侧停车场",
+            "location": "118.799706,32.043376",
+            "address": "长江路302号六朝博物馆",
+            "typecode": "150904"
+          },
+          {
+            "id": "B0H0Y5IP2P",
+            "name": "六朝博物馆西侧停车场",
+            "location": "118.798783,32.043079",
+            "address": "长江路302号六朝博物馆",
+            "typecode": "150904"
+          }
+        ],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/text",
+        "retrieved_at": "2026-10-21T09:58:14.347779+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B0019135C5",
+          "name": "六朝博物馆",
+          "parent": "B0FFHCCI7J",
+          "typecode": "140100",
+          "location": "118.799124,32.042840",
+          "address": "长江路302号",
+          "cityname": "南京市",
+          "adcode": "320102",
+          "business": {
+            "opentime_today": "09:00-17:30",
+            "opentime_week": "周二至周日 09:00-17:30",
+            "tel": "025-52326032",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "118.799244,32.042144",
+            "exit_location": null
+          }
+        },
+        "content_hash": "5f66d06b2d31fee39bbb5df9d0e0cb56718b9d71409ef4a97eb47faa994c8fb0",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      },
+      "entity_poi_id": "B0019135C5",
+      "navigation_poi_id": null,
+      "candidates": [
+        {
+          "poi_id": "B0019135C5",
+          "name": "六朝博物馆",
+          "address": "长江路302号",
+          "city": "南京市",
+          "parent_id": "B0FFHCCI7J"
+        },
+        {
+          "poi_id": "B00190B8ZD",
+          "name": "南京市博物馆",
+          "address": "朝天宫4号",
+          "city": "南京市",
+          "parent_id": "B00190AMPT"
+        },
+        {
+          "poi_id": "B0H0Y5K6G3",
+          "name": "六朝博物馆地下停车场",
+          "address": "长江路302号六朝博物馆",
+          "city": "南京市",
+          "parent_id": "B0019135C5"
+        },
+        {
+          "poi_id": "B0H0Y5IH64",
+          "name": "六朝博物馆地下停车场(入口)",
+          "address": "六朝博物馆地下停车场",
+          "city": "南京市",
+          "parent_id": "B0H0Y5K6G3"
+        },
+        {
+          "poi_id": "B0H0Y5I29Z",
+          "name": "六朝博物馆东侧停车场",
+          "address": "长江路302号六朝博物馆",
+          "city": "南京市",
+          "parent_id": "B0019135C5"
+        }
+      ],
+      "display": {
+        "address": "长江路302号",
+        "phone": "025-52326032",
+        "entrance_location": "118.799244,32.042144",
+        "average_cost_raw": "",
+        "openings": [
+          {
+            "text": "09:00-17:30",
+            "fields": [
+              "opening_today_raw"
+            ]
+          },
+          {
+            "text": "周二至周日 09:00-17:30",
+            "fields": [
+              "opening_week_raw"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "target_id": "target-2",
+      "status": "matched",
+      "detail": {
+        "poi_id": "B00190BMRC",
+        "name": "总统府",
+        "parent_id": null,
+        "typecode": "110202",
+        "location": "118.797398,32.044228",
+        "address": "长江路292号",
+        "city": "南京市",
+        "adcode": "320102",
+        "opening_today_raw": "08:30-18:00",
+        "opening_week_raw": "08:30-18:00（17:00停止入场，周一闭馆）(数据来源:江苏省文旅厅公共服务平台苏心游)",
+        "phone": "025-84578716;025-84578888",
+        "average_cost_raw": null,
+        "entrance_location": "118.797561,32.042579",
+        "exit_location": null,
+        "children": [
+          {
+            "id": "B00190YOI5",
+            "name": "总统府停车场(内部专用)",
+            "location": "118.795954,32.043330",
+            "address": "长江路288号总统府(大行宫地铁站5号口步行190米)",
+            "typecode": "150905"
+          },
+          {
+            "id": "B0MGDZPN8P",
+            "name": "总统府景区停车场",
+            "location": "118.797375,32.041975",
+            "address": "新街口街道总统府(大行宫地铁站5号口步行320米)",
+            "typecode": "150904"
+          },
+          {
+            "id": "B001909F58",
+            "name": "总统府售票处",
+            "location": "118.797097,32.042744",
+            "address": "长江路292号总统府(大行宫地铁站5号口步行250米)",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0FFKKAK0E",
+            "name": "总统府团体购票口",
+            "location": "118.797077,32.042801",
+            "address": "长江路292号总统府旧址",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0FFGM27O3",
+            "name": "总统府游客中心",
+            "location": "118.797849,32.043088",
+            "address": "长江路292号",
+            "typecode": "070201"
+          }
+        ],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/text",
+        "retrieved_at": "2026-10-21T09:58:23.843863+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B00190BMRC",
+          "name": "总统府",
+          "parent": "",
+          "typecode": "110202",
+          "location": "118.797398,32.044228",
+          "address": "长江路292号",
+          "cityname": "南京市",
+          "adcode": "320102",
+          "business": {
+            "opentime_today": "08:30-18:00",
+            "opentime_week": "08:30-18:00（17:00停止入场，周一闭馆）(数据来源:江苏省文旅厅公共服务平台苏心游)",
+            "tel": "025-84578716;025-84578888",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "118.797561,32.042579",
+            "exit_location": null
+          }
+        },
+        "content_hash": "d8633c9fe9ccc5ab14f5a9c999326c3cbea5cd0bc47760b062357dbd8bb828bf",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      },
+      "entity_poi_id": "B00190BMRC",
+      "navigation_poi_id": null,
+      "candidates": [
+        {
+          "poi_id": "B00190BMRC",
+          "name": "总统府",
+          "address": "长江路292号",
+          "city": "南京市",
+          "parent_id": null
+        },
+        {
+          "poi_id": "B001909F58",
+          "name": "总统府售票处",
+          "address": "长江路292号总统府(大行宫地铁站5号口步行250米)",
+          "city": "南京市",
+          "parent_id": "B00190BMRC"
+        },
+        {
+          "poi_id": "BV10056869",
+          "name": "总统府(公交站)",
+          "address": "29路;304路;44路;65路;95路;9路;G17路;G5路",
+          "city": "南京市",
+          "parent_id": null
+        },
+        {
+          "poi_id": "B0FFFDPNSZ",
+          "name": "总统府二堂(中堂)",
+          "address": "长江路292号总统府",
+          "city": "南京市",
+          "parent_id": "B00190BMRC"
+        },
+        {
+          "poi_id": "B0FFKXL0L1",
+          "name": "总统府礼堂",
+          "address": "长江路292号总统府内",
+          "city": "南京市",
+          "parent_id": "B00190BMRC"
+        }
+      ],
+      "display": {
+        "address": "长江路292号",
+        "phone": "025-84578716；025-84578888",
+        "entrance_location": "118.797561,32.042579",
+        "average_cost_raw": "",
+        "openings": [
+          {
+            "text": "08:30-18:00",
+            "fields": [
+              "opening_today_raw"
+            ]
+          },
+          {
+            "text": "08:30-18:00（17:00停止入场，周一闭馆）(数据来源:江苏省文旅厅公共服务平台苏心游)",
+            "fields": [
+              "opening_week_raw"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "target_id": "target-3",
+      "status": "matched",
+      "detail": {
+        "poi_id": "B001911KPA",
+        "name": "江宁织造博物馆",
+        "parent_id": "B0FFHCCI7J",
+        "typecode": "140100",
+        "location": "118.794071,32.042136",
+        "address": "长江路123号",
+        "city": "南京市",
+        "adcode": "320102",
+        "opening_today_raw": null,
+        "opening_week_raw": "周二至周日09:00-17:30(17:00停止入馆),周一闭馆（法定节假日正常开放） 5月18日国际博物馆日9:00-17:30开放(17:30停止入馆),(数据来源:江苏省文旅厅公共服务平台苏心游)",
+        "phone": "025-52243204",
+        "average_cost_raw": null,
+        "entrance_location": "118.794812,32.043069",
+        "exit_location": null,
+        "children": [
+          {
+            "id": "B0H0MRLWUF",
+            "name": "江宁织造博物馆停车场",
+            "location": "118.793576,32.041934",
+            "address": "长江路123号江宁织造博物馆",
+            "typecode": "150905"
+          },
+          {
+            "id": "B0K1S15U9G",
+            "name": "江宁织造博物馆售票处",
+            "location": "118.794200,32.042917",
+            "address": "长江路123号江宁织造博物馆",
+            "typecode": "070306"
+          }
+        ],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/text",
+        "retrieved_at": "2026-10-21T09:58:36.602720+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B001911KPA",
+          "name": "江宁织造博物馆",
+          "parent": "B0FFHCCI7J",
+          "typecode": "140100",
+          "location": "118.794071,32.042136",
+          "address": "长江路123号",
+          "cityname": "南京市",
+          "adcode": "320102",
+          "business": {
+            "opentime_today": null,
+            "opentime_week": "周二至周日09:00-17:30(17:00停止入馆),周一闭馆（法定节假日正常开放） 5月18日国际博物馆日9:00-17:30开放(17:30停止入馆),(数据来源:江苏省文旅厅公共服务平台苏心游)",
+            "tel": "025-52243204",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "118.794812,32.043069",
+            "exit_location": null
+          }
+        },
+        "content_hash": "74aeb2dae4415ba1f0c485945c23622f5a33dc12aea160acc2b52e8bafa76ba9",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      },
+      "entity_poi_id": "B001911KPA",
+      "navigation_poi_id": null,
+      "candidates": [
+        {
+          "poi_id": "B001911KPA",
+          "name": "江宁织造博物馆",
+          "address": "长江路123号",
+          "city": "南京市",
+          "parent_id": "B0FFHCCI7J"
+        },
+        {
+          "poi_id": "B0K1S15U9G",
+          "name": "江宁织造博物馆售票处",
+          "address": "长江路123号江宁织造博物馆",
+          "city": "南京市",
+          "parent_id": "B001911KPA"
+        },
+        {
+          "poi_id": "B0H0MRLWUF",
+          "name": "江宁织造博物馆停车场",
+          "address": "长江路123号江宁织造博物馆",
+          "city": "南京市",
+          "parent_id": "B001911KPA"
+        },
+        {
+          "poi_id": "B0H0MRLPJR",
+          "name": "江宁织造博物馆停车场(出入口)",
+          "address": "江宁织造博物馆停车场(大行宫地铁站2号口步行190米)",
+          "city": "南京市",
+          "parent_id": "B0H0MRLWUF"
+        },
+        {
+          "poi_id": "B0I6BLZEB2",
+          "name": "江宁织造博物馆-游客中心",
+          "address": "长江路123号江宁织造博物馆F1",
+          "city": "南京市",
+          "parent_id": "B001911KPA"
+        }
+      ],
+      "display": {
+        "address": "长江路123号",
+        "phone": "025-52243204",
+        "entrance_location": "118.794812,32.043069",
+        "average_cost_raw": "",
+        "openings": [
+          {
+            "text": "周二至周日09:00-17:30(17:00停止入馆),周一闭馆（法定节假日正常开放） 5月18日国际博物馆日9:00-17:30开放(17:30停止入馆),(数据来源:江苏省文旅厅公共服务平台苏心游)",
+            "fields": [
+              "opening_week_raw"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "target_id": "target-4",
+      "status": "matched",
+      "detail": {
+        "poi_id": "B0FFH62KNA",
+        "name": "古鸡鸣寺",
+        "parent_id": null,
+        "typecode": "110205",
+        "location": "118.795246,32.061061",
+        "address": "鸡鸣寺路1号钟山风景名胜区玄武湖景区内西南侧",
+        "city": "南京市",
+        "adcode": "320102",
+        "opening_today_raw": null,
+        "opening_week_raw": "07:00-17:00；月初周一、15开放时间为:05:30-17:00,16:45停止入园,2026年春节期间07:00-18:00",
+        "phone": "025-57715595",
+        "average_cost_raw": null,
+        "entrance_location": "118.795823,32.060155",
+        "exit_location": null,
+        "children": [
+          {
+            "id": "B0LBRUCYQC",
+            "name": "古鸡鸣寺地面停车场(内部专用)",
+            "location": "118.795681,32.061827",
+            "address": "古鸡鸣寺(东北角)",
+            "typecode": "150905"
+          },
+          {
+            "id": "B001915MBP",
+            "name": "古鸡鸣寺售票处",
+            "location": "118.795767,32.060244",
+            "address": "古鸡鸣寺山门旁(鸡鸣寺地铁站5号口步行410米)",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0L3SN2D08",
+            "name": "南京站北门售票处",
+            "location": "118.795206,32.061138",
+            "address": "古鸡鸣寺",
+            "typecode": "070300"
+          }
+        ],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/text",
+        "retrieved_at": "2026-10-21T09:58:47.254782+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B0FFH62KNA",
+          "name": "古鸡鸣寺",
+          "parent": "",
+          "typecode": "110205",
+          "location": "118.795246,32.061061",
+          "address": "鸡鸣寺路1号钟山风景名胜区玄武湖景区内西南侧",
+          "cityname": "南京市",
+          "adcode": "320102",
+          "business": {
+            "opentime_today": null,
+            "opentime_week": "07:00-17:00；月初周一、15开放时间为:05:30-17:00,16:45停止入园,2026年春节期间07:00-18:00",
+            "tel": "025-57715595",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "118.795823,32.060155",
+            "exit_location": null
+          }
+        },
+        "content_hash": "d1fbfb9798291a8ee66590a3ca3ffa390f4833d34b1a73b7197b3156ee165c46",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      },
+      "entity_poi_id": "B0FFH62KNA",
+      "navigation_poi_id": null,
+      "candidates": [
+        {
+          "poi_id": "B0FFH62KNA",
+          "name": "古鸡鸣寺",
+          "address": "鸡鸣寺路1号钟山风景名胜区玄武湖景区内西南侧",
+          "city": "南京市",
+          "parent_id": null
+        },
+        {
+          "poi_id": "B001915MBP",
+          "name": "古鸡鸣寺售票处",
+          "address": "古鸡鸣寺山门旁(鸡鸣寺地铁站5号口步行410米)",
+          "city": "南京市",
+          "parent_id": "B0FFH62KNA"
+        },
+        {
+          "poi_id": "B0FFMACWG6",
+          "name": "古鸡鸣寺-牌坊",
+          "address": "玄武门街道玄武门街道古鸡鸣寺路1号古鸡鸣寺内(南侧)",
+          "city": "南京市",
+          "parent_id": "B0FFH62KNA"
+        },
+        {
+          "poi_id": "B0FFH8DEAK",
+          "name": "古鸡鸣寺-钟楼",
+          "address": "古鸡鸣寺",
+          "city": "南京市",
+          "parent_id": "B0FFH62KNA"
+        },
+        {
+          "poi_id": "B0FFL80WXK",
+          "name": "古鸡鸣寺-客堂",
+          "address": "古鸡鸣寺路1号古鸡鸣寺内(西南角)",
+          "city": "南京市",
+          "parent_id": "B0FFH62KNA"
+        }
+      ],
+      "display": {
+        "address": "鸡鸣寺路1号钟山风景名胜区玄武湖景区内西南侧",
+        "phone": "025-57715595",
+        "entrance_location": "118.795823,32.060155",
+        "average_cost_raw": "",
+        "openings": [
+          {
+            "text": "07:00-17:00；月初周一、15开放时间为:05:30-17:00,16:45停止入园,2026年春节期间07:00-18:00",
+            "fields": [
+              "opening_week_raw"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "legacy_coverage": {
+    "target_count": 6,
+    "topic_count": 3,
+    "covered_count": 0,
+    "remaining_count": 18,
+    "platform_fact_count": 6,
+    "conflict_count": 0,
+    "provider_candidate_count": 6,
+    "candidate_conflict_count": 0,
+    "soft_advice_count": 2
+  },
+  "legacy_brief": "## 原方案景点事实核验\n关联方案：南京参考方案（2天）\n已开始处理 4/6 个景点；待处理 2 个。\n逐项官方核验：0/18；未知不等于免费、免预约或闭馆。\n待处理（尚未查询）：南京城墙景区(神策门至太平门)、玄武湖景区。\n\n### 六朝博物馆\n目标日：2026-10-22\n适用范围：普通入馆；优惠、附加票和历史资料单独列示。\n核验说明：〔1〕高德平台参考，非官方规则；〔2〕携程问道综合回答，尚未独立核实。\n- 票价：普通入馆规则尚未核实。\n- 预约规则：普通入馆规则尚未核实。\n- 开放时间〔1；常规字段：目标日期/例外待确认〕：周二至周日 09:00-17:30 [2]\n\n### 总统府\n目标日：2026-10-22\n适用范围：普通入馆；优惠、附加票和历史资料单独列示。\n核验说明：〔1〕高德平台参考，非官方规则；〔2〕来源身份未验证。\n- 票价：普通入馆规则尚未核实。\n- 预约规则：普通入馆规则尚未核实。\n- 开放时间〔1；常规字段：目标日期/例外待确认〕：08:30-18:00（17:00停止入场，周一闭馆）(数据来源:江苏省文旅厅公共服务平台苏心游) [6]\n\n### 江宁织造博物馆\n目标日：2026-10-22\n适用范围：普通入馆；优惠、附加票和历史资料单独列示。\n核验说明：〔1〕高德平台参考，非官方规则；〔2〕携程问道综合回答，尚未独立核实。\n- 票价：普通入馆规则尚未核实。\n- 预约规则：普通入馆规则尚未核实。\n- 开放时间〔1；常规字段：目标日期/例外待确认〕：周二至周日09:00-17:30(17:00停止入馆),周一闭馆（法定节假日正常开放） 5月18日国际博物馆日9:00-17:30开放(17:30停止入馆),(数据来源:江苏省文旅厅公共服务平台苏心游) [10]\n\n### 古鸡鸣寺\n目标日：2026-10-23\n适用范围：普通入馆；优惠、附加票和历史资料单独列示。\n核验说明：〔1〕高德平台参考，非官方规则。\n- 票价：普通入馆规则尚未核实。\n- 预约规则：普通入馆规则尚未核实。\n- 开放时间〔1；常规字段：目标日期/例外待确认〕：07:00-17:00；月初周一、15开放时间为:05:30-17:00,16:45停止入园,2026年春节期间07:00-18:00 [14]\n这是精简结果；其余条款、冲突双方及完整引用请在当前会话研究面板展开“查看完整报告”。\n高德人均消费不是门票价格；平台营业描述不等于目标日官方规则。\n本次研究没有修改行程、创建提醒、订票或提交预约。\n携程问道完整回答已保存在研究报告；供应商回答尚未独立核实。",
+  "requested_target_ids": [
+    "target-1",
+    "target-2",
+    "target-3",
+    "target-4"
+  ]
+}

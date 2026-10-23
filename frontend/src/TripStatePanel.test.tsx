@@ -8,7 +8,8 @@ it('distinguishes saved budget from pending budget and its source',()=>{
     draft={[{field:'budget',label:'住宿预算',value:'320元/间/晚',source:'用户更正'}]}/>);
   expect(screen.getByText(/420元/)).toBeTruthy();
   expect(screen.getByText(/待确认：320元\/间\/晚（尚未保存）/)).toBeTruthy();
-  expect(screen.getByText('用户更正')).toBeTruthy();
+  expect(screen.queryByText('查看依据')).toBeNull();
+  expect(screen.queryByText('用户更正')).toBeNull();
 });
 it('submits a typed budget operation and never says it was saved',async()=>{
   const edit=vi.fn().mockResolvedValue(undefined);

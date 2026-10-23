@@ -119,8 +119,9 @@ class TripTests(unittest.TestCase):
     def test_initial_request_can_explicitly_defer_date(self):
         self.client.completions.responses = [model_response({**SPEC, 'start_date_text': '先不定日期'}), model_response(plan_value())]
         reply = self.handle('帮我规划武汉三天行程，带老人，必去湖北省博物馆，先不定日期', 'defer-initial')
-        self.assertIn('日期待定', reply)
-        self.assertEqual(self.trip()['spec']['start_date'], '')
+        self.assertIn('日期暂定', reply)
+        self.assertEqual(self.trip()['spec']['start_date'], '2030-09-10')
+        self.assertTrue(self.trip()['spec']['date_is_tentative'])
         self.assertEqual(self.reminders(), ())
 
     def test_refresh_policy_previews_unchanged_visit_then_rechecks_on_confirm(self):
@@ -261,21 +262,23 @@ class TripTests(unittest.TestCase):
         self.handle('武汉', 'city')
         self.assertEqual(self.trip()['spec']['day_count'], 3)
 
-    def test_holiday_needs_specific_start_date(self):
+    def test_holiday_uses_reference_then_explicit_date_wins(self):
         first = {**SPEC, 'start_date_text': '国庆'}
-        second = {**SPEC, 'start_date_text': '10月2日'}
-        self.client.completions.responses = [model_response(first), model_response(second), model_response(plan_value())]
+        self.client.completions.responses = [model_response(first), model_response(plan_value())]
         reply = self.handle('帮我规划国庆武汉三天行程，带老人，必去湖北省博物馆', 'first')
-        self.assertIn('具体哪天', reply)
+        self.assertIn('日期暂定', reply)
+        self.assertIn('国庆', reply)
+        self.assertEqual(self.trip()['spec']['start_date'], '2030-09-10')
         self.handle('10月2日', 'date')
         self.assertEqual(self.trip()['plan']['days'][0]['date'], '2030-10-02')
+        self.assertFalse(self.trip()['spec']['date_is_tentative'])
+        self.assertEqual(self.trip()['spec']['end_date'], '2030-10-04')
 
     def test_undated_draft_can_be_saved_then_dates_and_reminders_completed(self):
         first = {**SPEC, 'start_date_text': '国庆'}
         self.client.completions.responses = [model_response(first), model_response(plan_value())]
-        self.handle('帮我规划国庆武汉三天行程，带老人，必去湖北省博物馆，并提醒预约', 'first')
-        reply = self.handle('先不定日期', 'defer')
-        self.assertIn('日期待定', reply)
+        reply = self.handle('帮我规划国庆武汉三天行程，带老人，必去湖北省博物馆，并提醒预约', 'first')
+        self.assertIn('日期暂定', reply)
         self.assertEqual(self.reminders(), ())
         self.handle('10月1日', 'date')
         self.assertEqual(self.trip()['spec']['start_date'], '2030-10-01')
@@ -291,6 +294,15 @@ class TripTests(unittest.TestCase):
         self.handle('确认行程提醒', 'confirm')
         self.assertEqual(self.reminders()[0]['scheduled_at_utc'], manual_time)
         self.assertEqual(json.loads(self.reminders()[0]['source_json'])['visit_date'], '2030-10-02')
+
+    def test_reference_date_does_not_move_existing_reminders_silently(self):
+        self.create(with_reminder=True)
+        trip = self.trip()
+        trip['spec']['date_is_tentative'] = True
+        changes, notes, errors, _, _ = self.service._reminder_changes(self.event('', 'inspect'), trip)
+        self.assertEqual(changes, [])
+        self.assertEqual(errors, [])
+        self.assertIn('仍按原时刻执行', ''.join(notes))
 
     def test_cancel_trip_and_reminder_are_committed_together_after_review(self):
         self.create(with_reminder=True)

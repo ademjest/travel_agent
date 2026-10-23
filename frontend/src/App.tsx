@@ -44,6 +44,7 @@ import { ConversationUsage } from "./ConversationUsage";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { TripStatePanel, TripChangeDiff } from "./TripStatePanel";
+import { SidebarResizeHandle } from "./SidebarResizeHandle";
 import { api, ApiError, bootstrap, dateText, emptyContext, label } from "./api";
 import type {
   Bootstrap,
@@ -111,6 +112,15 @@ export function normalizeMarkdownText(text: string) {
     );
 }
 
+export function internalEvidenceLink(href?: string) {
+  if (!href) return false;
+  try {
+    const url = new URL(href, window.location.href);
+    return url.origin === window.location.origin && url.pathname === window.location.pathname &&
+      /^#source-(?:[a-f0-9]{12}-)?\d+-target-\d+-(opening_hours|ticket_price|reservation_rules)$/.test(url.hash);
+  } catch { return false; }
+}
+
 export function Markdown({ text }: { text: unknown }) {
   if (typeof text !== "string")
     return <p role="alert">这条内容暂时无法显示，请刷新或重新生成。</p>;
@@ -125,7 +135,9 @@ export function Markdown({ text }: { text: unknown }) {
         rehypePlugins={[[rehypeKatex, { trust: false, strict: "ignore", maxExpand: 1000, maxSize: 20 }]]}
         skipHtml
         components={{
-          a: ({ href, children }) => (
+          a: ({ href, children }) => internalEvidenceLink(href) ? (
+            null
+          ) : (
             <a href={href} target="_blank" rel="noreferrer noopener">
               {children}
             </a>
@@ -837,6 +849,7 @@ export default function App() {
         inert={width < 768 && !sidebar}
         aria-label="会话导航"
       >
+        <SidebarResizeHandle side="left" viewport={width} />
         <a
           className="brand"
           href="#"
@@ -1445,6 +1458,7 @@ export default function App() {
       </main>
 
       <aside className="details-panel">
+        {details && <SidebarResizeHandle side="right" viewport={width} />}
         <header className="details-header">
           <span>
             <Map size={17} />
@@ -1458,7 +1472,7 @@ export default function App() {
             <PanelRightClose size={18} />
           </button>
         </header>
-        <ResearchPanel conversation={active} onPlan={() => { setDraft("根据研究结果规划行程"); input.current?.focus(); }} />
+        <ResearchPanel conversation={active} refreshKey={messages.at(-1)?.id || ""} busy={context.jobs.length > 0} onPlan={() => { setDraft("根据研究结果规划行程"); input.current?.focus(); }} />
         <div className="detail-tabs" role="tablist" aria-label="旅行资料">
           {[
             ["trip", "行程"],
@@ -1488,7 +1502,7 @@ export default function App() {
                     <span>{trip.spec.day_count} 天</span>
                   </div>
                   <p className="muted">
-                    {trip.spec.start_date || "日期待定"} · 版本 {trip.version}
+                    {trip.spec.start_date || "日期待定"}{trip.spec.date_is_tentative ? "（暂定参考）" : ""} · 版本 {trip.version}
                   </p>
                   <TripStatePanel facts={trip.facts || []} draft={trip.draft_facts} onEdit={async (field,value)=>{
                     await api(`/conversations/${active}/trips/${trip.trip_id}/fields`, {method:'POST',body:JSON.stringify({
@@ -1496,9 +1510,9 @@ export default function App() {
                       client_request_id:crypto.randomUUID()})});
                     await refresh(active);
                   }} />
-                  {trip.spec.preferences?.length ? (
+                  {trip.spec.preferences?.filter(p => !(trip.facts || []).some(f => f.value.includes(p))).length ? (
                     <div className="tags">
-                      {trip.spec.preferences.map((p) => (
+                      {trip.spec.preferences.filter(p => !(trip.facts || []).some(f => f.value.includes(p))).map((p) => (
                         <span key={p}>{p}</span>
                       ))}
                     </div>
@@ -1514,12 +1528,19 @@ export default function App() {
                             第 {day.day_index} 天 <small>{day.date}</small>
                           </h3>
                           {day.activities.map((a, i) => (
-                            <p key={i}>
+                              <div key={i}>
+                                <p>
                               <small>{a.period}</small>
                               {a.name ||
                                 trip.sources[a.poi_id || ""]?.name ||
                                 "待确认地点"}
-                            </p>
+                                </p>
+                                {a.description && <details><summary>介绍与玩法</summary>
+                                  {a.description.intro && <p>{a.description.intro.text}</p>}
+                                  {a.description.why_visit && <p>安排理由：{a.description.why_visit}</p>}
+                                  {a.description.tips?.map((tip, index) => <p key={index}>怎么玩（一般建议）：{tip.text}</p>)}
+                                </details>}
+                              </div>
                           ))}
                           <button
                             onClick={() =>

@@ -15,14 +15,14 @@ export function TripStatePanel({facts, draft, onEdit}: {facts: FactRow[]; draft?
   const rows = [...facts, ...(draft || []).filter(row => !facts.some(old => old.field === row.field))];
   if (!rows.length && !onEdit) return null;
   return <section aria-label="当前旅行需求">
-    <h3>当前需求</h3>
+    <details className="trip-preferences">
+    <summary>旅行偏好与预算{(draft || []).some(row => facts.find(old => old.field === row.field)?.value !== row.value) && ' · 有修改待确认（尚未保存）'}</summary>
     {rows.map(row => {
       const saved = facts.find(old => old.field === row.field);
       const next = pending.get(row.field);
       return <div key={row.field}>
         <strong>{row.label}</strong>：{saved?.value || '未明确'}
         {next && next.value !== saved?.value && <p>待确认：{next.value}（尚未保存）</p>}
-        <details><summary>查看依据</summary><p>{next?.source || row.source}</p></details>
       </div>;
     })}
     {onEdit && <details><summary>调整需求</summary>
@@ -33,6 +33,7 @@ export function TripStatePanel({facts, draft, onEdit}: {facts: FactRow[]; draft?
       <button disabled={busy} onClick={()=>void edit('night','false')}>调整为不夜游</button>
       {message && <p role="status">{message}</p>}
     </details>}
+    </details>
   </section>;
 }
 

@@ -109,9 +109,12 @@ def public_address(url):
 
 
 def request_public(url, *, payload=None, headers=None, max_bytes=2_000_000, redirects=0,
-                   content_types=('application/json',), timeout=20, sleeper=None, diagnostics=None):
+                   content_types=('application/json',), timeout=20, sleeper=None, diagnostics=None, url_allowed=None,
+                   max_attempts=3, persist=True):
     started = time.monotonic()
     budget = PublicReadBudget(url,payload,headers,(max_bytes,redirects,content_types))
+    if not persist:
+        budget.key = None
     def emit(status,error=None):
         if diagnostics is not None:
             try:
@@ -120,15 +123,21 @@ def request_public(url, *, payload=None, headers=None, max_bytes=2_000_000, redi
             except Exception:
                 pass
     ensure_execution_active()
+    if url_allowed is not None and not url_allowed(url):
+        raise PublicHTTPError('source_policy_rejected')
     cached = budget.cached()
     if cached:
+        if url_allowed is not None and not url_allowed(cached[1]):
+            raise PublicHTTPError('source_policy_rejected')
         emit('checkpoint_reused')
         return cached
     LAST_FETCH_AT.set(None)
     redirected = 0
     last_error = None
-    for attempt in range(3):
+    for attempt in range(max_attempts):
         ensure_execution_active()
+        if url_allowed is not None and not url_allowed(url):
+            raise PublicHTTPError('source_policy_rejected')
         parsed, address = public_address(url)
         remaining = timeout - (time.monotonic()-started)
         scope = CURRENT_EXECUTION.get()
@@ -190,7 +199,7 @@ def request_public(url, *, payload=None, headers=None, max_bytes=2_000_000, redi
             pool.close()
         last_error.attempts = budget.attempts
         emit('failed',last_error)
-        if not last_error.retryable or budget.attempts >= 3:
+        if not last_error.retryable or budget.attempts >= max_attempts:
             raise last_error
         delay = last_error.retry_after_seconds
         delay = random.uniform(0,min(4,2**attempt)) if delay is None else delay

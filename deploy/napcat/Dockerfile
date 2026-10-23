@@ -16,6 +16,8 @@ COPY infrastructure ./infrastructure
 COPY services ./services
 COPY tools ./tools
 COPY skills ./skills
-COPY docs/prompt_design/abstract_design_prompts.md ./docs/prompt_design/abstract_design_prompts.md
+COPY data/official_sources.json ./data/official_sources.json
+COPY data/attraction_aliases.json ./data/attraction_aliases.json
+COPY prompts ./prompts
 
 CMD ["uvicorn", "adapters.onebot_app:create_runtime_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

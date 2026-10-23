@@ -91,6 +91,12 @@ class SemanticTaskService:
                 expected_draft=(draft['task'].task_id if draft else '',draft['task'].version if draft else 0))
         pending = self._pending(event)
         reminders = self._pending_reminders(event)
+        if self.mode == 'execute' and not pending and not reminders and self.trip_service is not None:
+            from services.trip_service import reference_date_answer
+            if reference_date_answer(event.content.strip()):
+                dated_trips = self.store.trips.list_for_owner(event)
+                if len(dated_trips) == 1 and dated_trips[0]['spec'].get('date_is_tentative'):
+                    return self.trip_service.handle(event, claim)
         rule = parse_rules(event.content) if rules_enabled() and not pending and not reminders and not event.attachments else None
         if hasattr(self.store,'get_event_tool_result'):
             frozen=self.store.get_event_tool_result('rule-plan:'+hashlib.sha256(event.event_key.encode()).hexdigest())
@@ -326,7 +332,8 @@ class SemanticTaskService:
             request['plan'] = plan
             request['plan_resolution'] = resolution
         try:
-            request['dates'] = research_dates(request, event, request.get('plan',{}).get('duration_options',[]))
+            request['dates'] = research_dates(request, event, request.get('plan',{}).get('duration_options',[]),
+                                             planning_spec=request.get('plan',{}).get('planning_spec'))
         except ValueError as error:
             diagnostic('research_needs_input', reason='invalid_research_dates')
             return str(error)
@@ -472,7 +479,8 @@ class SemanticTaskService:
             spec = trip.get('spec', {})
             candidates.append({'index': index, 'title': trip.get('title', ''),
                 'city': spec.get('destination', ''), 'start_date': spec.get('start_date', ''),
-                'end_date': spec.get('end_date', ''), 'days': spec.get('day_count'), 'version': trip.get('version')})
+                'end_date': spec.get('end_date', ''), 'date_is_tentative': spec.get('date_is_tentative', False),
+                'days': spec.get('day_count'), 'version': trip.get('version')})
         selected = trips[0] if len(trips) == 1 else None
         ids = re.findall(r'TR-[a-f0-9]{12}', event.content)
         if ids:
@@ -486,7 +494,7 @@ class SemanticTaskService:
         if selected:
             context['current_trip_index'] = next(i for i,t in enumerate(trips,1) if t['trip_id'] == selected['trip_id'])
             spec = selected.get('spec', {})
-            context['current_trip'] = {k: spec[k] for k in ('destination','start_date','end_date','day_count',
+            context['current_trip'] = {k: spec[k] for k in ('destination','start_date','end_date','day_count','date_is_tentative',
                 'gentle','pace','transport_text','transport_preferences','must_visit','preferences','constraint_overrides',
                 'hotel_requested','accommodation_text','hotel_preferences','restaurant_requested','dining_text',
                 'dining_preferences','budget_text','budgets') if k in spec}

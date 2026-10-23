@@ -3,7 +3,7 @@ import inspect
 import logging
 import time
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Callable, Sequence
 from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor
@@ -60,6 +60,9 @@ def _system_prompt(decision: TravelDecision, reference_time: str = '') -> str:
         names = (*names, ASK_USER_TOOL)
     allowed_tools = "、".join(names) or "无"
     current_date = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    planning_day = (datetime.fromisoformat(reference_time).astimezone(ZoneInfo('Asia/Shanghai')).date()
+                    if reference_time else datetime.now(ZoneInfo('Asia/Shanghai')).date())
+    planning_start = (planning_day + timedelta(days=1)).isoformat()
     intents = "、".join(decision.intents)
     reference_note = ''
     if reference_time:
@@ -83,6 +86,7 @@ def _system_prompt(decision: TravelDecision, reference_time: str = '') -> str:
 13. 普通个人提醒由上层应用服务解析、保存和调度。本轮允许工具列表不代表整个应用的能力；没有成功执行结果时只能说明本次提醒尚未确认创建，不能因为本轮缺少相关工具而断言系统没有提醒功能，也不能冒充已经完成设置。
 14. 使用规范 Markdown：主要区块用 ##，子区块用 ###；编号与项目标题写在同一行；不要输出只有编号的空列表项；相邻列表和正文只保留一个空行。
 15. “带伞／会不会淋雨”是天气判断，“从某处去某处”可以表达路线。用户给出的出发时间不是创建提醒或定时查询的授权。日级天气不能证明18:30某个小区是否下雨；交通工具返回的是查询时取得的路线，不虚构未来精确班次。
+16. 用户初步规划旅行且没有明确具体出发日期时，先以提问当天的次日 {planning_start} 为暂定参考日期给出方案，明确说明实际日期未定，无需重复追问哪天出发。保留“某个周末”等原有偏好；后续用户明确日期优先。用户明确要求不填写日历日期时按第几天安排。暂定日期不能用作已确认预约、抢票或提醒日期。
 
 本轮动态信息：当前北京时间日期是 {current_date}。
 {reference_note}

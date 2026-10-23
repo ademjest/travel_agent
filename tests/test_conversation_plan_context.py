@@ -111,7 +111,7 @@ class ConversationPlanContextTests(unittest.TestCase):
         self.assertEqual(len(trips),1)
         self.assertEqual(trips[0]['spec']['destination'],'开封')
         self.assertEqual(trips[0]['spec']['day_count'],3)
-        self.assertTrue(trips[0]['spec']['defer_start_date'])
+        self.assertTrue(trips[0]['spec']['date_is_tentative'])
         self.assertTrue(trips[0]['spec']['hotel_requested'])
         self.assertEqual(self.store.planning.get(self.event(''),artifact['artifact_id'])['status'],'adopted')
 

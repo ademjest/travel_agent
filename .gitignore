@@ -12,6 +12,10 @@ __pycache__/
 .pytest_cache/
 *.log
 data/
+!/data/
+/data/*
+!/data/official_sources.json
+!/data/attraction_aliases.json
 .onebot-runtime/
 frontend/node_modules/
 frontend/dist/
@@ -26,3 +30,8 @@ evals/*.json
 !evals/v3-live-probe-plan.json
 evals/*.png
 evals/public_travel_sources_*/
+
+# Publish user guides and releases only.
+docs/*
+!docs/guides/
+!docs/releases/

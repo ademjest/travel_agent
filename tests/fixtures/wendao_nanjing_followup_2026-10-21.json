@@ -1,0 +1,24 @@
+{
+  "provenance": "Observed user messages and saved trip; extractor response in tests is constructed to reproduce logged ungrounded_visit_start_date_text, not a captured model response.",
+  "initial_request": "我想去南京玩两天，计划是后面的某个周末，我希望你为我规划一个旅游计划，从每天的出行到住宿以及餐饮。",
+  "followup": "我想知道这个行程里每个景点的具体信息，比如开放时间、门票、预约要求等",
+  "logged_error": "ungrounded_visit_start_date_text",
+  "planning_spec": {
+    "destination": "南京",
+    "day_count": 2,
+    "start_date": "2026-10-22",
+    "end_date": "2026-10-23",
+    "date_is_tentative": true,
+    "date_reference_day": "2026-10-21",
+    "date_preference_text": "后面的某个周末"
+  },
+  "plan": {
+    "content": "第1天\n六朝博物馆\n总统府\n江宁织造博物馆\n第2天\n古鸡鸣寺\n南京城墙景区(神策门至太平门)\n玄武湖景区",
+    "destination": "南京",
+    "duration_options": [
+      2
+    ],
+    "title": "南京2日行程",
+    "version": 1
+  }
+}

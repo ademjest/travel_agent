@@ -108,16 +108,16 @@ class BookingReminderTests(unittest.TestCase):
         self.assertIn('已设置开约提醒', reply)
         self.assertEqual(self.reminders()[0]['scheduled_at_utc'], '2030-09-24T16:00:00+00:00')
 
-    def test_unknown_source_preserves_goal_and_accepts_provided_page(self):
+    def test_unknown_source_preserves_goal_but_does_not_derive_official_reminder(self):
         self.resolver.sources = {}
         reply = self.handle('10月1日去测试博物馆，开约时提醒我', 'first')
         self.assertIn('没有创建', reply)
         self.assertEqual(self.reminders(), ())
         reply = self.handle('https://example.test/policy', 'url')
-        self.assertIn('尚未独立核实', reply)
+        self.assertIn('官方身份尚未核实', reply)
         reply = self.handle('按这个规则设置提醒', 'confirm')
-        self.assertIn('已设置', reply)
-        self.assertFalse(json.loads(self.reminders()[0]['source_json'])['policy']['official'])
+        self.assertIn('不能按该规则自动计算', reply)
+        self.assertEqual(self.reminders(), ())
 
     def test_missing_visit_date_can_be_supplied_next_turn(self):
         reply = self.handle('去测试博物馆，开约时提醒我', 'first')

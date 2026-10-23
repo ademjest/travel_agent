@@ -44,6 +44,23 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
+it("keeps the optional Wendao token write only and requires an explicit enable setting", async () => {
+  Object.assign(serviceResponse.fields, {
+    WENDAO_API_KEY: { configured: true, source: "project", editable: true, value: "", pending_restart: false },
+    WENDAO_ENABLED: { configured: true, source: "default", editable: true, value: "false", pending_restart: false },
+  });
+  render(<SettingsPanel section="services" />);
+  const token = await screen.findByLabelText(/携程问道 Token/);
+  expect((token as HTMLInputElement).type).toBe("password");
+  expect((token as HTMLInputElement).value).toBe("");
+  fireEvent.change(token, { target: { value: "wendao-fixture-secret" } });
+  fireEvent.change(screen.getByLabelText(/启用问道参考来源/), { target: { value: "true" } });
+  fireEvent.click(screen.getByText("保存服务配置"));
+  await waitFor(() => expect(sent.find(s => s.body?.changes)?.body?.changes).toEqual({ WENDAO_API_KEY: "wendao-fixture-secret", WENDAO_ENABLED: "true" }));
+  expect(localStorage.length).toBe(0);
+  expect(sessionStorage.length).toBe(0);
+});
+
 it("only sends touched search key, never stores secret in browser persistence", async () => {
   render(<SettingsPanel />);
   const search = await screen.findByLabelText(/Tavily 搜索 Key/);

@@ -81,8 +81,10 @@ def facts(spec):
                     'value':value if unit and unit in value else value+' '+(unit or '（单位未明确）'),
                     'source':spec.get('fact_sources',{}).get(field,{}).get('source','历史来源未完整记录')})
         else:
-            rows.append({'field':key,'label':label,'value':display(spec[key],key),
-                         'source':spec.get('fact_sources',{}).get(key,{}).get('source','历史来源未完整记录')})
+            tentative = key in {'start_date', 'end_date'} and spec.get('date_is_tentative')
+            rows.append({'field':key,'label':label,'value':display(spec[key],key) + ('（暂定参考）' if tentative else ''),
+                         'source':('按提问日次日生成的参考日期，实际出发日期尚未确定。' if tentative else
+                                   spec.get('fact_sources',{}).get(key,{}).get('source','历史来源未完整记录'))})
     return rows
 
 

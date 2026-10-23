@@ -80,7 +80,7 @@ def main(round2=False):
     budget.report.update(model='gpt-5.6-sol',authorization='NEW 100000-token state/routing grant; previous grant untouched',
         source_files_before=source_snapshot(),database_root=str(root),production_accessed=False,
         external_tools='fixed synthetic map/weather snapshots; no live map/search acceptance',
-        summary_prompt_sha256=hashlib.sha256((ROOT/'docs/prompt_design/abstract_design_prompts.md').read_bytes()).hexdigest())
+        summary_prompt_sha256=hashlib.sha256((ROOT/'prompts/conversation_summary.md').read_bytes()).hexdigest())
     if parent:
         budget.report['parent']={'path':str(parent_path),'sha256':hashlib.sha256(parent_path.read_bytes()).hexdigest(),
                                  'accounted_tokens':parent['budget']['accounted_tokens'],'total_authorization':100000}

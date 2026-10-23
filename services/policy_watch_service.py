@@ -29,11 +29,11 @@ def watch_continuation(text, tasks):
     return None
 
 
-POLICY_FIELDS = ('days_before', 'release_time', 'closed_weekdays', 'holiday_exceptions', 'caveats')
+POLICY_FIELDS = ('days_before', 'release_time', 'closed_weekdays', 'holiday_exceptions', 'caveats', 'official', 'identity_basis')
 
 
 def policy_signature(policy):
-    meaningful = {key: policy[key] for key in POLICY_FIELDS}
+    meaningful = {key: policy.get(key) for key in POLICY_FIELDS}
     return 'ok:' + hashlib.sha256(json.dumps(meaningful, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 

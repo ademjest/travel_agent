@@ -242,7 +242,7 @@ def run(corpus_path,ids=None):
             finally:
                 MODEL_EVENT.reset(token)
     files=['services/conversation_summary_service.py','infrastructure/conversation_summary_repository.py','core/conversation_summary.py',
-           'core/summary_contract.py','core/summary_semantics.py','docs/prompt_design/abstract_design_prompts.md',
+           'core/summary_contract.py','core/summary_semantics.py','prompts/conversation_summary.md',
            'agents/context_builder.py','core/context_policy.py','core/model_policy.py','scripts/evaluate_summary_quality.py']
     return {'generated_at':datetime.now(timezone.utc).isoformat(),'mode':'offline-scripted-contracts',
             'corpus_hash':hashlib.sha256(Path(corpus_path).read_bytes()).hexdigest(),

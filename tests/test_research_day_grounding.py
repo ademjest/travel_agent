@@ -36,6 +36,17 @@ class ResearchDayGroundingTests(unittest.TestCase):
         row = {**target('故宫'), 'source_text':'### 第一天：天安门—故宫—景山—什刹海'}
         self.assertEqual(self.extract([row])['targets'][0]['day_index'],1)
 
+    def test_explicit_amap_source_is_valid_for_plan_fact_extraction_only(self):
+        value = {**scope_value([target('故宫')]), 'requested_domains': ['amap.com'], 'strict_sources': True}
+        client = FakeClient([model_response(value)])
+        request = {**self.request, 'original_request': TEXT + '只用高德'}
+        result = ResearchSearchPlanner(client, 'test').plan_targets(request, self.plan)
+        self.assertEqual(result['requested_domains'], ['amap.com'])
+        self.assertTrue(result['strict_sources'])
+        client = FakeClient([model_response(value)])
+        with self.assertRaises(ValueError):
+            ResearchSearchPlanner(client, 'test').plan_targets(self.request, self.plan)
+
     def test_quote_can_cross_next_heading_without_changing_named_attraction_day(self):
         start = BEIJING_PLAN.index('**注意：**')
         end = BEIJING_PLAN.index('**上午**',BEIJING_PLAN.index('### 第二天'))

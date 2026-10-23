@@ -26,6 +26,7 @@ from services.image_context_service import ImageContextService
 from services.scheduled_query_service import ScheduledQueryService
 from services.policy_watch_service import PolicyWatchService
 from services.booking_policy import BookingPolicyResolver
+from services.official_sources import OfficialSources
 from services.semantic_task_service import SemanticTaskService
 from services.preference_service import PreferenceService
 from services.research_service import ResearchService
@@ -71,6 +72,8 @@ def build_runtime(
         client=None, amap_client=None, search_client=None, reader=None, clock=None,
         semantic_mode=None) -> RuntimeComponents:
     memory_store = store or MemoryStore()
+    official_sources = OfficialSources()
+    booking_resolver = BookingPolicyResolver(registry=official_sources)
     from infrastructure.local_embedding import configure_local_index
     configure_local_index(memory_store)
     model_client = (ModelGateway(memory_store, client if client is not None else OpenAI(api_key=settings.llm_api_key,
@@ -157,7 +160,7 @@ def build_runtime(
         scheduled_query_service=ScheduledQueryService(memory_store, travel_service,
             travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else '',
             tool_executor=tool_router.execute_result),
-        policy_watch_service=PolicyWatchService(memory_store, BookingPolicyResolver(),
+        policy_watch_service=PolicyWatchService(memory_store, booking_resolver,
             travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else ''),
         context_builder=ContextBuilder(memory_store, ConversationSummaryService(
             memory_store.conversation_summaries, model_client, settings.llm_model_id,
@@ -165,14 +168,20 @@ def build_runtime(
     )
     application.preference_service = PreferenceService(memory_store.preferences)
     application.planning_service = PlanningService(memory_store.planning)
+    from infrastructure.wendao_client import WendaoClient
     application.research_service = ResearchService(memory_store,
         search_client if search_client is not None else SearchClient(os.getenv('SEARCH_API_KEY', ''), os.getenv('SEARCH_BASE_URL', 'https://api.tavily.com')),
-        model_client, settings.llm_model_id, application.trip_service)
+        model_client, settings.llm_model_id, application.trip_service,
+        amap=travel_service.amap, official_sources=official_sources,
+        wendao=WendaoClient(os.getenv('WENDAO_API_KEY', ''), os.getenv('WENDAO_ENABLED', 'false').lower() == 'true',
+                           diagnostics=memory_store.diagnostics.record))
+    application.trip_service.research_service = application.research_service
+    application.booking_reminder_service.resolver = booking_resolver
     if reader is not None:
         application.research_service.reader=reader
     else:
         from infrastructure.web_reader import read_page
-        application.research_service.reader=lambda url: read_page(url,diagnostics=memory_store.diagnostics.record)
+        application.research_service.reader=lambda url, **kwargs: read_page(url,diagnostics=memory_store.diagnostics.record, **kwargs)
     if isinstance(application.research_service.search,SearchClient):
         application.research_service.search.diagnostics=memory_store.diagnostics.record
     if clock is not None:
