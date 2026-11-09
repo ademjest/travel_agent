@@ -57,6 +57,9 @@ def execute_check(name,command,cwd,output,source_sha256,timeout):
     details={'status':status,'exit_code':code,'elapsed_seconds':round(time.monotonic()-started,3),
         'log':log.name,'log_sha256':hashlib.sha256(log.read_bytes()).hexdigest(),
         'source_sha256':source_sha256,'tests':int(count[1]) if count else None}
+    if name=='backend':
+        details['failures']=[owner+'.'+method for method,owner in re.findall(
+            r'^(?:FAIL|ERROR): (test_\w+) \(([\w.]+)\)',content,re.M)]
     result_file={'task_scenarios':'task-scenarios.json','read_only':'read-only.json'}.get(name)
     if result_file and (output/result_file).exists():
         try:

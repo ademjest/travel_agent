@@ -49,10 +49,12 @@ def source_paths(root=None, exclude=None):
 
 
 def capture(exclude=None):
-    files = [{'path':path.relative_to(ROOT).as_posix(), 'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
-             for path in source_paths(exclude=exclude)]
+    # Match source_paths canonical spelling, including Windows 8.3 aliases.
+    root = ROOT.resolve()
+    files = [{'path':path.relative_to(root).as_posix(), 'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+             for path in source_paths(root,exclude=exclude)]
     def command(*args):
-        result = subprocess.run(args, cwd=ROOT, capture_output=True, text=True)
+        result = subprocess.run(args, cwd=root, capture_output=True, text=True)
         return result.stdout.strip() if result.returncode == 0 else 'unavailable'
     versions = {}
     for name in ('openai', 'fastapi', 'python-multipart', 'requests', 'python-dotenv'):

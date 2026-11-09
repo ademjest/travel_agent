@@ -64,6 +64,17 @@ class ReleaseManifestTests(unittest.TestCase):
                          sorted(r['path'] for r in first['source_files']))
 
 
+    def test_equivalent_root_alias_keeps_paths_and_source_identity(self):
+        alias = self.root / 'equivalent-root' / '..'
+        alias.parent.mkdir()
+        expected = self.capture()
+        with patch.object(manifest, 'ROOT', alias), patch.object(
+                manifest.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='fixture')):
+            actual = manifest.capture()
+        self.assertEqual(actual['source_files'], expected['source_files'])
+        self.assertEqual(actual['source_sha256'], expected['source_sha256'])
+
+
 class ReleaseRunnerTests(unittest.TestCase):
     def test_child_failure_is_recorded_and_archive_keeps_input(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -72,12 +83,13 @@ class ReleaseRunnerTests(unittest.TestCase):
             output=root/'evidence'
             source={'head':'fixture','source_sha256':'fixed','source_files':[
                 {'path':'input.py','sha256':hashlib.sha256((root/'input.py').read_bytes()).hexdigest()}]}
-            jobs={'backend':([sys.executable,'-c','raise SystemExit(3)'],root)}
+            jobs={'backend':([sys.executable,'-c',"print('ERROR: test_fixture (test_fixture.ManifestTests)')\nraise SystemExit(3)"],root)}
             with patch.object(release,'ROOT',root), patch.object(release,'capture',return_value=source), \
                     patch.object(release,'check_commands',return_value=jobs):
                 self.assertFalse(release.run(output,['backend']))
             report=json.loads((output/'index.json').read_text(encoding='utf-8'))
             self.assertEqual(report['checks']['backend']['exit_code'],3)
+            self.assertEqual(report['checks']['backend']['failures'],['test_fixture.ManifestTests.test_fixture'])
             self.assertFalse(report['passed'])
             self.assertFalse(report['complete_suite'])
             self.assertTrue((output/'source.zip').is_file())
