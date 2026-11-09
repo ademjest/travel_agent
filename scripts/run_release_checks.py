@@ -24,10 +24,14 @@ def stamp():
     return datetime.now(timezone.utc).isoformat()
 
 
-def check_commands(output):
+def check_commands(output,*,backend_shard_index=0,backend_shard_count=1):
     npm=['cmd.exe','/d','/c','npm.cmd'] if os.name=='nt' else ['npm']
+    backend=[sys.executable,'-m','unittest','discover','-s','tests','-v']
+    if backend_shard_count>1:
+        backend=[sys.executable,'scripts/run_backend_tests.py','--shard-index',str(backend_shard_index),
+            '--shard-count',str(backend_shard_count),'--output',str(output/'backend-shard.json')]
     return {
-        'backend':([sys.executable,'-m','unittest','discover','-s','tests','-v'],ROOT),
+        'backend':(backend,ROOT),
         'task_scenarios':([sys.executable,'scripts/run_evaluations.py','evaluate_tasks','--output',str(output/'task-scenarios.json')],ROOT),
         'frontend':([*npm,'test','--','--run'],ROOT/'frontend'),
         'build':([*npm,'run','build','--','--outDir',str(output/'frontend-dist')],ROOT/'frontend'),
@@ -53,13 +57,24 @@ def execute_check(name,command,cwd,output,source_sha256,timeout):
             code,status=None,'failed'
             stream.write('\nCould not start check: '+type(error).__name__+'\n')
     content=re.sub(r'\x1b\[[0-9;]*m','',log.read_text(encoding='utf-8',errors='replace'))
-    count=re.search(r'Ran (\d+) tests',content) if name=='backend' else re.search(r'Tests\s+(\d+) passed',content)
+    count=re.search(r'Ran (\d+) tests?',content) if name=='backend' else re.search(r'Tests\s+(\d+) passed',content)
     details={'status':status,'exit_code':code,'elapsed_seconds':round(time.monotonic()-started,3),
         'log':log.name,'log_sha256':hashlib.sha256(log.read_bytes()).hexdigest(),
         'source_sha256':source_sha256,'tests':int(count[1]) if count else None}
     if name=='backend':
         details['failures']=[owner+'.'+method for method,owner in re.findall(
             r'^(?:FAIL|ERROR): (test_\w+) \(([\w.]+)\)',content,re.M)]
+    if name=='backend' and '--shard-count' in command:
+        try:
+            shard=json.loads((output/'backend-shard.json').read_text(encoding='utf-8'))
+            if (shard['source_sha256']!=source_sha256 or not shard['source_unchanged']
+                    or shard['executed_ids']!=shard['selected_ids'] or shard['tests']!=details['tests']):
+                raise ValueError('Invalid backend partition evidence')
+            details.update(shard_index=shard['shard_index'],shard_count=shard['shard_count'],
+                discovered_tests=len(shard['all_test_ids']),executed_tests=len(shard['executed_ids']),skipped=shard['skipped'])
+            if not shard['passed']:details['status']='failed'
+        except (OSError,ValueError,KeyError,TypeError):
+            details.update(status='failed',result_error='invalid_backend_shard_report')
     result_file={'task_scenarios':'task-scenarios.json','read_only':'read-only.json'}.get(name)
     if result_file and (output/result_file).exists():
         try:
@@ -70,12 +85,16 @@ def execute_check(name,command,cwd,output,source_sha256,timeout):
     return name,details
 
 
-def run(output,checks=None,timeout=1800):
+def run(output,checks=None,timeout=1800,*,backend_shard_index=0,backend_shard_count=1):
     selected=tuple(checks) if checks is not None else CHECK_NAMES
     if not selected or len(set(selected))!=len(selected) or set(selected)-set(CHECK_NAMES):
         raise ValueError('Choose distinct supported checks.')
     if timeout<=0:
         raise ValueError('Check timeout must be positive.')
+    if backend_shard_count<1 or not 0<=backend_shard_index<backend_shard_count:
+        raise ValueError('Invalid backend shard index or count.')
+    if 'backend' not in selected and (backend_shard_index or backend_shard_count!=1):
+        raise ValueError('Backend shard options require the backend check.')
     output=output.resolve()
     if output.exists() and any(output.iterdir()):
         raise ValueError('Use a new output directory; previous evidence is immutable.')
@@ -90,7 +109,7 @@ def run(output,checks=None,timeout=1800):
             if hashlib.sha256(path.read_bytes()).hexdigest()!=row['sha256']:
                 raise ValueError('Source drift during archive capture.')
             archive.write(path,row['path'])
-    jobs=check_commands(output)
+    jobs=check_commands(output,backend_shard_index=backend_shard_index,backend_shard_count=backend_shard_count)
     report={'schema_version':'release-checks-v2','started_at':stamp(),'source_sha256':source['source_sha256'],
             'head':source['head'],'mode':'offline','model_config':{'test_models':'scripted/mocked','external_usage':None,
             'external_cost':None,'note':'No real model/API probes requested; this is not a real-model quality measurement.'},
@@ -130,5 +149,7 @@ if __name__=='__main__':
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--checks',nargs='+',choices=CHECK_NAMES)
     parser.add_argument('--timeout',type=float,default=1800,help='Maximum seconds per check')
+    parser.add_argument('--backend-shard-index',type=int,default=0)
+    parser.add_argument('--backend-shard-count',type=int,default=1)
     args=parser.parse_args()
-    raise SystemExit(0 if run(args.output,args.checks,args.timeout) else 1)
+    raise SystemExit(0 if run(args.output,args.checks,args.timeout,backend_shard_index=args.backend_shard_index,backend_shard_count=args.backend_shard_count) else 1)

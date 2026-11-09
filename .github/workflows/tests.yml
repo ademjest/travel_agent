@@ -10,7 +10,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            checks: backend task_scenarios read_only architecture
+          - os: windows-latest
+            checks: task_scenarios read_only architecture
     runs-on: ${{ matrix.os }}
     # Full regression and offline scenarios need headroom on Windows runners.
     timeout-minutes: 45
@@ -25,12 +29,57 @@ jobs:
       - run: python scripts/check_secrets.py --all-tracked
       - name: Check release manifest portability
         run: python -X utf8 -m unittest discover -s tests -p test_release_manifest.py -v
-      - run: python -X utf8 scripts/run_release_checks.py --checks backend task_scenarios read_only architecture --timeout 2400 --output .upgrade-testing/ci-backend
+      - run: python -X utf8 scripts/run_release_checks.py --checks ${{ matrix.checks }} --timeout 2400 --output .upgrade-testing/ci-backend
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: task-evaluation-${{ matrix.os }}
           path: .upgrade-testing/ci-backend
+  windows-backend:
+    name: Windows backend (${{ matrix.shard }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -r requirements-dev.txt -c constraints-py311.txt
+      - run: python -m pip check
+      - name: Check backend partition contracts
+        run: python -X utf8 -m unittest discover -s tests -p test_backend_shards.py -v
+      - run: python -X utf8 scripts/run_release_checks.py --checks backend --backend-shard-index ${{ matrix.shard }} --backend-shard-count 4 --timeout 1500 --output .upgrade-testing/windows-backend-${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-backend-${{ matrix.shard }}
+          path: .upgrade-testing/windows-backend-${{ matrix.shard }}
+  windows-backend-coverage:
+    name: Windows backend coverage
+    needs: windows-backend
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: windows-backend-*
+          path: .upgrade-testing/windows-shards
+      - run: python -X utf8 scripts/run_backend_tests.py --verify .upgrade-testing/windows-shards --shard-count 4 --output .upgrade-testing/windows-coverage.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-backend-coverage
+          path: .upgrade-testing/windows-coverage.json
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 10
