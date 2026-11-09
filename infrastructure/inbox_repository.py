@@ -150,6 +150,7 @@ class InboxRepository:
                 VALUES (?, 'completed', ?, ?, 'cancelled by owner')
                 ON CONFLICT(event_id) DO UPDATE SET status='completed', claim_token=NULL, lease_expires_at=NULL,
                     updated_at=excluded.updated_at, last_error=excluded.last_error''', (event_key, now, now))
+        self.store.diagnostics.record('request',{'event_key':event_key,'status':'cancelled'})
         return True
 
     def claim_capture(self, now=None, *, platform=None):

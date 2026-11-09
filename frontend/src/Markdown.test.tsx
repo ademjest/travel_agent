@@ -1,11 +1,28 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { Markdown, normalizeMarkdownText } from "./App";
+import { Markdown, normalizeMarkdownText } from "./Markdown";
 
 afterEach(cleanup);
 
 describe("assistant markdown layout", () => {
+  it("keeps a server-supplied official link clickable without treating it as an internal evidence anchor", () => {
+    render(<Markdown text={"**预约规则：** 需实名预约。详细信息见景点官网：[测试博物馆官方网站](<https://museum.example/visitor>)"} />);
+    const link = screen.getByRole("link", { name: "测试博物馆官方网站" });
+    expect(link.getAttribute("href")).toBe("https://museum.example/visitor");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.closest("p")?.textContent).toContain("需实名预约");
+  });
+  it("emphasizes controlled trip and attraction labels without emphasizing their values", () => {
+    const labels = ["日期暂定", "你的要求", "预算目标", "住宿要求", "餐饮要求", "住宿筛选", "已采用你的偏好",
+      "介绍", "票价", "开放时间", "预约规则", "建议游玩时长"];
+    const { container } = render(<Markdown text={labels.map(label => `**${label}：** 普通正文`).join("\n\n")} />);
+    expect(Array.from(container.querySelectorAll("strong")).map(node => node.textContent)).toEqual(labels.map(label => label + "："));
+    expect(container.querySelectorAll("strong strong")).toHaveLength(0);
+    expect(container.querySelector("strong")?.textContent).not.toContain("普通正文");
+  });
+
   it("keeps numbered item titles with their markers and uses compact nested lists", () => {
     const text = `结论：开封特色菜适合按小吃和正餐体验。
 

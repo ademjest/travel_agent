@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from core.research_evidence import validate_research_items
-from services.research_service import ResearchService
+from tools.research.evidence import validate_research_items
+from tools.research.tool import ResearchTool
 from test_travel_agent import FakeClient, assistant_message, completion
 
 
@@ -106,7 +106,7 @@ class ResearchEvidenceTests(unittest.TestCase):
         self.assertNotIn('每天开放', json.dumps(items, ensure_ascii=False))
 
     def test_failed_claim_is_not_displayed_or_forwarded_to_planning(self):
-        service = ResearchService(None, None, FakeClient([completion(assistant_message(content=json.dumps(
+        service = ResearchTool(None, None, FakeClient([completion(assistant_message(content=json.dumps(
             {'items': [self.item('门票100元。', self.text)]}, ensure_ascii=False)))]), 'offline')
         accepted = []
         report = service._summarize('测试资料', [self.source], evidence_sink=accepted)
@@ -117,7 +117,7 @@ class ResearchEvidenceTests(unittest.TestCase):
     def test_planning_gets_complete_claim_and_evidence_with_visible_omission(self):
         source = {**self.source, 'text': self.text * 7}
         items = [self.item('建议：票价80元。' + '背景' * 280, source['text']) for _ in range(8)]
-        context = ResearchService._planning_source({'report': '不可截断伪造的任意正文',
+        context = ResearchTool._planning_source({'report': '不可截断伪造的任意正文',
                                                    'report_items': items, 'sources': [source]})
         payload = json.loads(context.split('\n', 1)[1])
         self.assertGreater(payload['omitted_items'], 0)

@@ -1,14 +1,40 @@
 import unittest
+from dataclasses import replace
+from core.tool_result import ToolResult
+from core.tool_result import RESERVATION_TOOL_NAMES
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from agents.context_builder import AgentContext
+from app.conversation_context import AgentContext
 from agents.travel_agent import TravelAgent
 from core.settings import Settings
-from infrastructure.memory_store import ConversationTurn
+from infrastructure.conversation_repository import ConversationTurn
 from core.chat_transport import ChatAttachment
-from tools.agent_tools import AgentToolContext
+from core.tool_result import AgentToolContext
 from core.tasks import TaskRecord
+
+
+def execution_policy(intents, actions, *, required=None, resources=(), missing=False, clarification=''):
+    """Server policy fixture for testing the loop independently of language routing."""
+    from core.execution_outcome import TravelDecision
+    return TravelDecision(intents[0],intents,bool(set(intents)&{'weather','forecast','route','traffic','places','walking','transit'}),
+        actions,tuple((action,) for action in actions) if required is None else required,
+        missing,'brief' if set(intents)<={'weather','forecast'} else 'normal',resources,clarification)
+
+
+def bound_read(domain, values, message, *, task=None, reference_time=''):
+    from core.execution_outcome import TaskContext, TravelReadRequest
+    from core.intent_ir import IntentOperation
+    context=TaskContext(task,message,reference_time,dict(task.slots) if task else {},message)
+    return TravelReadRequest((IntentOperation(domain,'search' if domain=='places' else 'query',values),),context)
+
+
+def scripted_receipt(name, arguments, text):
+    """Legacy prose fixtures become explicit receipts before entering the Agent."""
+    resource = str(arguments.get('plan_code') or arguments.get('item_code') or '')
+    result = ToolResult.from_text(name, text, resource)
+    committed = result.status == 'completed' and name in RESERVATION_TOOL_NAMES and name != 'list_reservation_plans'
+    return replace(result, effect_status='committed' if committed else 'none')
 
 
 def tool_call(call_id, name, arguments):
@@ -56,6 +82,45 @@ class TravelAgentTests(unittest.TestCase):
             llm_model_id="test-model",
         )
 
+    def test_artifact_page_receipt_uses_catalog_resource_field(self):
+        from test_read_only_answer import WEATHER
+        client = FakeClient([
+            completion(assistant_message(tool_calls=[tool_call('weather', 'get_current_weather', '{"location":"武汉"}')])),
+            completion(assistant_message(tool_calls=[tool_call('page', 'read_tool_artifact', '{"artifact_id":"TA-fixed","max_chars":500}')])),
+            completion(assistant_message(content='武汉20℃。')),
+        ])
+        calls = []
+
+        def execute(name, arguments, context):
+            calls.append(name)
+            if name == 'get_current_weather':
+                return replace(WEATHER, artifact_id='TA-fixed')
+            return ToolResult('completed', name, resource_id=arguments['artifact_id'], data='{"text":"附加页"}')
+
+        result = TravelAgent(self.settings, execute, client).run('武汉天气怎么样', decision_override=execution_policy(('weather',), ('get_current_weather',)))
+        self.assertEqual(calls, ['get_current_weather', 'read_tool_artifact'])
+        self.assertEqual([(r.action, r.resource_id) for r in result.receipts],
+                         [('get_current_weather', ''), ('read_tool_artifact', 'TA-fixed')])
+        self.assertIn('20℃', result.reply)
+
+    def test_committed_write_cannot_mask_missing_query_facts(self):
+        client = FakeClient([completion(assistant_message(tool_calls=[
+            tool_call('confirm', 'confirm_reservation_plan', '{"plan_code":"R-20300101-001"}'),
+            tool_call('weather', 'get_current_weather', '{"location":"武汉"}'),
+        ]))])
+
+        def execute(name, arguments, context):
+            if name == 'confirm_reservation_plan':
+                return ToolResult('completed', name, resource_id=arguments['plan_code'],
+                                  effect_status='committed', data='预约已确认')
+            return ToolResult('completed', name, data='查询成功', payload={})
+
+        result = TravelAgent(self.settings, execute, client).run('确认预约 R-20300101-001，并查询武汉天气', decision_override=execution_policy(('reservation', 'weather'), ('list_reservation_plans', 'confirm_reservation_plan', 'get_current_weather'), required=(('get_current_weather',), ('confirm_reservation_plan',)), resources=(('confirm_reservation_plan', 'R-20300101-001'),)))
+        self.assertEqual(result.status, 'partial')
+        self.assertIn('预约已确认', result.reply)
+        self.assertNotIn('查询成功', result.reply)
+        self.assertEqual(result.receipts[0].effect_status, 'committed')
+
     def test_agent_calls_weather_tool_then_answers(self):
         client = FakeClient([
             completion(assistant_message(tool_calls=[
@@ -69,14 +134,15 @@ class TravelAgentTests(unittest.TestCase):
         ])
         calls = []
 
-        def execute(name, arguments):
+        def execute(name, arguments, context):
             calls.append((name, arguments))
-            return "【当前天气】西宁\n天气：晴\n发布时间：10:00"
+            return scripted_receipt(name, arguments, "【当前天气】西宁\n天气：晴\n发布时间：10:00")
 
         agent = TravelAgent(self.settings, execute, client=client)
-        result = agent.run("西宁现在天气怎么样？")
+        result = agent.run("西宁现在天气怎么样？", decision_override=execution_policy(('weather',), ('get_current_weather',)))
 
-        self.assertEqual(result.reply, "西宁当前晴，适合正常出行。")
+        self.assertIn("天气：晴", result.reply)
+        self.assertIn("发布时间：10:00", result.reply)
         self.assertEqual(calls, [
             ("get_current_weather", {"location": "西宁"})
         ])
@@ -98,8 +164,9 @@ class TravelAgentTests(unittest.TestCase):
             *[completion(assistant_message(content='已取消')) for _ in range(3)],
         ])
         calls = []
-        agent = TravelAgent(self.settings, lambda name, args: calls.append(name) or 'unused', client=client)
-        result = agent.run('那明天呢', context)
+        agent = TravelAgent(self.settings, lambda name, args, context: scripted_receipt(name, args, calls.append(name) or 'unused'), client=client)
+        result = agent.run('那明天呢', context, read_request=bound_read('forecast',
+            {'location':context.tasks[0].slots['location']},'那明天呢',task=context.tasks[0]))
         self.assertEqual(calls, [])
         self.assertEqual(result.status, 'failed')
         self.assertNotIn('cancel_reservation_plan', [tool['function']['name'] for tool in client.completions.requests[0]['tools']])
@@ -110,11 +177,11 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "should not run",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "should not run"),
             client=client,
         )
 
-        result = agent.run("帮我看看路况")
+        result = agent.run("帮我看看路况", decision_override=execution_policy(('traffic',), ('get_route_traffic',), missing=True))
 
         self.assertEqual(result.reply, "请告诉我驾车起点和终点。")
         self.assertEqual(result.traces, ())
@@ -132,11 +199,11 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "not used",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "not used"),
             client=client,
         )
 
-        agent.run("查看预约提醒")
+        agent.run("查看预约提醒", decision_override=execution_policy(('reservation',), ('list_reservation_plans',)))
 
         system_prompt = client.completions.requests[0]["messages"][0]["content"]
         self.assertIn("必须调用本轮提供的预约工具", system_prompt)
@@ -162,13 +229,15 @@ class TravelAgentTests(unittest.TestCase):
         calls = []
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: calls.append((name, arguments)) or name,
+            lambda name, arguments, context: scripted_receipt(name, arguments, calls.append((name, arguments)) or ("路况覆盖不足" if name=="get_route_traffic" else "天气预报：小雨")),
             client=client,
         )
 
-        result = agent.run("明天从西宁到青海湖，天气和路况怎么样？")
+        result = agent.run("明天从西宁到青海湖，天气和路况怎么样？", decision_override=execution_policy(('traffic', 'forecast'), ('get_route_traffic', 'get_weather_forecast')))
 
-        self.assertEqual(result.reply, "明天有雨且部分路段拥堵。")
+        self.assertIn("天气预报：小雨", result.reply)
+        self.assertIn("路况覆盖不足", result.reply)
+        self.assertNotIn("部分路段拥堵", result.reply)
         self.assertEqual(
             {name for name, unused in calls},
             {"get_route_traffic", "get_weather_forecast"},
@@ -197,7 +266,7 @@ class TravelAgentTests(unittest.TestCase):
 
         def execute(name, arguments, context):
             calls.append((name, arguments, context))
-            return "预约计划 R-20260722-001 已确认。"
+            return scripted_receipt(name, arguments, "预约计划 R-20260722-001 已确认。")
 
         context = AgentToolContext(
             platform="onebot",
@@ -210,10 +279,13 @@ class TravelAgentTests(unittest.TestCase):
         result = agent.run(
             "帮我确认预约 R-20260722-001",
             tool_context=context,
-        )
+         decision_override=execution_policy(('reservation',), ('list_reservation_plans', 'confirm_reservation_plan'), required=(('confirm_reservation_plan',),), resources=(('confirm_reservation_plan', 'R-20260722-001'),)))
 
         self.assertEqual(result.reply, "预约计划 R-20260722-001 已确认。")
-        self.assertEqual(calls[0][2], context)
+        scoped = calls[0][2]
+        self.assertEqual(replace(scoped, allowed_actions=None, action_resources=()), context)
+        self.assertIn('confirm_reservation_plan', scoped.allowed_actions)
+        self.assertEqual(scoped.action_resources, (('confirm_reservation_plan', 'R-20260722-001'),))
 
     def test_image_reservation_calls_creation_tool_with_attachment_context(self):
         client = FakeClient([
@@ -230,7 +302,7 @@ class TravelAgentTests(unittest.TestCase):
 
         def execute(name, arguments, context):
             calls.append((name, arguments, context))
-            return "预约计划 R-20260802-001"
+            return scripted_receipt(name, arguments, "预约计划 R-20260802-001")
 
         context = AgentToolContext(
             platform="onebot",
@@ -248,14 +320,17 @@ class TravelAgentTests(unittest.TestCase):
         result = agent.run(
             "按这张攻略帮我制定预约",
             tool_context=context,
-        )
+         decision_override=execution_policy(('reservation',), ('list_reservation_plans', 'create_reservation_draft_from_image'), required=(('create_reservation_draft_from_image',),)))
 
         self.assertEqual(result.reply, "预约计划 R-20260802-001")
         self.assertEqual(
             calls[0][0],
             "create_reservation_draft_from_image",
         )
-        self.assertEqual(calls[0][2], context)
+        scoped = calls[0][2]
+        self.assertEqual(replace(scoped, allowed_actions=None, action_resources=()), context)
+        self.assertIn('create_reservation_draft_from_image', scoped.allowed_actions)
+        self.assertNotIn('cancel_reservation_plan', scoped.allowed_actions)
 
     def test_live_answer_is_rejected_until_required_tool_is_called(self):
         client = FakeClient([
@@ -271,13 +346,14 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "预报结果",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "天气预报：晴，发布时间：10:00"),
             client=client,
         )
 
-        result = agent.run("明天青海湖天气怎么样？")
+        result = agent.run("明天青海湖天气怎么样？", decision_override=execution_policy(('forecast',), ('get_weather_forecast',)))
 
-        self.assertEqual(result.reply, "明天晴，预报发布时间 10:00。")
+        self.assertIn("天气预报：晴", result.reply)
+        self.assertIn("发布时间：10:00", result.reply)
         self.assertEqual(len(client.completions.requests), 3)
 
     def test_draft_edit_claim_is_rejected_until_update_tool_succeeds(self):
@@ -300,13 +376,13 @@ class TravelAgentTests(unittest.TestCase):
         calls = []
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: calls.append((name, arguments)) or "已更新",
+            lambda name, arguments, context: scripted_receipt(name, arguments, calls.append((name, arguments)) or "已更新"),
             client=client,
         )
 
         result = agent.run(
             "把 R-20260811-001 的嘉峪关日期补为 2026-08-21，改为无需预约"
-        )
+        , decision_override=execution_policy(('reservation',), ('update_reservation_draft_items',), resources=(('update_reservation_draft_items', 'R-20260811-001'),)))
 
         self.assertEqual(result.reply, "已更新")
         self.assertEqual(calls[0][0], "update_reservation_draft_items")
@@ -331,7 +407,7 @@ class TravelAgentTests(unittest.TestCase):
         with patch("agents.travel_agent.OpenAI") as openai:
             TravelAgent(
                 self.settings,
-                lambda name, arguments: "not used",
+                lambda name, arguments, context: scripted_receipt(name, arguments, "not used"),
             )
 
         kwargs = openai.call_args.kwargs
@@ -348,11 +424,11 @@ class TravelAgentTests(unittest.TestCase):
         calls = []
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: calls.append((name, arguments)),
+            lambda name, arguments, context: scripted_receipt(name, arguments, calls.append((name, arguments))),
             client=client,
         )
 
-        result = agent.run("西宁天气如何")
+        result = agent.run("西宁天气如何", decision_override=execution_policy(('weather',), ('get_current_weather',)))
 
         self.assertEqual(result.reply, "请重新告诉我地点。")
         self.assertEqual(calls, [])
@@ -377,14 +453,14 @@ class TravelAgentTests(unittest.TestCase):
         ])
         calls = []
 
-        def execute(name, arguments):
+        def execute(name, arguments, context):
             calls.append((name, arguments))
-            return "天气工具结果"
+            return scripted_receipt(name, arguments, "天气：晴，查询地点：西宁")
 
         agent = TravelAgent(self.settings, execute, client=client)
-        result = agent.run("再确认一次西宁天气")
+        result = agent.run("再确认一次西宁天气", decision_override=execution_policy(('weather',), ('get_current_weather',)))
 
-        self.assertEqual(result.reply, "西宁当前天气已查询。")
+        self.assertIn("天气：晴，查询地点：西宁", result.reply)
         self.assertEqual(len(calls), 1)
         self.assertEqual(len(result.traces), 2)
 
@@ -395,9 +471,9 @@ class TravelAgentTests(unittest.TestCase):
             completion(assistant_message(tool_calls=[tool_call(
                 'call-2', 'get_current_weather', '{"location":"西宁"}')])),
         ])
-        agent = TravelAgent(self.settings, lambda name, arguments: '天气工具结果', client=client)
+        agent = TravelAgent(self.settings, lambda name, arguments, context: scripted_receipt(name, arguments, '天气工具结果'), client=client)
 
-        result = agent.run('西宁天气')
+        result = agent.run('西宁天气', decision_override=execution_policy(('weather',), ('get_current_weather',)))
 
         self.assertEqual(result.status, 'failed')
         self.assertIn('重复出现', result.reply)
@@ -409,7 +485,7 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "not used",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "not used"),
             client=client,
         )
         history = [
@@ -424,7 +500,7 @@ class TravelAgentTests(unittest.TestCase):
             "我们住哪里？",
             history=history,
             knowledge_context="[plan.docx] 住宿安排：茶卡镇",
-        )
+            decision_override=execution_policy(('document',), ()))
 
         self.assertEqual(result.reply, "你们计划住在茶卡镇。")
         messages = client.completions.requests[0]["messages"]
@@ -437,7 +513,7 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "not used",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "not used"),
             client=client,
         )
         context = AgentContext(
@@ -460,7 +536,7 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "not used",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "not used"),
             client=client,
         )
         context = AgentContext(
@@ -470,7 +546,7 @@ class TravelAgentTests(unittest.TestCase):
             source_note="QQ 官方部分群消息",
         )
 
-        agent.run("文档里写了什么？", context)
+        agent.run("文档里写了什么？", context, decision_override=execution_policy(('document',), ()))
 
         messages = client.completions.requests[0]["messages"]
         envelope = messages[1]
@@ -485,7 +561,7 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "not used",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "not used"),
             client=client,
         )
         context = AgentContext(
@@ -537,35 +613,17 @@ class TravelAgentTests(unittest.TestCase):
         ])
         agent = TravelAgent(
             self.settings,
-            lambda name, arguments: "not used",
+            lambda name, arguments, context: scripted_receipt(name, arguments, "not used"),
             client=client,
         )
 
         with patch("agents.travel_agent.logger") as logger:
-            agent.run("文档里写了什么？", knowledge_context="行程摘要")
+            agent.run("文档里写了什么？", knowledge_context="行程摘要", decision_override=execution_policy(('document',), ()))
 
         log_calls = " ".join(str(call) for call in logger.info.call_args_list)
         self.assertIn("Agent context", log_calls)
         self.assertIn("LLM step completed", log_calls)
 
-    def test_document_summary_uses_plain_chat_completion(self):
-        client = FakeClient([
-            completion(assistant_message(content="旅行日期：8月16日。住宿：茶卡镇。"))
-        ])
-        agent = TravelAgent(
-            self.settings,
-            lambda name, arguments: "not used",
-            client=client,
-        )
-
-        summary = agent.summarize_document(
-            "plan.docx",
-            "8月16日从西宁出发，当晚住宿茶卡镇。",
-        )
-
-        self.assertIn("住宿：茶卡镇", summary)
-        request = client.completions.requests[0]
-        self.assertNotIn("tools", request)
 
 
 if __name__ == "__main__":

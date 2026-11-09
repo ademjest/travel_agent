@@ -1,56 +1,52 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import os
 from typing import Callable
-from openai import OpenAI
+from infrastructure.model_client import create_model_client as OpenAI
 
 from agents.travel_agent import TravelAgent
-from agents.reminder_intent import ReminderIntentParser
-from agents.trip_planner import TripPlanner
+from tools.trip.planner import TripPlanner
 from agents.intent_compiler import IntentCompiler
-from agents.context_builder import ContextBuilder
+from app.conversation_context import ContextBuilder
 from app.bot_application import TravelBotApplication
 from core.background_supervisor import BackgroundSupervisor
 from core.chat_transport import MessageTransport, ReplyRenderer
 from core.settings import Settings
 from infrastructure.memory_store import MemoryStore
 from infrastructure.model_gateway import ModelGateway
-from services.document_service import DocumentService
+from infrastructure.skill_manager import get_skill_manager
+from tools.materials import MaterialsTool
 from services.maintenance import MaintenanceService
 from services.outbox_worker import OutboxWorker
-from services.personal_reminder_service import PersonalReminderService
-from services.booking_reminder_service import BookingReminderService
-from services.trip_service import TripService
-from services.image_context_service import ImageContextService
-from services.scheduled_query_service import ScheduledQueryService
-from services.policy_watch_service import PolicyWatchService
-from services.booking_policy import BookingPolicyResolver
+from tools.trip.tool import TripTool
+from tools.trip.presentation import TripAnswerWriter
+from tools.reminders.policy import BookingPolicyResolver
 from services.official_sources import OfficialSources
-from services.semantic_task_service import SemanticTaskService
-from services.preference_service import PreferenceService
-from services.research_service import ResearchService
-from services.planning_service import PlanningService
-from services.conversation_summary_service import ConversationSummaryService
+from app.request_router import RequestRouter
+from tools.preferences import PreferencesTool
+from tools.research.tool import ResearchTool
+from tools.trip.tool import PlanningArtifacts
+from app.conversation_context import ConversationSummaryService
 from infrastructure.search_client import SearchClient
 from services.reminder_scheduler import ReminderScheduler
-from services.reservation_draft_creator import ReservationDraftCreator
-from services.reservation_service import ReservationService
-from services.travel_service import TravelService
-from services.upload_binding import UploadBindingService
-from services.vision_service import ImageVisionExtractor, ReservationImageService
-from tools.reservation_tools import AgentToolRouter
+from tools.travel_query import TravelQueryTool
+from adapters.upload_binding import UploadBindingService
+from tools.reservation.tool import ReservationTool, ImageVisionExtractor, ReservationImageService
+from tools.registry import AgentToolRouter
+from tools.search import SearchTool
+from tools.reminders.tool import RemindersTool
 
 
 @dataclass(frozen=True)
 class RuntimeComponents:
     store: MemoryStore
-    travel_service: TravelService
-    reservation_service: ReservationService
-    reservation_draft_creator: ReservationDraftCreator
+    travel_service: TravelQueryTool
+    reservation_service: ReservationTool
+    reservation_draft_creator: ReservationTool
     tool_router: AgentToolRouter
     travel_agent: TravelAgent | None
-    document_service: DocumentService
+    document_service: MaterialsTool
     upload_binding_service: UploadBindingService
     image_extractor: ImageVisionExtractor | None
     reservation_image_service: ReservationImageService
@@ -59,6 +55,11 @@ class RuntimeComponents:
     maintenance_service: MaintenanceService
     application: TravelBotApplication
     supervisor: BackgroundSupervisor
+    rail_client: object | None = None
+
+    @property
+    def tool_registry(self):
+        return self.tool_router.registry
 
 
 def build_runtime(
@@ -72,19 +73,37 @@ def build_runtime(
         client=None, amap_client=None, search_client=None, reader=None, clock=None,
         semantic_mode=None) -> RuntimeComponents:
     memory_store = store or MemoryStore()
+    from infrastructure.mcp_client import RailMCPConfig, RemoteMCPClient
+    from infrastructure.rail_client import RailClient, validate_rail_tools
+    try:
+        rail_config = RailMCPConfig.parse(settings.rail_mcp_config)
+    except ValueError:
+        rail_config = RailMCPConfig()  # Optional configuration cannot prevent historical reads or Web startup.
+    rail_mcp = RemoteMCPClient(rail_config, validate_tools=validate_rail_tools) if rail_config.enabled else None
+    rail_client = RailClient(rail_mcp) if rail_mcp else None
+    skill_manager = get_skill_manager()
+    skill_manager.snapshot()  # Validate required assets even when no model is configured.
     official_sources = OfficialSources()
     booking_resolver = BookingPolicyResolver(registry=official_sources)
     from infrastructure.local_embedding import configure_local_index
     configure_local_index(memory_store)
-    model_client = (ModelGateway(memory_store, client if client is not None else OpenAI(api_key=settings.llm_api_key,
-        base_url=settings.llm_base_url, timeout=90, max_retries=0)) if settings.llm_configured else None)
-    travel_service = TravelService(settings)
+    model_client = None
+    model_id = settings.llm_model_id
+    if settings.llm_configured:
+        configuration=settings.model_configuration
+        connection,profile=configuration.select('unspecified',force_default=True)
+        model_id=profile.model_id
+        model_client=ModelGateway(memory_store,client if client is not None else OpenAI(api_key=connection.api_key,
+            base_url=connection.base_url,timeout=90,max_retries=0),default_model=model_id,
+            skill_manager=skill_manager,configuration=configuration,client_factory=OpenAI)
+        settings=replace(settings,llm_model_id=model_id)
+    travel_service = TravelQueryTool(settings, store=memory_store)
+    travel_service.rail = rail_client
     if amap_client is not None:
         travel_service.amap=amap_client
     if travel_service.manages_read_retries:
         travel_service.amap.diagnostics = memory_store.diagnostics.record
         travel_service.amap.checkpoint_store = memory_store
-    reservation_service = ReservationService(memory_store)
     image_extractor = (
         ImageVisionExtractor(
             model_id=settings.llm_model_id,
@@ -100,27 +119,24 @@ def build_runtime(
         image_extractor,
         image_root=memory_store.database_path.parent / "images",
     )
-    reservation_draft_creator = ReservationDraftCreator(
-        reservation_image_service,
-        reservation_service,
-    )
-    tool_router = AgentToolRouter(
-        travel_service,
-        reservation_service,
-        reservation_draft_creator,
-        memory_store.tool_artifacts,
-    )
+    reservation_service = ReservationTool(memory_store, image_service=reservation_image_service)
+    reservation_draft_creator = reservation_service
+    from infrastructure.web_reader import read_page
+    configured_reader = reader if reader is not None else (
+        lambda url, *, url_allowed=None: read_page(url, diagnostics=memory_store.diagnostics.record, url_allowed=url_allowed))
+    public_search = search_client if search_client is not None else SearchClient(os.getenv('SEARCH_API_KEY', ''), os.getenv('SEARCH_BASE_URL', 'https://api.tavily.com'))
+    website_search = SearchTool(memory_store,public_search,reader=configured_reader,registry=official_sources,
+        enabled=os.getenv('RESEARCH_OFFICIAL_LINKS_ENABLED','true').lower()=='true')
+    tool_router = AgentToolRouter(travel_service, reservation_service, memory_store.tool_artifacts,
+                                 delivery_repository=memory_store.delivery,search_tool=website_search)
+    travel_service.tool_executor = tool_router.execute_result
     travel_agent = (
-        TravelAgent(settings, tool_router.execute_result, client=model_client)
+        TravelAgent(settings, tool_router.execute_result, client=model_client,
+                    catalog_resolver=tool_router.freeze_catalog)
         if settings.llm_configured
         else None
     )
-    document_service = DocumentService(
-        memory_store,
-        summarizer=(
-            travel_agent.summarize_document if travel_agent else None
-        ),
-    )
+    document_service = MaterialsTool(memory_store, client=model_client, model=settings.llm_model_id)
     upload_service = UploadBindingService(
         memory_store,
         document_service,
@@ -137,6 +153,19 @@ def build_runtime(
         memory_store,
         reservation_image_service.image_root,
     )
+    reminders_tool = RemindersTool(memory_store, travel_service, resolver=booking_resolver,
+        client=model_client, model=settings.llm_model_id, clock=clock, tool_executor=tool_router.execute_result)
+    from infrastructure.wendao_client import WendaoClient
+    from tools.hotel_prices.tool import HotelQuotes
+    research_tool = ResearchTool(memory_store,
+        public_search,
+        model_client, settings.llm_model_id,
+        reader=configured_reader, amap=travel_service.amap, official_sources=official_sources,
+        website_search=website_search,
+        wendao=WendaoClient(os.getenv('WENDAO_API_KEY', ''), os.getenv('WENDAO_ENABLED', 'false').lower() == 'true',
+                           diagnostics=memory_store.diagnostics.record))
+    travel_service.hotel_prices=HotelQuotes(memory_store,research_tool.wendao,model_client,settings.llm_model_id,
+        amap=travel_service.amap,clock=clock,enabled=os.getenv('HOTEL_QUOTES_ENABLED','true').lower()=='true')
     application = TravelBotApplication(
         store=memory_store,
         travel_service=travel_service,
@@ -148,56 +177,45 @@ def build_runtime(
         reminder_scheduler=reminder_scheduler,
         reservation_service=reservation_service,
         tool_router=tool_router,
+        read_only_service=travel_service,
+        research_service=research_tool,
         group_allowed=group_allowed,
-        personal_reminder_service=PersonalReminderService(memory_store, intent_parser=(
-            ReminderIntentParser(travel_agent.client, travel_agent.model) if travel_agent else None)),
-        booking_reminder_service=BookingReminderService(memory_store,
-            client=travel_agent.client if travel_agent else None, model=travel_agent.model if travel_agent else ''),
-        trip_service=TripService(memory_store, TripPlanner(
-            travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else '', travel_service.amap)),
-        image_context_service=ImageContextService(memory_store, reservation_image_service._download,
-            travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else ''),
-        scheduled_query_service=ScheduledQueryService(memory_store, travel_service,
-            travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else '',
-            tool_executor=tool_router.execute_result),
-        policy_watch_service=PolicyWatchService(memory_store, booking_resolver,
-            travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else ''),
+        reminders_tool=reminders_tool,
+        personal_reminder_service=reminders_tool,
+        booking_reminder_service=reminders_tool,
+        trip_service=TripTool(memory_store, TripPlanner(
+            travel_agent.client if travel_agent else None, travel_agent.model if travel_agent else '', travel_service.amap),
+            research_reader=research_tool,rail_executor=tool_router.execute_result,
+            answer_writer=TripAnswerWriter(memory_store,model_client,settings.llm_model_id) if model_client else None,
+            hotel_quotes=travel_service.hotel_prices),
+        image_context_service=document_service,
+        scheduled_query_service=reminders_tool,
+        policy_watch_service=reminders_tool,
         context_builder=ContextBuilder(memory_store, ConversationSummaryService(
             memory_store.conversation_summaries, model_client, settings.llm_model_id,
             diagnostics=memory_store.diagnostics.summary), diagnostics=memory_store.diagnostics.context),
     )
-    application.preference_service = PreferenceService(memory_store.preferences)
-    application.planning_service = PlanningService(memory_store.planning)
-    from infrastructure.wendao_client import WendaoClient
-    application.research_service = ResearchService(memory_store,
-        search_client if search_client is not None else SearchClient(os.getenv('SEARCH_API_KEY', ''), os.getenv('SEARCH_BASE_URL', 'https://api.tavily.com')),
-        model_client, settings.llm_model_id, application.trip_service,
-        amap=travel_service.amap, official_sources=official_sources,
-        wendao=WendaoClient(os.getenv('WENDAO_API_KEY', ''), os.getenv('WENDAO_ENABLED', 'false').lower() == 'true',
-                           diagnostics=memory_store.diagnostics.record))
-    application.trip_service.research_service = application.research_service
-    application.booking_reminder_service.resolver = booking_resolver
-    if reader is not None:
-        application.research_service.reader=reader
-    else:
-        from infrastructure.web_reader import read_page
-        application.research_service.reader=lambda url, **kwargs: read_page(url,diagnostics=memory_store.diagnostics.record, **kwargs)
+    application.preference_service = PreferencesTool(memory_store.preferences)
+    application.skill_manager = skill_manager
+    application.planning_service = PlanningArtifacts(memory_store.planning)
     if isinstance(application.research_service.search,SearchClient):
         application.research_service.search.diagnostics=memory_store.diagnostics.record
     if clock is not None:
-        for service in (application.personal_reminder_service,application.booking_reminder_service,
-                        application.trip_service,application.scheduled_query_service,application.policy_watch_service,
-                        reminder_scheduler,outbox_worker,maintenance_service):
+        for service in (reminders_tool, application.trip_service, reminder_scheduler, outbox_worker, maintenance_service):
             service.clock=clock
     if model_client is not None:
-        application.semantic_task_service = SemanticTaskService(
+        application.semantic_task_service = RequestRouter(
             memory_store,
             IntentCompiler(model_client, settings.llm_model_id, diagnostics=memory_store.diagnostics),
             trip_service=application.trip_service,
-            reminder_service=application.personal_reminder_service,
+            preferences_tool=application.preference_service,
+            planning_tool=application.planning_service,
+            reservation_tool=reservation_service,
+            reminder_service=reminders_tool,
             research_service=application.research_service,
             travel_service=travel_service,
             tool_executor=tool_router.execute_result,
+            read_only_service=application.read_only_service,
             mode=semantic_mode if semantic_mode is not None else os.getenv('TRAVEL_SEMANTIC_MODE', 'execute'),
         )
     return RuntimeComponents(
@@ -215,5 +233,6 @@ def build_runtime(
         reminder_scheduler=reminder_scheduler,
         maintenance_service=maintenance_service,
         application=application,
-        supervisor=BackgroundSupervisor(),
+        supervisor=BackgroundSupervisor(resources=(rail_mcp,) if rail_mcp else ()),
+        rail_client=rail_client,
     )

@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from infrastructure.amap_client import AmapClient, AmapError
 from infrastructure.place_resolution import matches
+from infrastructure.place_resolution import resolve_route_location, PLACE_CONTEXT
 
 
 ORIGIN='华中科技大学启明门'
@@ -17,6 +18,61 @@ def poi(name, identifier, location, *, city='武汉市', district='洪山区', a
 
 
 class RoutePlaceResolutionTests(unittest.TestCase):
+    def test_saved_resolution_preserves_origin_while_refining_destination(self):
+        from infrastructure.amap_client import PlaceResolutionError
+        start=poi('云城站','start','114.41,30.50')
+        end=poi('山城站','end','114.42,30.50',address='甲路')
+        other={**end,'id':'other','address':'乙路'}
+        self.client.search_places=Mock(side_effect=lambda city,keyword,**_: (start,) if keyword=='云城站' else (end,other))
+        with self.assertRaises(PlaceResolutionError) as caught:
+            self.client.resolve_route_endpoints('云城站','山城站',city='武汉市')
+        self.assertEqual(caught.exception.field,'destination')
+        self.assertEqual(caught.exception.resolution['origin']['resolved']['poi_id'],'start')
+        token=PLACE_CONTEXT.set(caught.exception.resolution)
+        try:
+            locations=self.client.resolve_route_endpoints('云城站','山城站，具体地址是甲路',city='武汉市')
+        finally:
+            PLACE_CONTEXT.reset(token)
+        self.assertEqual([p.poi_id for p in locations],['start','end'])
+        self.assertEqual(self.client.search_places.call_count,2)
+
+    def test_saved_provider_station_response_selects_parent_without_extra_disambiguation(self):
+        payload=json.loads((Path(__file__).parent/'fixtures/amap_station_resolution_2026-10-28.json').read_text(encoding='utf-8'))
+        self.client.search_places=Mock(return_value=payload['pois'])
+        self.client.geocode=Mock(side_effect=AssertionError('POI name must not be reduced to a city'))
+        for query in ('南京南站','江苏省南京市雨花台区南京南站(地铁站)'):
+            if query.startswith('江苏省'):
+                from infrastructure.amap_client import Location
+                self.client.geocode=Mock(return_value=Location('雨花台区','江苏省南京市雨花台区',118.77,31.99,'320114',city='南京市',level='区县'))
+            self.assertEqual(resolve_route_location(self.client,query,'南京市',purpose='transit').poi_id,'BV10053672')
+
+    def test_station_parent_and_child_converge_but_explicit_exit_is_preserved(self):
+        station=poi('云城南站(地铁站)','station','114.41,30.50',kind='交通设施服务;地铁站;地铁站')
+        station['typecode']='150500'
+        child={**station,'id':'exit','name':'云城南站地铁站1号口','parent':'station','typecode':'150501'}
+        self.client.search_places=Mock(return_value=(station,child))
+        for name,identifier in [('云城南站','station'),('云城南站(地铁站)','station'),('云城南站地铁站1号口','exit')]:
+            self.assertEqual(resolve_route_location(self.client,name,'武汉市',purpose='transit').poi_id,identifier)
+
+    def test_unknown_alias_falls_back_to_poi_and_city_prefix_is_not_removed_from_entity(self):
+        station=poi('南京南站(地铁站)','station','118.79,31.97',city='南京市',district='雨花台区',adcode='320114')
+        station['typecode']='150500'; station['pname']='江苏省'
+        self.client.search_places=Mock(return_value=(station,))
+        self.assertEqual(resolve_route_location(self.client,'南京南','南京市',purpose='transit').poi_id,'station')
+        wrong={**station,'name':'南站'}
+        self.assertFalse(matches('南京南站',wrong))
+
+    def test_independent_exact_stations_remain_ambiguous_and_saved_candidates_can_be_refined(self):
+        from infrastructure.amap_client import PlaceResolutionError
+        candidates=[poi('云城南站','one','114.41,30.50',address='甲路'),poi('云城南站','two','114.42,30.50',address='乙路')]
+        self.client.search_places=Mock(return_value=candidates)
+        with self.assertRaises(PlaceResolutionError) as caught:
+            resolve_route_location(self.client,'云城南站','武汉市')
+        self.assertEqual(caught.exception.code,'location_ambiguous')
+        location=resolve_route_location(self.client,'云城南站，具体地址是甲路','武汉市',previous=caught.exception.resolution)
+        self.assertEqual(location.poi_id,'one')
+        self.client.search_places.assert_called_once()
+
     def setUp(self):
         self.client=AmapClient('offline-fixture')
         self.campus=poi('华中科技大学','campus','114.40,30.50',kind='科教文化服务;学校;高等院校')

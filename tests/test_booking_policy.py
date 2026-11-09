@@ -6,8 +6,9 @@ import unittest
 
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.booking_policy import BookingPolicyResolver, PolicyTextParser, PolicyUnavailable
-from services.booking_reminder_service import BookingReminderService
+from tools.reminders.policy import BookingPolicyResolver, PolicyUnavailable
+from infrastructure.html_text import HTMLTextParser as PolicyTextParser
+from tools.reminders.tool import RemindersTool
 
 
 FIXTURE = json.loads((Path(__file__).parent / 'fixtures/hubei_policy_excerpt.json').read_text(encoding='utf-8'))
@@ -72,12 +73,12 @@ class BookingReminderTests(unittest.TestCase):
         self.text = SIMPLE
         self.resolver = BookingPolicyResolver(sources={'测试博物馆': 'https://museum.example/policy'},
             fetch_text=lambda url: self.text, clock=lambda: self.now)
-        self.service = BookingReminderService(self.store, resolver=self.resolver, clock=lambda: self.now)
+        self.service = RemindersTool(self.store, resolver=self.resolver, clock=lambda: self.now)
 
     def handle(self, text, event_id, user='owner'):
         event = ChatEvent('onebot', 'group', event_id, 'group', user, text)
-        claim = self.store.begin_event(event.event_key)
-        return self.service.handle(event, claim)
+        claim = self.store.delivery.begin_event(event.event_key)
+        return self.service.handle(event, claim, kind='booking')
 
     def reminders(self):
         return self.store.reminders.list_for_owner('onebot', 'group', 'owner')

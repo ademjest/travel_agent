@@ -5,13 +5,13 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from agents.context_builder import ContextBuilder,render_untrusted_context
+from app.conversation_context import ContextBuilder, render_untrusted_context
 from core.chat_transport import ChatEvent
 from core.context_policy import context_policy
 from infrastructure.memory_store import MemoryStore
-from scripts.evaluate_summary_quality import ScriptedClient,load_cases,seed_stage,evaluate_case,evaluate_fault,OFFLINE_ENV
+from evaluation.cases.evaluate_summary_quality import ScriptedClient,load_cases,seed_stage,evaluate_case,evaluate_fault,OFFLINE_ENV
 from scripts.inspect_conversation_summary import inspect
-from services.conversation_summary_service import ConversationSummaryService,select_batch
+from app.conversation_context import ConversationSummaryService, select_batch
 
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -47,7 +47,7 @@ class SummaryQualityContractTests(unittest.TestCase):
         self.service.ensure(self.event)
         self.assertEqual(self.events[-1]['reason'],'turns')
         for i in range(8):
-            self.store.save_turn(self.event.storage_scope_id,'owner',f'tiny{i}','普通讨论','收到')
+            self.store.conversations.save_turn(self.event.storage_scope_id,'owner',f'tiny{i}','普通讨论','收到')
         self.service.ensure(self.event)
         self.assertEqual(self.events[-1]['reason'],'chars')
         self.assertFalse(self.client.calls)
@@ -64,7 +64,7 @@ class SummaryQualityContractTests(unittest.TestCase):
     def test_diagnostic_failure_cannot_break_publication(self):
         self.seed()
         self.service.diagnostics=lambda value: (_ for _ in ()).throw(RuntimeError('diagnostic failure'))
-        with self.assertLogs('services.conversation_summary_service',level='WARNING'):
+        with self.assertLogs('app.conversation_context',level='WARNING'):
             self.assertIsNotNone(self.service.ensure(self.event))
 
     def test_model_success_does_not_hide_bad_json_and_cooldown(self):
@@ -108,7 +108,7 @@ class SummaryQualityContractTests(unittest.TestCase):
         self.assertNotIn('轮椅已经借用',payload)
 
     def test_sources_use_database_ids_not_fixture_positions(self):
-        self.store.save_turn('web:other','another','other','不同用户','不属于本次')
+        self.store.conversations.save_turn('web:other','another','other','不同用户','不属于本次')
         self.seed()
         record=self.service.ensure(self.event)
         self.assertGreater(self.mapping['t1'],1)
@@ -118,8 +118,8 @@ class SummaryQualityContractTests(unittest.TestCase):
         self.seed()
         for index,user in enumerate(self.corpus['aging_messages'][:7]):
             key=f'partial-{index}'
-            self.store.save_turn(self.event.storage_scope_id,'owner',key,user,'中性讨论')
-            self.store.save_chat_message(key,'web','test','owner',key,'','user',user)
+            self.store.conversations.save_turn(self.event.storage_scope_id,'owner',key,user,'中性讨论')
+            self.store.conversations.save_chat_message(key,'web','test','owner',key,'','user',user)
         context=ContextBuilder(self.store).build(self.event)
         self.assertIn('慢慢看桥',context.group_context)
         self.assertNotIn('慢慢看桥', ''.join(turn.user_content for turn in context.recent_dialogue))
@@ -129,8 +129,8 @@ class SummaryQualityContractTests(unittest.TestCase):
         self.service.ensure(self.event)
         for index,user in enumerate(self.corpus['aging_messages']):
             key=f'aging-{index}'
-            self.store.save_turn(self.event.storage_scope_id,'owner',key,user,'中性讨论')
-            self.store.save_chat_message(key,'web','test','owner',key,'','user',user)
+            self.store.conversations.save_turn(self.event.storage_scope_id,'owner',key,user,'中性讨论')
+            self.store.conversations.save_chat_message(key,'web','test','owner',key,'','user',user)
         traces=[]
         context=ContextBuilder(self.store,self.service,traces.append).build(self.event)
         self.assertIn('慢慢看桥',context.conversation_summary)
@@ -189,7 +189,7 @@ class SummaryQualityContractTests(unittest.TestCase):
         self.assertFalse(missing.exists())
 
     def test_oversized_item_count_is_rejected_not_silently_saved(self):
-        from services.conversation_summary_service import validate_items
+        from core.summary_validation import validate_items
         value={'kind':'reference','text':'普通背景','sources':[{'message_id':1,'quote':'普通背景'}]}
         with self.assertRaises(ValueError):
             validate_items({'items':[value for _ in range(13)]},
@@ -221,13 +221,13 @@ class SummaryQualityContractTests(unittest.TestCase):
         self.assertNotIn('慢慢看桥',json.dumps(requests['no_summary']['request'],ensure_ascii=False))
 
     def test_manual_templates_are_not_excluded_or_realtime_queries(self):
-        from agents.travel_decision import decide_travel_action
-        from services.conversation_summary_service import excluded_turn
+        from test_travel_decision import route_policy
+        from core.summary_validation import excluded_turn
         messages=json.loads((ROOT/'tests/fixtures/summary_manual_messages.json').read_text(encoding='utf-8'))
         self.assertEqual(len(messages),22)
         for message in messages:
             with self.subTest(message=message[:30]):
-                self.assertEqual(decide_travel_action(message).intents,('general',))
+                self.assertEqual(route_policy(message).intents,('general',))
                 self.assertFalse(excluded_turn(message))
 
 

@@ -1,3 +1,4 @@
+from app.request_router import bind_read_context
 import json
 from pathlib import Path
 import tempfile
@@ -6,15 +7,17 @@ import unittest
 from unittest.mock import Mock
 
 from core.chat_transport import ChatEvent
-from core.tasks import TaskUpdate, TaskRecord, route_correction, read_task_continuation
+from core.tasks import TaskUpdate, TaskRecord
+from core.commands import route_correction
+from app.request_router import read_task_continuation
 from core.intent_ir import parse_intent_ir
 from core.execution_outcome import TaskContext,TravelReadRequest
 from core.settings import Settings
 from core.tool_result import ToolResult
 from infrastructure.amap_client import PlaceResolutionError
 from infrastructure.memory_store import MemoryStore
-from services.semantic_task_service import SemanticTaskService
-from services.travel_service import TravelService
+from app.request_router import RequestRouter
+from tools.travel_query import TravelQueryTool
 
 
 class RouteCorrectionTests(unittest.TestCase):
@@ -28,20 +31,20 @@ class RouteCorrectionTests(unittest.TestCase):
     def task(self,status='completed',destination='武汉东西湖区航天信息产业研发中心',key='old',owner='u'):
         event=ChatEvent('web','group',key,'c',owner,self.old.content)
         update=TaskUpdate('route',status,event.content,{'origin':'华中科技大学启明门','destination':destination,'intents':['route']})
-        self.store.tasks.prepare_result(event,self.store.begin_event(event.event_key),update,'old fixture')
+        self.store.tasks.prepare_result(event,self.store.delivery.begin_event(event.event_key),update,'old fixture')
 
     def service(self):
         compiler=Mock()
-        travel=SimpleNamespace(execute_tool=Mock(return_value='verified route fixture'))
-        return SemanticTaskService(self.store,compiler,travel_service=travel),compiler,travel
+        travel=SimpleNamespace(manages_read_retries=False, execute_result=Mock(return_value=ToolResult('completed','get_driving_route',data='verified route fixture\n距离：10公里')))
+        return RequestRouter(self.store,compiler,travel_service=travel),compiler,travel
 
     def test_completed_route_correction_requeries_without_model_or_changing_destination(self):
         self.task()
         service,compiler,travel=self.service()
-        reply=service.handle(self.correction,self.store.begin_event(self.correction.event_key))
-        self.assertEqual(reply,'verified route fixture')
+        reply=service.handle(self.correction,self.store.delivery.begin_event(self.correction.event_key))
+        self.assertIn('verified route fixture\n距离：10公里',reply)
         compiler.try_compile.assert_not_called()
-        travel.execute_tool.assert_called_once_with('get_driving_route',{'origin':'华中科技大学的启明门','destination':'武汉东西湖区航天信息产业研发中心'})
+        travel.execute_result.assert_called_once_with('get_driving_route',{'origin':'华中科技大学的启明门','destination':'武汉东西湖区航天信息产业研发中心'})
         with self.store._connect() as db:
             rows=db.execute('SELECT * FROM travel_tasks').fetchall()
         self.assertEqual(len(rows),1)
@@ -50,37 +53,37 @@ class RouteCorrectionTests(unittest.TestCase):
     def test_failed_read_can_be_explicitly_corrected(self):
         self.task(status='failed')
         service,compiler,travel=self.service()
-        self.assertEqual(service.handle(self.correction,self.store.begin_event(self.correction.event_key)),'verified route fixture')
-        self.assertEqual(travel.execute_tool.call_count,1)
+        self.assertIn('verified route fixture\n距离：10公里',service.handle(self.correction,self.store.delivery.begin_event(self.correction.event_key)))
+        self.assertEqual(travel.execute_result.call_count,1)
 
     def test_cancelled_or_other_owner_task_is_not_revived(self):
         for status,owner in (('cancelled','u'),('completed','other')):
             with self.subTest(status=status,owner=owner):
                 self.task(status=status,owner=owner,key=status)
                 service,compiler,travel=self.service()
-                self.assertIn('请回复',service.handle(self.correction,self.store.begin_event(self.correction.event_key)))
-                travel.execute_tool.assert_not_called()
+                self.assertIn('请回复',service.handle(self.correction,self.store.delivery.begin_event(self.correction.event_key)))
+                travel.execute_result.assert_not_called()
 
     def test_multiple_different_routes_require_selection(self):
         self.task()
         self.task(destination='武汉站',key='second')
         service,compiler,travel=self.service()
-        self.assertIn('请回复',service.handle(self.correction,self.store.begin_event(self.correction.event_key)))
-        travel.execute_tool.assert_not_called()
+        self.assertIn('请回复',service.handle(self.correction,self.store.delivery.begin_event(self.correction.event_key)))
+        travel.execute_result.assert_not_called()
 
     def test_expired_route_is_not_used(self):
         self.task()
         with self.store._connect() as db:
             db.execute("UPDATE travel_tasks SET expires_at='2000-01-01T00:00:00+00:00'")
         service,compiler,travel=self.service()
-        self.assertIn('请回复',service.handle(self.correction,self.store.begin_event(self.correction.event_key)))
-        travel.execute_tool.assert_not_called()
+        self.assertIn('请回复',service.handle(self.correction,self.store.delivery.begin_event(self.correction.event_key)))
+        travel.execute_result.assert_not_called()
 
     def test_resolution_failure_preserves_fields_and_becomes_collecting(self):
         self.task()
         service,_,_=self.service()
-        service.tool_executor=Mock(return_value=ToolResult('needs_input','get_driving_route',data='请提供启明门的具体道路地址',error_code='location_not_found',missing_fields=('origin',)))
-        self.assertIn('具体道路',service.handle(self.correction,self.store.begin_event(self.correction.event_key)))
+        service.read_only_service.tool_executor=Mock(return_value=ToolResult('needs_input','get_driving_route',data='请提供启明门的具体道路地址',error_code='location_not_found',missing_fields=('origin',)))
+        self.assertIn('具体道路',service.handle(self.correction,self.store.delivery.begin_event(self.correction.event_key)))
         with self.store._connect() as db:
             row=db.execute('SELECT * FROM travel_tasks').fetchone()
         self.assertEqual(row['status'],'collecting')
@@ -88,7 +91,7 @@ class RouteCorrectionTests(unittest.TestCase):
         self.assertEqual(json.loads(row['slots_json'])['destination'],'武汉东西湖区航天信息产业研发中心')
 
     def test_locator_error_is_typed_needs_input_not_a_retryable_success(self):
-        service=TravelService(Settings('','',frozenset(),'','','',''))
+        service=TravelQueryTool(Settings('','',frozenset(),'','','',''))
         service.amap=Mock(driving_route=Mock(side_effect=PlaceResolutionError('不是该大学校门',code='location_mismatch',field='origin')))
         result=service.execute_result('get_driving_route',{'origin':'华中科技大学启明门','destination':'研发中心'})
         self.assertEqual((result.status,result.error_code,result.missing_fields),('needs_input','location_mismatch',('origin',)))
@@ -118,7 +121,7 @@ class RouteCorrectionTests(unittest.TestCase):
         event=ChatEvent('web','group','follow','c','u','是航天三院信息产业研发中心')
         task=TaskRecord('route','route','collecting',self.old.content,
                         {'origin':'华中科技大学南大门','destination':'航天信息产业研发中心'},('destination',),3,'','')
-        context=TaskContext.for_read(event,(task,))
+        context=bind_read_context(event,(task,))
         # Deliberately use an old endpoint in a model proposal; it must not become a tool argument.
         operation={'schema_version':1,'action':'read','operations':[{'domain':'route','operation':'query',
                    'origin':'华中科技大学启明门','destination':'航天三院信息产业研发中心'}],
@@ -135,17 +138,17 @@ class RouteCorrectionTests(unittest.TestCase):
         task=self.store.tasks.recent('web',event.storage_scope_id,'u')[0]
         task=TaskRecord(task.task_id,'route','collecting',task.initial_request,
                         {**task.slots,'origin':'华中科技大学南大门'},('destination',),task.version,task.expires_at,task.last_event_id)
-        context=TaskContext.for_read(event,(task,))
+        context=bind_read_context(event,(task,))
         ir=parse_intent_ir({'schema_version':1,'action':'read','operations':[{'domain':'route','operation':'query',
                            'origin':'华中科技大学启明门','destination':'航天三院信息产业研发中心'}],
                            'source_spans':['航天三院信息产业研发中心']},self.old.content+'\n'+event.content)
-        service._travel_lookup(event,ir,self.store.begin_event(event.event_key),context)
-        self.assertEqual(travel.execute_tool.call_args.args[1]['origin'],'华中科技大学南大门')
+        service.read_only_service.prepare(event,self.store.delivery.begin_event(event.event_key),ir,context)
+        self.assertEqual(travel.execute_result.call_args.args[1]['origin'],'华中科技大学南大门')
 
     def test_explicit_new_origin_is_not_frozen_by_state_guard(self):
         self.task()
         event=ChatEvent('web','group','change','c','u','起点改为华中科技大学南大门')
-        context=TaskContext.for_read(event,self.store.tasks.recent('web',event.storage_scope_id,'u'))
+        context=bind_read_context(event,self.store.tasks.recent('web',event.storage_scope_id,'u'))
         ir=parse_intent_ir({'schema_version':1,'action':'read','operations':[{'domain':'route','operation':'query',
                            'origin':'华中科技大学南大门','destination':'武汉东西湖区航天信息产业研发中心'}],
                            'source_spans':['华中科技大学南大门']},context.message)
@@ -169,12 +172,12 @@ class RouteCorrectionTests(unittest.TestCase):
             if '三院' not in args['destination']:
                 return ToolResult('needs_input',name,data='候选：航天三院信息产业研发中心，请确认终点',
                                   error_code='location_not_found',missing_fields=('destination',))
-            return ToolResult('completed',name,data='verified route fixture')
-        service=SemanticTaskService(self.store,compiler,travel_service=SimpleNamespace(),tool_executor=execute)
+            return ToolResult('completed',name,data='verified route fixture\n距离：10公里')
+        service=RequestRouter(self.store,compiler,travel_service=SimpleNamespace(),tool_executor=execute)
         for index,text in enumerate(texts):
             event=ChatEvent('web','group',f'sequence-{index}','c','u',text)
             with self.subTest(turn=index):
-                self.assertIsInstance(service.handle(event,self.store.begin_event(event.event_key)),str)
+                self.assertIsInstance(service.handle(event,self.store.delivery.begin_event(event.event_key)),str)
         self.assertEqual(len(calls),5)
         self.assertEqual(calls[3]['origin'],'华中科技大学的南大门')
         self.assertEqual(calls[-1]['origin'],texts[-1].removeprefix('起点是'))

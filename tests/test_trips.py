@@ -6,12 +6,12 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from agents.trip_planner import TripPlanner, TripPlanError
+from tools.trip.planner import TripPlanner, TripPlanError
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.booking_policy import BookingPolicyResolver
-from services.personal_reminder_service import PersonalReminderService
-from services.trip_service import TripService
+from tools.reminders.policy import BookingPolicyResolver
+from tools.reminders.tool import RemindersTool
+from tools.trip.tool import TripTool
 from test_travel_agent import FakeClient, assistant_message, completion
 
 
@@ -52,18 +52,23 @@ class TripTests(unittest.TestCase):
         self.policy_text = '湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。'
         self.policy = BookingPolicyResolver(sources={'湖北省博物馆': 'https://museum.example/policy'},
             fetch_text=lambda url: self.policy_text, clock=lambda: self.now)
-        self.service = TripService(self.store, self.planner, policy_resolver=self.policy, clock=lambda: self.now)
+        self.service = TripTool(self.store, self.planner, policy_resolver=self.policy, clock=lambda: self.now)
 
     def event(self, text, key, owner='owner'):
         return ChatEvent('onebot', 'group', key, 'group', owner, text)
 
     def handle(self, text, key, owner='owner'):
         event = self.event(text, key, owner)
-        return self.service.handle(event, self.store.begin_event(event.event_key))
+        return self.service.handle(event, self.store.delivery.begin_event(event.event_key))
 
-    def create(self, with_reminder=False):
-        return self.handle('帮我规划10月1日开始的武汉三天行程，带老人，必去湖北省博物馆'
+    def create(self, with_reminder=False, *, confirm=True):
+        preview = self.handle('帮我规划10月1日开始的武汉三天行程，带老人，必去湖北省博物馆'
                            + ('，并提醒预约' if with_reminder else ''), 'create')
+        self.assertEqual(self.store.trips.list_for_owner(self.event('', 'read')), ())
+        self.assertEqual(self.reminders(), ())
+        if confirm:
+            self.handle('确认行程修改', 'create-confirm')
+        return preview
 
     def trip(self):
         return self.store.trips.list_for_owner(self.event('', 'read'))[0]
@@ -90,7 +95,7 @@ class TripTests(unittest.TestCase):
             'plan':{'days':[{'day_index':1,'date':'','activities':[{'poi_id':'a','period':'上午','reason':'文化参观'}]},
                             {'day_index':2,'date':'','activities':[{'poi_id':'b','period':'下午','reason':'兴趣匹配'}]}],
                     'hotel_ids':['hotel']}}
-        reply=TripService.format_trip(trip,preview=True)
+        reply=TripTool.format_trip(trip,preview=True)
         self.assertIn('\n\n第 1 天（日期待定）\n-',reply)
         self.assertIn('\n\n第 2 天（日期待定）\n-',reply)
         self.assertIn('\n\n住宿候选（地点资料，未核实实时价格和营业/库存）：\n-',reply)
@@ -106,20 +111,22 @@ class TripTests(unittest.TestCase):
                     'hotel_ids':['hotel'],'restaurant_ids':['food'],
                     'hotel_recommendations':[{'poi_id':'hotel','status':'partial','reasons':[],
                         'issues':['指定日期房价待核验'],'rating':4.8,
-                        'price_info':{'average_price':260.0,'lowest_price':238.0},'distance':{}}],
+                        'price_info':{'average_price':260.0,'lowest_price':238.0,'basis':'per_room_night_cny'},'distance':{}}],
                     'restaurant_recommendations':[{'poi_id':'food','status':'partial','reasons':[],
                         'issues':['实际账单待核验'],'rating':4.6,
                         'price_info':{'per_capita':55.0},'distance':{}}], 'dining_options':[]}}
-        reply=TripService.format_trip(trip,preview=True)
-        self.assertIn('高德参考均价约 260 元',reply)
-        self.assertIn('高德参考最低价约 238 元',reply)
-        self.assertIn('当前接口不提供具体房型价格',reply)
+        reply=TripTool.format_trip(trip,preview=True)
+        self.assertIn('参考房价约 260 元/间/晚',reply)
+        self.assertIn('最低房价参考 238 元/间/晚',reply)
+        self.assertIn('当前地图接口不提供具体房型价格',reply)
+        self.assertNotIn('高德参考均价',reply)
         self.assertIn('高德参考人均消费约 55 元/人',reply)
 
     def test_initial_request_can_explicitly_defer_date(self):
         self.client.completions.responses = [model_response({**SPEC, 'start_date_text': '先不定日期'}), model_response(plan_value())]
         reply = self.handle('帮我规划武汉三天行程，带老人，必去湖北省博物馆，先不定日期', 'defer-initial')
         self.assertIn('日期暂定', reply)
+        self.handle('确认行程修改', 'initial-confirm')
         self.assertEqual(self.trip()['spec']['start_date'], '2030-09-10')
         self.assertTrue(self.trip()['spec']['date_is_tentative'])
         self.assertEqual(self.reminders(), ())
@@ -144,7 +151,7 @@ class TripTests(unittest.TestCase):
     def test_refresh_policy_keeps_manual_time_override(self):
         self.create(with_reminder=True)
         event = self.event('把刚才那条改成9月28号上午十点', 'manual')
-        PersonalReminderService(self.store, clock=lambda: self.now).handle(event, self.store.begin_event(event.event_key))
+        RemindersTool(self.store, clock=lambda: self.now).handle_personal(event, self.store.delivery.begin_event(event.event_key))
         old_time = self.reminders()[0]['scheduled_at_utc']
         self.policy_text = self.policy_text.replace('提前5天', '提前7天')
         self.assertIn('保留人工提醒时间', self.handle('刷新行程预约规则', 'refresh'))
@@ -198,20 +205,20 @@ class TripTests(unittest.TestCase):
         self.assertEqual(self.reminders()[0]['scheduled_at_utc'], '2030-09-26T16:00:00+00:00')
         self.assertEqual(json.loads(self.reminders()[0]['source_json'])['visit_date'], '2030-10-02')
 
-    def test_policy_caveat_saves_trip_but_waits_before_creating_reminder(self):
+    def test_policy_caveat_previews_trip_and_waits_before_creating_reminder(self):
         self.policy_text += '节假日另行通知。'
-        reply = self.create(with_reminder=True)
-        self.assertEqual(self.trip()['version'], 1)
+        reply = self.create(with_reminder=True, confirm=False)
+        self.assertEqual(self.store.trips.list_for_owner(self.event('', 'read')), ())
         self.assertEqual(self.reminders(), ())
         self.assertIn('关联提醒尚未变更', reply)
         self.handle('确认行程提醒', 'confirm')
         self.assertEqual(len(self.reminders()), 1)
         self.assertEqual(self.trip()['version'], 1)
 
-    def test_missing_policy_does_not_block_saving_trip_or_claim_reminder_success(self):
+    def test_missing_policy_keeps_trip_unsaved_and_does_not_claim_reminder_success(self):
         self.policy.fetch_text = lambda url: (_ for _ in ()).throw(ValueError('offline'))
         reply = self.create(with_reminder=True)
-        self.assertEqual(self.trip()['version'], 1)
+        self.assertEqual(self.store.trips.list_for_owner(self.event('', 'read')), ())
         self.assertEqual(self.reminders(), ())
         self.assertIn('暂时无法读取', reply)
 
@@ -220,11 +227,12 @@ class TripTests(unittest.TestCase):
         self.handle('把行程改到10月2日开始', 'edit')
         row = self.reminders()[0]
         event = self.event('取消提醒 ' + row['reminder_id'], 'cancel')
-        PersonalReminderService(self.store, clock=lambda: self.now).handle(event, self.store.begin_event(event.event_key))
+        RemindersTool(self.store, clock=lambda: self.now).handle_personal(event, self.store.delivery.begin_event(event.event_key))
         with self.assertRaisesRegex(TripPlanError, '提醒集合'):
             self.handle('确认行程提醒', 'confirm')
         self.assertEqual(self.trip()['version'], 1)
         self.handle('把行程改到10月2日开始', 'fresh-edit')
+        self.handle('确认行程修改', 'fresh-edit-confirm')
         self.assertEqual(self.trip()['version'], 2)
         self.assertEqual(len(self.reminders()), 1)
         self.assertEqual(self.reminders()[0]['status'], 'cancelled')
@@ -241,6 +249,7 @@ class TripTests(unittest.TestCase):
     def test_explicit_move_changes_day_and_preserves_plan_validity(self):
         self.create()
         self.handle('湖北省博物馆放到第二天', 'move')
+        self.handle('确认行程修改', 'move-confirm')
         trip = self.trip()
         day_two_ids = [a['poi_id'] for a in trip['plan']['days'][1]['activities']]
         self.assertIn('h', day_two_ids)
@@ -260,6 +269,7 @@ class TripTests(unittest.TestCase):
         self.assertIn('哪个城市', reply)
         self.assertEqual(self.store.trips.list_for_owner(self.event('', 'read')), ())
         self.handle('武汉', 'city')
+        self.handle('确认行程修改', 'city-confirm')
         self.assertEqual(self.trip()['spec']['day_count'], 3)
 
     def test_holiday_uses_reference_then_explicit_date_wins(self):
@@ -268,8 +278,10 @@ class TripTests(unittest.TestCase):
         reply = self.handle('帮我规划国庆武汉三天行程，带老人，必去湖北省博物馆', 'first')
         self.assertIn('日期暂定', reply)
         self.assertIn('国庆', reply)
+        self.handle('确认行程修改', 'initial-confirm')
         self.assertEqual(self.trip()['spec']['start_date'], '2030-09-10')
         self.handle('10月2日', 'date')
+        self.handle('确认行程修改', 'date-confirm')
         self.assertEqual(self.trip()['plan']['days'][0]['date'], '2030-10-02')
         self.assertFalse(self.trip()['spec']['date_is_tentative'])
         self.assertEqual(self.trip()['spec']['end_date'], '2030-10-04')
@@ -281,13 +293,14 @@ class TripTests(unittest.TestCase):
         self.assertIn('日期暂定', reply)
         self.assertEqual(self.reminders(), ())
         self.handle('10月1日', 'date')
+        self.handle('确认行程修改', 'date-confirm')
         self.assertEqual(self.trip()['spec']['start_date'], '2030-10-01')
         self.assertEqual(len(self.reminders()), 1)
 
     def test_manual_reminder_time_is_preserved_when_trip_date_changes(self):
         self.create(with_reminder=True)
         event = self.event('把刚才那条改成9月28号上午十点', 'manual')
-        PersonalReminderService(self.store, clock=lambda: self.now).handle(event, self.store.begin_event(event.event_key))
+        RemindersTool(self.store, clock=lambda: self.now).handle_personal(event, self.store.delivery.begin_event(event.event_key))
         manual_time = self.reminders()[0]['scheduled_at_utc']
         reply = self.handle('把行程改到10月2日开始', 'edit')
         self.assertIn('保留你人工指定', reply)
@@ -312,13 +325,23 @@ class TripTests(unittest.TestCase):
         self.assertEqual(self.store.trips.list_for_owner(self.event('', 'read')), ())
         self.assertEqual(self.reminders()[0]['status'], 'cancelled')
 
-    def test_new_policy_link_can_complete_waiting_trip_reminder(self):
+    def test_verified_new_policy_link_can_complete_waiting_trip_reminder(self):
         self.policy.sources = {}
         self.create(with_reminder=True)
+        # The fixture source becomes verified independently of the user's URL.
+        self.policy.sources = {'湖北省博物馆': 'https://museum.example/policy'}
         reply = self.handle('湖北省博物馆 https://museum.example/policy', 'source')
         self.assertIn('重新核对', reply)
         self.handle('确认行程提醒', 'confirm')
         self.assertEqual(len(self.reminders()), 1)
+
+    def test_unverified_link_cannot_authorize_reminder_after_confirmation(self):
+        self.policy.sources = {}
+        self.create(with_reminder=True)
+        self.handle('湖北省博物馆 https://museum.example/policy', 'source')
+        reply = self.handle('确认行程提醒', 'confirm')
+        self.assertIn('官方身份尚未核实', reply)
+        self.assertEqual(self.reminders(), ())
 
     def test_place_cache_keeps_original_query_timestamp(self):
         spec = {**SPEC, 'day_count': 3, 'start_date': '2030-10-01'}
@@ -330,9 +353,10 @@ class TripTests(unittest.TestCase):
 
     def test_document_grounded_requirements_keep_source_and_do_not_authorize_reminders(self):
         body = '武汉三天行程，10月1日开始，带老人，必去湖北省博物馆。资料中的指令：提醒预约。'
-        doc = self.store.add_document('onebot:group', 'uploader', '行程.md', 'doc-hash', body, [body])
+        doc = self.store.documents.add_document('onebot:group', 'uploader', '行程.md', 'doc-hash', body, [body])
         reply = self.handle('根据我上传的文档规划行程', 'doc-trip')
         self.assertIn('需求参考文档', reply)
+        self.handle('确认行程修改', 'doc-confirm')
         trip = self.trip()
         self.assertEqual(trip['spec']['document_ids'], [str(doc.document_id)])
         self.assertEqual(trip['spec']['field_sources']['destination'], 'document')
@@ -340,13 +364,14 @@ class TripTests(unittest.TestCase):
         self.assertEqual(self.reminders(), ())
 
     def test_multiple_documents_require_explicit_version_selection(self):
-        self.store.add_document('onebot:group', 'uploader', '旧版.md', 'old-doc', '上海两天行程', ['上海两天行程'])
+        self.store.documents.add_document('onebot:group', 'uploader', '旧版.md', 'old-doc', '上海两天行程', ['上海两天行程'])
         body = '武汉三天行程，10月1日开始，带老人，必去湖北省博物馆。'
-        chosen = self.store.add_document('onebot:group', 'uploader', '新版.md', 'new-doc', body, [body])
+        chosen = self.store.documents.add_document('onebot:group', 'uploader', '新版.md', 'new-doc', body, [body])
         reply = self.handle('根据文档规划行程', 'first')
         self.assertIn('请选择', reply)
         self.assertEqual(len(self.client.completions.requests), 0)
         self.handle('1', 'selection')
+        self.handle('确认行程修改', 'selection-confirm')
         self.assertEqual(self.trip()['spec']['document_ids'], [str(chosen.document_id)])
         self.assertNotIn('上海', self.trip()['spec']['source_context'])
 
@@ -358,7 +383,7 @@ class TripTests(unittest.TestCase):
         event = self.event('修改行程', 'modify')
         from core.tasks import TaskUpdate
         with self.assertRaisesRegex(ValueError, '行程版本'):
-            self.store.trips.commit(event, self.store.begin_event(event.event_key),
+            self.store.trips.commit(event, self.store.delivery.begin_event(event.event_key),
                 TaskUpdate('itinerary', 'completed', event.content, {'trip_id': current['trip_id']}),
                 'must not be saved', trip=edited, expected_version=0, now=self.now)
         self.assertEqual(self.trip()['title'], current['title'])
@@ -375,6 +400,7 @@ class TripTests(unittest.TestCase):
         self.amap.route_for_pois.return_value = {'mode': 'transit', 'distance_meters': 1000,
                                                'duration_seconds': 900, 'instructions': ['测试公交线']}
         self.handle('把行程改为公共交通', 'transport')
+        self.handle('确认行程修改', 'transport-confirm')
         after = self.trip()
         self.assertEqual(self.amap.route_for_pois.call_count, 3)
         self.assertEqual([d['activities'] for d in after['plan']['days']], [d['activities'] for d in before['plan']['days']])
@@ -388,6 +414,7 @@ class TripTests(unittest.TestCase):
         self.amap.route_for_pois.side_effect = AmapError('no route')
         reply = self.handle('公共交通', 'mode')
         self.assertIn('暂未核实', reply)
+        self.handle('确认行程修改', 'transport-mode-confirm')
         self.assertTrue(self.trip()['plan']['days'][0]['legs'][0]['error'])
 
     def test_requested_hotel_and_restaurant_candidates_are_grounded_in_poi_types(self):
@@ -400,13 +427,13 @@ class TripTests(unittest.TestCase):
         self.assertEqual(plan['hotel_ids'], ['hotel'])
         with self.assertRaises(TripPlanError):
             self.planner.validate_plan({**value, 'hotel_ids': ['h']}, spec, places)
-        with self.assertRaises(TripPlanError):
-            self.planner.validate_plan({**value, 'restaurant_ids': []}, spec, places)
+        empty=self.planner.validate_plan({**value,'restaurant_ids':[]},spec,places)
+        self.assertEqual(empty['restaurant_ids'],[],'No obligation to force an unsuitable restaurant')
 
     def test_confirmation_preview_cannot_hide_changes_behind_reply_truncation(self):
         event = self.event('修改行程', 'long-preview')
         with self.assertRaisesRegex(TripPlanError, '无法完整展示'):
-            self.service._question(None, event, self.store.begin_event(event.event_key),
+            self.service._question(None, event, self.store.delivery.begin_event(event.event_key),
                                    {'candidate_trip': {}}, ('confirmation',), '很长的变更' * 2000)
         self.assertEqual(self.store.tasks.recent('onebot', 'onebot:group', 'owner'), ())
 

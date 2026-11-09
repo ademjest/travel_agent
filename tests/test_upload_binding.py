@@ -5,8 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from infrastructure.memory_store import MemoryStore
-from services.document_service import PreparedDocument
-from services.upload_binding import UploadBindingService
+from tools.materials import PreparedDocument
+from adapters.upload_binding import UploadBindingService
 
 
 class FakeDocumentService:
@@ -45,7 +45,7 @@ class UploadBindingServiceTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def handle_attachment(self, event_id, attachments):
-        claim = self.store.begin_event(event_id, now=self.now)
+        claim = self.store.delivery.begin_event(event_id, now=self.now)
         return self.service.handle_private_message(
             "private-user",
             "",
@@ -72,20 +72,20 @@ class UploadBindingServiceTests(unittest.TestCase):
             code_factory=lambda: next(codes),
             now_provider=lambda: self.now,
         )
-        first_claim = self.store.begin_event("binding-event", now=self.now)
+        first_claim = self.store.delivery.begin_event("binding-event", now=self.now)
         first = service.issue_binding(
             "group-a",
             "member-a",
             event_id=first_claim.event_id,
             claim_token=first_claim.claim_token,
         )
-        self.store.fail_event(
+        self.store.delivery.fail_event(
             first_claim.event_id,
             first_claim.claim_token,
             "simulated crash",
             now=self.now,
         )
-        second_claim = self.store.begin_event("binding-event", now=self.now)
+        second_claim = self.store.delivery.begin_event("binding-event", now=self.now)
 
         second = service.issue_binding(
             "group-a",
@@ -167,7 +167,7 @@ class UploadBindingServiceTests(unittest.TestCase):
         self.assertIn("本次绑定已失效", result.reply)
         self.assertIsNotNone(result.outbox_id)
         self.assertIsNone(
-            self.store.get_pending_upload_binding(
+            self.store.uploads.get_pending_upload_binding(
                 "private-user",
                 now=self.now,
             )
@@ -211,7 +211,7 @@ class UploadBindingServiceTests(unittest.TestCase):
         class InspectingDocumentService(FakeDocumentService):
             def prepare_attachments(inner_self, attachments):
                 inner_self.pending_during_ingest = (
-                    self.store.get_pending_upload_binding(
+                    self.store.uploads.get_pending_upload_binding(
                         "private-user",
                         now=self.now,
                     )
@@ -228,7 +228,7 @@ class UploadBindingServiceTests(unittest.TestCase):
         service.issue_binding("group-a", "member-a")
         service.handle_private_message("private-user", "QG-XYZ234", [])
 
-        claim = self.store.begin_event("private-event-inspect", now=self.now)
+        claim = self.store.delivery.begin_event("private-event-inspect", now=self.now)
         service.handle_private_message(
             "private-user",
             "",
@@ -241,7 +241,7 @@ class UploadBindingServiceTests(unittest.TestCase):
 
         self.assertIsNotNone(documents.pending_during_ingest)
         self.assertIsNone(
-            self.store.get_pending_upload_binding(
+            self.store.uploads.get_pending_upload_binding(
                 "private-user",
                 now=self.now,
             )
@@ -256,7 +256,7 @@ class UploadBindingServiceTests(unittest.TestCase):
             [],
         )
         attachment = SimpleNamespace(filename="photo.jpg")
-        first_claim = self.store.begin_event(
+        first_claim = self.store.delivery.begin_event(
             "private-unsupported-replay",
             now=self.now,
         )
@@ -269,13 +269,13 @@ class UploadBindingServiceTests(unittest.TestCase):
             platform="qq_official",
             reply_to_id=first_claim.event_id,
         )
-        self.store.fail_event(
+        self.store.delivery.fail_event(
             first_claim.event_id,
             first_claim.claim_token,
             "simulated interruption",
             now=self.now,
         )
-        second_claim = self.store.begin_event(
+        second_claim = self.store.delivery.begin_event(
             first_claim.event_id,
             now=self.now,
         )
@@ -302,7 +302,7 @@ class UploadBindingServiceTests(unittest.TestCase):
             now_provider=lambda: self.now,
         )
         service.issue_binding("group-a", "member-a")
-        claim = self.store.begin_event("private-disallowed", now=self.now)
+        claim = self.store.delivery.begin_event("private-disallowed", now=self.now)
 
         result = service.handle_private_message(
             "private-user",
@@ -317,7 +317,7 @@ class UploadBindingServiceTests(unittest.TestCase):
         self.assertIn("不在机器人允许列表", result.reply)
         self.assertIsNotNone(result.outbox_id)
         self.assertIsNone(
-            self.store.get_pending_upload_binding(
+            self.store.uploads.get_pending_upload_binding(
                 "private-user",
                 now=self.now,
             )
@@ -331,7 +331,7 @@ class UploadBindingServiceTests(unittest.TestCase):
             [],
         )
         attachment = SimpleNamespace(filename="plan.docx")
-        first_claim = self.store.begin_event("private-event-replay", now=self.now)
+        first_claim = self.store.delivery.begin_event("private-event-replay", now=self.now)
 
         first = self.service.handle_private_message(
             "private-user",
@@ -342,13 +342,13 @@ class UploadBindingServiceTests(unittest.TestCase):
             platform="qq_official",
             reply_to_id=first_claim.event_id,
         )
-        self.store.fail_event(
+        self.store.delivery.fail_event(
             first_claim.event_id,
             first_claim.claim_token,
             "simulated interruption",
             now=self.now,
         )
-        second_claim = self.store.begin_event(
+        second_claim = self.store.delivery.begin_event(
             "private-event-replay",
             now=self.now,
         )
@@ -375,7 +375,7 @@ class UploadBindingServiceTests(unittest.TestCase):
             "QG-ABC234",
             [],
         )
-        claim = self.store.begin_event("onebot-private-document", now=self.now)
+        claim = self.store.delivery.begin_event("onebot-private-document", now=self.now)
 
         self.service.handle_private_message(
             "private-user",
@@ -389,10 +389,10 @@ class UploadBindingServiceTests(unittest.TestCase):
 
         self.assertIn(
             "茶卡镇",
-            self.store.build_document_context("onebot:group-a", "住宿"),
+            self.store.documents.build_document_context("onebot:group-a", "住宿"),
         )
         self.assertEqual(
-            self.store.build_document_context("group-a", "住宿"),
+            self.store.documents.build_document_context("group-a", "住宿"),
             "",
         )
 

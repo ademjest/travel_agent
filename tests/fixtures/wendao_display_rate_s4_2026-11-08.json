@@ -1,0 +1,73 @@
+{
+  "targets": {
+    "B0L2XRYIXR": {
+      "id": "B0L2XRYIXR",
+      "name": "汉庭酒店(南京德基广场新街口地铁站店)",
+      "address": "中山东路56号南京图书发行大厦8-12层",
+      "location": "118.787144,32.041351",
+      "type": "住宿服务;宾馆酒店;经济型连锁酒店",
+      "tel": "025-69516699",
+      "adname": "秦淮区",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "typecode": "100105",
+      "parent": "B00190AANA",
+      "candidate_for": [
+        "339a47b30522136ceb14be63b578d83c75a2d4833dd8d5eb1232acfe5c112438"
+      ]
+    }
+  },
+  "stay": {
+    "check_in": "2026-11-10",
+    "check_out": "2026-11-11",
+    "rooms": 1,
+    "adults": 1,
+    "children_ages": []
+  },
+  "city": "南京市",
+  "extracted_facts": {
+    "offers": [
+      {
+        "target_id": "B0L2XRYIXR",
+        "hotel_name": "汉庭酒店（南京德基广场新街口地铁站店）",
+        "address": "南京市秦淮区中山东路56号（南京图书发行大厦8-12层）",
+        "city": "南京市",
+        "hotel_text": "- **门店名称**：汉庭酒店（南京德基广场新街口地铁站店）\n- **地址**：南京市秦淮区中山东路56号（南京图书发行大厦8-12层）",
+        "stay_text": "- **适用日期**：入住 2026-11-10，退房 2026-11-11",
+        "check_in": "2026-11-10",
+        "check_out": "2026-11-11",
+        "rooms": 1,
+        "adults": 1,
+        "children_ages": null,
+        "room_name": "基础客房（无早）",
+        "price_basis": "per_room_night",
+        "currency": "CNY",
+        "nightly_prices": [
+          {
+            "date": "2026-11-10",
+            "amount": "347"
+          }
+        ],
+        "reported_total": "347",
+        "price_header": "",
+        "price_row": "- **适用日期**：入住 2026-11-10，退房 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：约 ¥347 RMB（携程展示最低价）\n- **总价**：1晚 ¥347 RMB\n- **总价是否含全部税费**：未知（展示价通常含房费，具体税费以预订页为准）\n- **早餐**：不含\n- **退改政策**：未知（以预订时所选房型政策为准）\n- **会员优惠**：未知\n- **携程链接**：[汉庭酒店(南京德基广场新街口地铁站店)](https://m.ctrip.com/webapp/hotel/Nanjing12/g322h39h48v451v600)",
+        "terms_text": "- **适用日期**：入住 2026-11-10，退房 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：约 ¥347 RMB（携程展示最低价）\n- **总价**：1晚 ¥347 RMB\n- **总价是否含全部税费**：未知（展示价通常含房费，具体税费以预订页为准）\n- **早餐**：不含\n- **退改政策**：未知（以预订时所选房型政策为准）\n- **会员优惠**：未知\n- **携程链接**：[汉庭酒店(南京德基广场新街口地铁站店)](https://m.ctrip.com/webapp/hotel/Nanjing12/g322h39h48v451v600)",
+        "taxes_and_fees_status": "unknown",
+        "breakfast": "**早餐**：不含",
+        "cancellation": "**退改政策**：未知（以预订时所选房型政策为准）",
+        "eligibility": "**会员优惠**：未知",
+        "source_url": "https://m.ctrip.com/webapp/hotel/Nanjing12/g322h39h48v451v600",
+        "provider_hotel_id": null
+      }
+    ],
+    "price_absence": [
+      {
+        "target_id": "B0L2XRYIXR",
+        "evidence_text": "[汉庭酒店(南京德基广场新街口地铁站店)](https://m.ctrip.com/webapp/hotel/Nanjing12/g322h39h48v451v600)\n\n\n\n### 产品二：含早餐客房（参考）\n- **适用日期**：入住 2026-11-10，退房 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（需以携程实时查询为准，通常高于无早房型）"
+      }
+    ]
+  },
+  "evidence_version": "hotel-reference-evidence-v4",
+  "provenance": "real_S4_extraction_2026-11-08",
+  "model_extraction_saved": true
+}

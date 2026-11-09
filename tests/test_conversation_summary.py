@@ -6,10 +6,10 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from agents.context_builder import ContextBuilder, render_untrusted_context
+from app.conversation_context import ContextBuilder, render_untrusted_context
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.conversation_summary_service import ConversationSummaryService
+from app.conversation_context import ConversationSummaryService
 
 
 class FakeClient:
@@ -34,7 +34,7 @@ class ConversationSummaryTests(unittest.TestCase):
         self.service = ConversationSummaryService(self.store.conversation_summaries, self.client, 'model')
         self.event = ChatEvent('web', 'group', 'current', 'conversation', 'owner', '继续规划')
         for index in range(8):
-            self.store.save_turn('web:conversation', 'owner', f'event-{index}',
+            self.store.conversations.save_turn('web:conversation', 'owner', f'event-{index}',
                                  '不安排夜游；用户讨论' + '甲' * 600, '助手回复' + '乙' * 600)
 
     def test_summary_is_disabled_by_default(self):

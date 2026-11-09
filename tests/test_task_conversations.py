@@ -1,3 +1,4 @@
+from test_travel_agent import scripted_receipt
 import tempfile
 import unittest
 from unittest.mock import patch, Mock
@@ -12,6 +13,9 @@ from infrastructure.memory_store import MemoryStore
 from infrastructure.task_repository import TaskConflict
 from core.chat_transport import ChatEvent
 from core.tasks import TaskUpdate, utc_now
+from core.intent_ir import IntentIR, IntentOperation
+from app.request_router import RequestRouter
+import json
 from test_travel_agent import FakeClient, assistant_message, completion, tool_call
 
 
@@ -22,6 +26,26 @@ class RecordingTransport:
     async def send(self, message):
         self.messages.append(message)
         return f'bot-{len(self.messages)}'
+
+
+class FixtureIntentCompiler:
+    """Typed intent fixtures for the read tasks exercised by this transport suite."""
+    def try_compile(self,text,*,context=''):
+        state=json.loads(context) if context else {}
+        pending=state.get('read_task',{}).get('type')
+        if '地铁' in text or pending=='transit':
+            domain='transit'
+            values=({'origin':'武汉站','destination':'湖北省博物馆','city':'武汉'} if '武汉站到湖北省博物馆' in text else {})
+        elif text in {'推荐博物馆','推荐一些博物馆'} or pending=='places':
+            domain='places'
+            values={'keywords':'博物馆',**({'city':'武汉'} if '武汉' in text else {})}
+        elif '天气' in text or pending in {'weather','forecast'}:
+            domain='forecast' if '明天' in text or pending=='forecast' else 'weather'
+            values={'location':'武汉'} if '武汉' in text else {}
+        else:
+            return IntentIR(1,'none',())
+        return IntentIR(1,'read',(IntentOperation(domain,'search' if domain=='places' else 'query',values),),
+                        source_spans=tuple(values.values()) or (text[:80],))
 
 
 class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
@@ -40,8 +64,20 @@ class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
             completion(assistant_message(tool_calls=[tool_call('weather', 'get_current_weather', '{"location":"武汉"}')])),
             completion(assistant_message(content='武汉天气：晴，数据来自测试工具。')),
         ])
-        self.runtime.application.travel_agent = TravelAgent(self.agent_settings,
-            lambda name, args: self.calls.append((name, args)) or '武汉晴', client=self.client)
+        def read(name,args, context):
+            self.calls.append((name,args))
+            if name=='search_travel_places':
+                return scripted_receipt(name, args, '武汉博物馆地点，POI ID: fixture')
+            if name in {'get_transit_route','get_walking_route','get_driving_route','get_route_traffic'}:
+                return scripted_receipt(name, args, '路线距离：5公里，预计20分钟')
+            return scripted_receipt(name, args, '武汉天气：晴，温度20℃')
+        self.runtime.application.travel_agent = TravelAgent(self.agent_settings,read,client=self.client)
+        self.runtime.application.read_only_service.tool_executor=read
+        self.runtime.application.semantic_task_service=RequestRouter(self.store,FixtureIntentCompiler(),
+            trip_service=self.runtime.application.trip_service,reminder_service=self.runtime.application.reminders_tool,
+            research_service=self.runtime.application.research_service,
+            read_only_service=self.runtime.application.read_only_service,
+            reservation_tool=self.runtime.reservation_service)
         self.adapter = OneBotAdapter(
             OneBotSettings('http://localhost:3000', 'out', 'in', frozenset({'100'})),
             self.runtime.application, self.store)
@@ -59,7 +95,7 @@ class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_weather_reply_is_saved_and_unmentioned_city_resumes(self):
         await self.message('现在天气怎么样', 'first', mention=True)
-        turns = self.store.get_recent_turns('onebot:100', '200')
+        turns = self.store.conversations.get_recent_turns('onebot:100', '200')
         self.assertIn('城市', turns[-1].assistant_content)
         self.assertEqual(await self.message('武汉', 'second'), {'status': 'handled'})
         self.assertEqual(self.calls, [('get_current_weather', {'location': '武汉'})])
@@ -112,10 +148,10 @@ class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
         update = TaskUpdate('weather', 'completed', '武汉天气', {'location': '武汉'},
                             task_id=task.task_id, expected_version=task.version)
         event = ChatEvent('onebot', 'group', 'update', '100', '200', '武汉')
-        claim = self.store.begin_event(event.event_key)
+        claim = self.store.delivery.begin_event(event.event_key)
         self.store.tasks.prepare_result(event, claim, update, '武汉晴')
         stale_event = ChatEvent('onebot', 'group', 'stale', '100', '200', '武汉')
-        stale_claim = self.store.begin_event(stale_event.event_key)
+        stale_claim = self.store.delivery.begin_event(stale_event.event_key)
         with self.assertRaises(TaskConflict):
             self.store.tasks.prepare_result(stale_event, stale_claim, update, '旧回复')
 
@@ -314,6 +350,8 @@ class TaskConversationTests(unittest.IsolatedAsyncioTestCase):
         request = '帮我规划10月1日开始的武汉三天行程，带老人，必去湖北省博物馆'
         await self.message(request, 'trip-create')
         event = ChatEvent('onebot', 'group', 'read', '100', '200', '')
+        self.assertEqual(self.store.trips.list_for_owner(event), ())
+        await self.message('确认行程修改','trip-create-confirm')
         trips = self.store.trips.list_for_owner(event)
         self.assertEqual(len(trips), 1)
         sent = len(self.transport.messages)

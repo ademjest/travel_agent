@@ -54,7 +54,7 @@ class PublicReadReliabilityTests(unittest.TestCase):
             store=MemoryStore(Path(folder)/'test.db')
             store.inbox.submit('event','onebot','scope','owner',{})
             job=store.inbox.claim()
-            store.begin_event('event')
+            store.delivery.begin_event('event')
             token=CURRENT_EXECUTION.set(ExecutionScope(str(store.database_path),job['id'],job['claim_token']))
             try:
                 self.pool.urlopen.return_value=response(503)

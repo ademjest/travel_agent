@@ -10,7 +10,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Any, Callable
 
 import requests
@@ -61,9 +61,10 @@ def retry_after_seconds(value):
 
 
 class PlaceResolutionError(AmapError):
-    def __init__(self,message,*,code='location_not_found',field=''):
+    def __init__(self,message,*,code='location_not_found',field='',resolution=None):
         super().__init__(message,code=code)
         self.field=field
+        self.resolution=resolution or {}
 
 
 @dataclass(frozen=True)
@@ -231,7 +232,7 @@ class AmapClient:
         ensure_execution_active()
         checkpoint = self._checkpoint(path, params)
         if checkpoint:
-            cached = self.checkpoint_store.get_event_tool_result(checkpoint[1])
+            cached = self.checkpoint_store.delivery.get_event_tool_result(checkpoint[1])
             if cached is not None:
                 ensure_execution_active()
                 if self.diagnostics is not None:
@@ -260,7 +261,7 @@ class AmapClient:
             error.attempts = result.attempts
             raise error
         if checkpoint:
-            self.checkpoint_store.save_event_tool_result(checkpoint[1], checkpoint[0], 'amap_http', {},
+            self.checkpoint_store.delivery.save_event_tool_result(checkpoint[1], checkpoint[0], 'amap_http', {},
                                                         json.dumps(value, ensure_ascii=False))
         return value
 
@@ -330,7 +331,7 @@ class AmapClient:
         data = self._get("/v3/geocode/geo", {"address": place, **({'city':city} if city else {})})
         geocodes = _as_list(data.get("geocodes"))
         if not geocodes:
-            raise AmapError(f"没有找到地点：{place}")
+            raise AmapError(f"没有找到地点：{place}",code='location_not_found')
 
         candidates: list[Location] = []
         seen_candidates: set[str] = set()
@@ -382,7 +383,7 @@ class AmapClient:
                 candidate_labels.append(f"另有 {len(candidates) - 5} 个结果")
             raise AmapError(
                 f"地点“{place}”存在多个匹配结果，请补充省、市或区县后重试："
-                + "；".join(candidate_labels)
+                + "；".join(candidate_labels),code='location_ambiguous'
             )
 
         return candidates[0]
@@ -416,7 +417,7 @@ class AmapClient:
         )
 
     def search_places(self, city: str, keywords: str, *, offset: int = 5, page: int = 1,
-                      extensions: str = 'base', types: str = '') -> tuple[dict[str, Any], ...]:
+                      extensions: str = 'base', types: str = '', location: str = '') -> tuple[dict[str, Any], ...]:
         if not 1 <= offset <= 25 or not 1 <= page <= 100 or extensions not in {'base', 'all'}:
             raise ValueError('Invalid place search pagination or extensions')
         for attempt in range(3):
@@ -432,7 +433,9 @@ class AmapClient:
                         params['city']=city
                     if types:
                         params['types'] = types
-                    data = self._get('/v3/place/text', params)
+                    if location:
+                        params.update(location=location,radius=5000,sortrule='distance')
+                    data = self._get('/v3/place/around' if location else '/v3/place/text', params)
                 except AmapError as exc:
                     if exc.code != '10021' or attempt == 2:
                         raise
@@ -442,7 +445,7 @@ class AmapClient:
         results = []
         for poi in _as_list(data.get('pois'))[:offset]:
             result = {key: value for key in ('id', 'name', 'address', 'location', 'type', 'tel',
-                                                    'adname', 'business_area', 'pname', 'cityname','adcode','typecode')
+                                                    'adname', 'business_area', 'pname', 'cityname','adcode','typecode','parent')
                       if isinstance((value := poi.get(key)), str)}
             business = poi.get('biz_ext')
             if isinstance(business, dict):
@@ -450,6 +453,7 @@ class AmapClient:
                     value = business.get(source)
                     if isinstance(value, (str, int, float)) and str(value).strip():
                         result[target] = str(value).strip()
+                if 'cost' in result:result['cost_unit']='人均消费'
             if result.get('name'):
                 results.append(result)
         return tuple(results)
@@ -484,7 +488,7 @@ class AmapClient:
     def non_driving_route(self, origin: str, destination: str, *, mode: str, city: str = '') -> dict:
         if mode not in {'walking', 'transit'}:
             raise ValueError('Unsupported route mode')
-        origin_location, destination_location = self.resolve_route_endpoints(origin,destination,city=city)
+        origin_location, destination_location = self.resolve_route_endpoints(origin,destination,city=city,purpose=mode)
         return self.non_driving_route_locations(origin_location, destination_location, mode=mode, city=city)
 
     def search_place_tips(self, city: str, keywords: str) -> tuple[dict[str, Any], ...]:
@@ -510,10 +514,24 @@ class AmapClient:
 
     def non_driving_route_locations(self, origin_location: Location, destination_location: Location, *, mode: str, city: str = '') -> dict:
         params = {'origin': origin_location.coordinates, 'destination': destination_location.coordinates}
+        city_source=''
+        resolution={field:{'query':point.query,'city':city,'resolved':asdict(point)}
+                    for field,point in (('origin',origin_location),('destination',destination_location))}
         if mode == 'transit':
-            if not city:
-                raise AmapError('公共交通查询需要明确城市')
-            params.update(city=city, cityd=city, strategy=0, extensions='base')
+            from infrastructure.place_resolution import city_name
+            cities=[point.city for point in (origin_location,destination_location) if point.city]
+            if len({city_name(value) for value in cities})>1:
+                raise PlaceResolutionError('两端属于不同城市，当前为市内公共交通查询；请明确需要查询的市内接驳段。',
+                    code='location_mismatch',field='city',resolution=resolution)
+            if city and any(city_name(value)!=city_name(city) for value in cities):
+                raise PlaceResolutionError('指定城市与已定位的起终点不一致，请核对城市或地点。',code='location_mismatch',field='city',resolution=resolution)
+            if len(cities)==2:
+                city=cities[0]; city_source='verified_locations'
+            elif city:
+                city_source='request'
+            else:
+                raise PlaceResolutionError('尚未能核验两端所属城市，请提供更具体的地点或城市。',code='location_ambiguous',field='city',resolution=resolution)
+            params.update(city=city,cityd=city,strategy=0,extensions='base')
         path = '/v3/direction/walking' if mode == 'walking' else '/v3/direction/transit/integrated'
         data = self._get(path, params)
         route = data.get('route') or {}
@@ -521,7 +539,7 @@ class AmapClient:
             raise AmapError('路线返回结构无效', code='invalid_response')
         options = _as_list(route.get('paths' if mode == 'walking' else 'transits'))
         if not options:
-            raise AmapError('没有找到对应交通方式的路线，请核对起终点与城市')
+            raise AmapError('没有找到对应交通方式的路线，请核对起终点与城市',code='route_not_found')
         option = options[0]
         if (not isinstance(option, dict) or _to_int(option.get('distance') or route.get('distance')) <= 0
                 or _to_int(option.get('duration')) <= 0):
@@ -539,9 +557,12 @@ class AmapClient:
                     departure = (line.get('departure_stop') or {}).get('name', '')
                     arrival = (line.get('arrival_stop') or {}).get('name', '')
                     instructions.append(f"{line.get('name', '')}：{departure} → {arrival}")
-        return {'mode': mode, 'origin': origin_location.address, 'destination': destination_location.address,
+        result={'mode': mode, 'origin': origin_location.address, 'destination': destination_location.address,
                 'distance_meters': _to_int(option.get('distance') or route.get('distance')),
                 'duration_seconds': _to_int(option.get('duration')), 'instructions': tuple(filter(None, instructions))}
+        if mode=='transit':
+            result.update(city=city,city_source=city_source,place_resolution=resolution)
+        return result
 
     def weather_forecast(self, place: str) -> WeatherForecast:
         location = self.geocode(place)
@@ -589,14 +610,24 @@ class AmapClient:
         origin_location,destination_location = self.resolve_route_endpoints(origin,destination)
         return self.driving_route_locations(origin_location, destination_location)
 
-    def resolve_route_endpoints(self,origin,destination,*,city=''):
-        from infrastructure.place_resolution import resolve_route_location
+    def resolve_route_endpoints(self,origin,destination,*,city='',purpose='driving'):
+        from infrastructure.place_resolution import resolve_route_location, PLACE_CONTEXT, city_name
+        state=dict(PLACE_CONTEXT.get() or {})
         locations=[]
         for field,query in (('origin',origin),('destination',destination)):
             try:
-                locations.append(resolve_route_location(self,query,city))
+                saved=state.get(field,{})
+                if (saved.get('query')==query and saved.get('resolved') and
+                        (not city or city_name(saved['resolved'].get('city'))==city_name(city))):
+                    location=Location(**saved['resolved'])
+                else:
+                    location=resolve_route_location(self,query,city,purpose=purpose,previous=saved)
+                locations.append(location)
+                state[field]={'query':query,'city':city,'resolved':asdict(location)}
             except PlaceResolutionError as exc:
-                exc.field=field
+                exc.field=exc.field or field
+                state[field]=exc.resolution
+                exc.resolution=state
                 raise
         return tuple(locations)
 

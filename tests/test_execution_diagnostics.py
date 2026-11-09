@@ -1,3 +1,4 @@
+from test_travel_agent import execution_policy
 import json
 from pathlib import Path
 import tempfile
@@ -22,7 +23,7 @@ class ExecutionDiagnosticsTests(unittest.TestCase):
         self.path = Path(self.folder.name) / 'diagnostics.db'
         self.store = MemoryStore(self.path)
         self.event = ChatEvent('onebot', 'group', 'event', 'group', 'owner', 'private message')
-        self.store.save_chat_message(self.event.event_key, 'onebot', 'group', 'owner',
+        self.store.conversations.save_chat_message(self.event.event_key, 'onebot', 'group', 'owner',
                                     'event', '', 'user', self.event.content)
 
     def test_runtime_connects_summary_and_context_without_model_calls(self):
@@ -57,7 +58,7 @@ class ExecutionDiagnosticsTests(unittest.TestCase):
 
     def test_runtime_correlates_model_context_and_tool_metadata(self):
         from test_travel_agent import FakeClient, completion, assistant_message, tool_call
-        from tools.agent_tools import AgentToolContext
+        from core.tool_result import AgentToolContext
         from core.tool_result import ToolResult
         client = FakeClient([completion(assistant_message(tool_calls=[
             tool_call('weather', 'get_current_weather', '{"location":"武汉"}') ])),
@@ -65,13 +66,13 @@ class ExecutionDiagnosticsTests(unittest.TestCase):
         runtime = build_runtime(Settings('', '', frozenset(), '', 'fake', 'https://example.test', 'fake'),
             platform='onebot', transport=FakeTransport(), reply_renderer=FakeRenderer(), group_allowed=lambda _: True,
             store=self.store, client=client)
-        runtime.travel_service.execute_result = Mock(return_value=ToolResult('completed', 'get_current_weather', data='固定天气结果'))
+        runtime.travel_service.execute_result = Mock(return_value=ToolResult('completed', 'get_current_weather', data='固定天气结果：晴，温度20℃'))
         token = MODEL_EVENT.set(self.event.event_key)
         self.addCleanup(MODEL_EVENT.reset, token)
         with patch.dict('os.environ', {'AI_SUMMARY_ENABLED': 'false'}):
             context = runtime.application.context_builder.build(self.event)
             result = runtime.travel_agent.run('武汉天气', context, tool_context=AgentToolContext(
-                'onebot', 'group', 'owner', self.event.event_key))
+                'onebot', 'group', 'owner', self.event.event_key), decision_override=execution_policy(('weather',), ('get_current_weather',)))
         self.assertEqual(result.status, 'completed')
         report = export_timeline(self.path, self.event.event_key)
         stages = [row['stage'] for row in report['timeline']]
@@ -99,10 +100,10 @@ class ExecutionDiagnosticsTests(unittest.TestCase):
     def test_stale_task_commit_is_identifiable_without_recording_reply(self):
         from core.tasks import TaskUpdate
         from infrastructure.task_repository import TaskConflict
-        claim = self.store.begin_event(self.event.event_key)
+        claim = self.store.delivery.begin_event(self.event.event_key)
         update = TaskUpdate('weather', 'collecting', 'private request', {}, ('location',))
         self.store.tasks.prepare_result(self.event, claim, update, 'private reply')
-        self.store.complete_event(claim.event_id, claim.claim_token)
+        self.store.delivery.complete_event(claim.event_id, claim.claim_token)
         with self.assertRaises(TaskConflict):
             self.store.tasks.prepare_result(self.event, claim, update, 'private reply')
         report = export_timeline(self.path, self.event.event_key)
@@ -126,7 +127,7 @@ class ExecutionDiagnosticsTests(unittest.TestCase):
         repo = app.state.repository
         identity = repo.create_conversation('test')['id']
         event = ChatEvent('web', 'group', 'message', identity, 'local-owner', 'private')
-        repo.store.save_chat_message(event.event_key, 'web', identity, 'local-owner', 'message', '', 'user', 'private')
+        repo.store.conversations.save_chat_message(event.event_key, 'web', identity, 'local-owner', 'message', '', 'user', 'private')
         details = {'event_key': event.event_key, 'status': 'disabled'}
         repo.store.diagnostics.record('summary', details)
         self.assertEqual(len(export_timeline(repo.store.database_path, event.event_key)['timeline']), 1)

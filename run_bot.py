@@ -87,11 +87,14 @@ class QQOfficialReplyRenderer:
 
 class TravelRiskBot(botpy.Client):
     def __init__(self, settings: Settings, **kwargs):
+        from core.logging_config import SafeLogFilter
         if kwargs.get('ext_handlers', True) is True:
             logs = log_directory()
             logs.mkdir(parents=True, exist_ok=True)
             kwargs['ext_handlers'] = {**logging.DEFAULT_FILE_HANDLER, 'filename': str(logs / '%(name)s.log')}
         super().__init__(**kwargs)
+        logging.get_logger().addFilter(SafeLogFilter())
+        logging.get_logger().propagate=False
         self.settings = settings
         self.reply_renderer = QQOfficialReplyRenderer()
         runtime = build_runtime(
@@ -118,6 +121,14 @@ class TravelRiskBot(botpy.Client):
         self._outbox_task = None
         self._reminder_task = None
         self._maintenance_task = None
+
+    async def close(self):
+        supervisor = getattr(self, 'background_supervisor', None)
+        if supervisor is not None:
+            await supervisor.stop()
+        model=getattr(getattr(getattr(self,'application',None),'travel_agent',None),'client',None)
+        if getattr(model,'close',None):await asyncio.to_thread(model.close)
+        await super().close()
 
     async def on_ready(self):
         maintenance = getattr(self, "maintenance_service", None)
@@ -234,6 +245,8 @@ class TravelRiskBot(botpy.Client):
 
 def main() -> None:
     load_dotenv()
+    from core.logging_config import configure_logging
+    configure_logging(log_directory(),'travel-qq.log')
 
     try:
         settings = Settings.from_env()

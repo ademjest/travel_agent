@@ -6,24 +6,28 @@
 
 [Web 使用指南](docs/guides/web.md) · [QQ 使用指南](docs/guides/qq.md) · [全部指南](docs/guides/README.md)
 
-当前同步版本的功能、升级步骤与验证说明见 [2026-10-23 更新记录](docs/releases/2026-10-23.md)。
+当前同步版本的功能、升级步骤与验证说明见 [2026-11-09 更新记录](docs/releases/2026-11-09.md)。
 
 ## 能做什么
 
 | 能力 | 使用示例与行为 |
 | --- | --- |
-| 联网研究 | “帮我搜索武汉三日游攻略”，汇总公开来源并标注检索时间；支持继续根据研究结果规划 |
-| 行程规划与修改 | 规划 1–14 天城市行程，保留日期、必去地点和资料来源；修改同一份行程并记录版本 |
-| 方案草稿接续 | 保存探索性方案和研究方案；支持“采用最开始的方案”“采用刚才搜索的四日方案”，确认后才成为正式行程 |
-| 理解后续偏好 | “轻松一点，尽量步行或公交地铁，少打车”，结合已有行程生成预览，保留城市和日期 |
-| 酒店与餐饮候选 | 结合品牌、评分、预算和每日景点筛选；展示可取得的酒店参考价格及餐饮人均消费，缺失价格明确标注 |
-| 天气、地点与交通 | 查询天气、预报、地点和驾车／步行／公共交通路线；基于高德结果展示依据 |
+| 联网攻略与景点研究 | 搜索公开攻略，整理景点文化、票价、开放与预约资料；展示来源、检索时间及未知项，支持继续规划 |
+| 官网入口查询 | 查找景点官网与预约入口，分别展示身份核验、访问状态和待核实候选 |
+| 双路线规划 | 启用问道后，分别生成基于高德资料的草案与问道草案，校验后选择或融合；可查看本轮两版方案及调整依据 |
+| 行程规划与修改 | 规划 1–14 天城市行程；结合抵达、返程和每日可用时段安排，保留来源与版本；支持局部调整 |
+| 草案接续与确认 | 采用历史方案、继续补充要求；支持重新核对、保存或放弃指定草案，确认前不写入正式行程 |
+| 铁路 MCP 查询 | 查询指定城市/车站、日期及时段的车次、席别、参考票价与余票；支持往返交通、结果卡片及后续更正，不自动购票 |
+| 独立酒店查价 | 无需先创建行程；补齐入住日期、人房条件后查价，支持选择门店、刷新、分批接续与查看历史原文；未知房价、税费和房态明确标注 |
+| 酒店与餐饮候选 | 按明确品牌/集团、评分、预算和每日景点筛选，区分待核价酒店与可比参考报价；餐饮支持人均预算及单餐调整 |
+| 消息引用与上下文 | 引用指定回复继续询问或修改，读取该消息的历史快照；本次要求接续当前草案，修改与保存仍校验最新版本 |
+| 天气、地点与市内交通 | 查询天气、预报、地点和驾车／步行／公共交通路线；基于高德结果展示依据 |
 | 文档与图片 | 导入 TXT、Markdown、DOCX、XLSX，检索相关片段；理解图片、提取预约规则 |
-| 提醒与定时查询 | 一次性文字提醒、行程关联预约提醒；到点查询天气或路况；监测预约规则变化 |
-| 偏好记忆 | 明确保存长期旅行默认，本次要求优先；当前行程修改与长期记忆分别处理 |
-| 可恢复任务 | 持久化队列、取消、失败重试与重启恢复；网页会话删除同步清理关联任务及附件 |
-| 用量与诊断 | 按应用和会话查看 token、模型用途与费用估算；查看消息处理过程，测试已保存的模型、搜索与地图服务 |
-| 内容展示 | Markdown 表格、代码与 LaTeX 数学公式；本地前端构建包含公式渲染依赖 |
+| 提醒与定时查询 | 一次性提醒、行程关联预约提醒、到点查询与规则监测；后端持续运行时执行 |
+| 偏好记忆 | 明确保存长期旅行默认，本次要求优先；长期默认与当前行程分别修改 |
+| 多供应商模型配置 | 保存多个连接与模型档案，按基础、常规、复杂及视觉用途分工；兼容旧配置，支持能力测试和按币种配置费率 |
+| 用量、预算与诊断 | 按应用、会话和消息查看 token、调用与费用依据；按用途/连接统计，提供日月限额及处理过程诊断 |
+| 可恢复任务与内容展示 | 持久化队列、取消、重启恢复及会话关联清理；支持 Markdown、表格、代码与 LaTeX 公式 |
 
 例如，一次完整交互可以是：
 
@@ -84,34 +88,42 @@ python run_web.py
 
 ```mermaid
 flowchart LR
-    Web[React 网页] --> App[统一消息与任务编排]
+    Web[React 网页] --> App[统一消息 / 持久队列]
     QQ[QQ 官方 / OneBot] --> App
-    App --> Intent[上下文 + LLM 语义解析]
-    Intent --> Services[服务端校验与业务服务]
-    Services --> Sources[高德 / Tavily / 公开资料]
-    Services --> Store[(SQLite 状态与版本)]
-    Store --> Workers[调度器与消息投递]
+    App --> Agent[会话上下文 / 意图与工具推理]
+    Agent --> Models[模型网关 / 用途路由与预算]
+    Agent --> Tools[领域工具 / 服务端校验]
+    Tools --> Models
+    Tools --> Sources[高德 / Tavily / 问道 / 公开网页]
+    Tools --> Rail[铁路 Remote MCP]
+    Tools --> Store[(SQLite 状态 / 快照 / 版本)]
+    Store --> Workers[调度器 / Outbox 投递]
     Workers --> Web
     Workers --> QQ
 ```
 
-- **前端**：React 19、TypeScript、Vite、原生 CSS；提供聊天、资料、行程与设置界面。
-- **后端**：Python 3.11、FastAPI、Uvicorn；统一事件契约与领域服务对接不同入口。
-- **Agent**：兼容 OpenAI Chat Completions 的模型接口、结构化意图、用途级上下文、受约束的工具调用和可选用途模型。
-- **成本与可靠性**：按用途记录调用、缓存／推理 token、可选真实费率与预算；检测无进展工具循环，大结果使用会话隔离 Artifact 分页读取。
-- **存储与检索**：SQLite、FTS5 文档检索、按需会话摘要、默认关闭的本地混合检索和文件缓存；不要求额外部署向量数据库。
-- **执行机制**：持久化输入队列、租约与版本校验、Outbox 投递、可取消任务及定时调度。
+- **前端**：React 19、TypeScript、Vite、原生 CSS；聊天、消息引用、铁路与酒店结果卡、两版草案比较及模型配置表单。
+- **后端与业务**：Python 3.11、FastAPI、Uvicorn；统一请求路由，领域工具集中实现查询、研究、行程、酒店、预约、提醒与资料处理。
+- **模型与提示词**：兼容 OpenAI Chat Completions；连接和模型档案按用途分工，Skill manifest 管理 20 个提示阶段及资源，请求使用冻结版本与内容哈希。
+- **外部数据**：高德地图、Tavily、可选携程问道和公开网页；铁路使用 MCP Python SDK，通过 HTTPS Remote 的 Streamable HTTP 或 SSE 接入。
+- **成本与可靠性**：结构化工具合同、身份与资源校验、持久检查点、预算账本和费率快照；未知提交保留占用，避免恢复时重复收费调用。
+- **存储与检索**：SQLite、FTS5、消息/草案快照和按需摘要；仓库按领域拆分，可选本地 BGE 混合检索默认关闭，无需另部署向量数据库。
+- **执行与验证**：Inbox 租约、可取消任务、调度器与 Outbox；统一离线评测和发布检查记录源码、提示资产及语料指纹。
 
 ```text
-agents/          模型调用、语义解析、上下文与行程规划
-services/        研究、行程、偏好、提醒和任务业务
-infrastructure/  数据仓库、模型网关、外部 API 与文件处理
-app/             应用编排与依赖组装
+agents/          意图解析与有界工具推理
+app/             请求路由、会话上下文与依赖组装
+tools/           查询、酒店、研究、行程、资料、提醒及预约工具
+services/        队列消费、后台调度与维护
+infrastructure/  数据仓库、模型网关、外部 API 与 MCP 客户端
+core/            消息、任务、配置、预算及业务合同
 adapters/        Web、QQ 官方与 OneBot 接入
-core/            消息契约、配置、任务和执行边界
-frontend/        Web 界面
-tests/ · evals/   自动化测试与场景评测
-docs/guides/     Web 与 QQ 使用指南
+frontend/        React 网页
+skills/          版本化提示片段、资源与阶段清单
+prompts/         运行必需的摘要提示词
+evaluation/      场景评测与执行模式
+tests/ · evals/   自动化测试、夹具与静态场景数据
+docs/            使用指南与发布记录
 ```
 
 ## 开发与验证
@@ -119,10 +131,10 @@ docs/guides/     Web 与 QQ 使用指南
 ```powershell
 python -m pip install -r requirements-dev.txt -c constraints-py311.txt
 python -m pip check
-python -X utf8 scripts/verify_v3_regression.py
-python -X utf8 scripts/verify_v3_regression.py --frontend
-python -X utf8 scripts/evaluate_tasks.py --output evals/ci-offline.json
-python -X utf8 scripts/evaluate_retrieval.py --output evals/retrieval-v2-local.json
+python -X utf8 scripts/run_evaluations.py verify_v3_regression
+python -X utf8 scripts/run_evaluations.py verify_v3_regression --frontend
+python -X utf8 scripts/run_evaluations.py evaluate_tasks --output evals/ci-offline.json
+python -X utf8 scripts/run_evaluations.py evaluate_retrieval --output evals/retrieval-v2-local.json
 ```
 
 统一回归入口会自动将后端测试、前端测试和构建日志，以及 JSON 验收报告，保存到项目同级的 `travel_agent_val_log` 目录；本地路径为 `E:\Agent\travel_agent_val_log`。重复运行会覆盖同名文件；`--output` 可另行指定 JSON 报告路径。
@@ -139,4 +151,4 @@ python -X utf8 scripts/evaluate_retrieval.py --output evals/retrieval-v2-local.j
 - 天气和交通结果受数据覆盖与时效限制；开放时间、实时价格、余票及道路封闭不保证被核实。
 - Web 仅支持本机访问，尚未提供多人账号和公网部署。现有 NapCat Docker 配置不代表完整 Web 容器化已经验收。
 
-版本更新见 [发布记录](docs/releases/)，使用操作统一从 [指南目录](docs/guides/README.md) 查阅。
+详细功能变化、配置与升级步骤见 [发布记录](docs/releases/2026-11-09.md)，使用操作从 [指南目录](docs/guides/README.md) 查阅。

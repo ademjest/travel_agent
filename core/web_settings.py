@@ -82,4 +82,5 @@ class WebSettings:
     def travel_settings(self):
         return Settings('', '', frozenset(), os.getenv('AMAP_API_KEY', '').strip(),
                         os.getenv('LLM_API_KEY', '').strip(), os.getenv('LLM_BASE_URL', '').strip(),
-                        os.getenv('LLM_MODEL_ID', '').strip())
+                        os.getenv('LLM_MODEL_ID', '').strip(), rail_mcp_config=os.getenv('RAIL_MCP_CONFIG', ''),
+                        model_config_json=os.getenv('LLM_CONFIG_JSON'))

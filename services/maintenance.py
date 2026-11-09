@@ -67,7 +67,7 @@ class MaintenanceService:
         lifecycle = getattr(self.store, 'web_lifecycle', None)
         current = now or self.clock()
         policy = self.policy
-        result = self.store.purge_retained_data(
+        result = self.store.retention.purge_retained_data(
             chat_cutoff=current - timedelta(days=policy.chat_days),
             event_cutoff=current - timedelta(days=policy.event_days),
             binding_cutoff=current - timedelta(days=policy.binding_days),
@@ -136,17 +136,7 @@ class MaintenanceService:
                 except (OSError, ValueError):
                     pass
         result.update(media_observations=media_count, media_files=deleted_media)
-        with self.store._connect() as connection:
-            result['event_read_attempts'] = connection.execute('''DELETE FROM event_read_attempts
-                WHERE event_id NOT IN (SELECT event_id FROM processed_events)''').rowcount
-            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='model_calls'").fetchone():
-                result['model_calls'] = connection.execute('DELETE FROM model_calls WHERE started_at < ?', (cutoff.isoformat(),)).rowcount
-            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tool_artifacts'").fetchone():
-                result['tool_artifacts'] = connection.execute(
-                    'DELETE FROM tool_artifacts WHERE created_at < ?', (cutoff.isoformat(),)).rowcount
-            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_summaries'").fetchone():
-                result['conversation_summaries'] = connection.execute(
-                    'DELETE FROM conversation_summaries WHERE updated_at < ?', (cutoff.isoformat(),)).rowcount
+        result.update(self.store.retention.purge_auxiliary(cutoff))
         result['personal_reminders'] = self.store.reminders.purge_expired(current)
         self.last_run_at = current
         self.last_result = result

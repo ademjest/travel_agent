@@ -31,7 +31,7 @@ evals/*.json
 evals/*.png
 evals/public_travel_sources_*/
 
-# Publish user guides and releases only.
+# Public documentation is limited to guides and release notes.
 docs/*
 !docs/guides/
 !docs/releases/

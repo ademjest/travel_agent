@@ -58,9 +58,11 @@ class WendaoClient:
             value = value.replace(secret, '[Token 已隐藏]')
         return value
 
-    def query(self, event, repository, query, *, timeout=90):
+    def query(self, event, repository, query, *, timeout=90, purpose='research', fingerprint=''):
         ensure_execution_active()
-        previous, _ = repository.wendao_call(event)
+        query_hash=hashlib.sha256(query.encode()).hexdigest() if isinstance(query,str) else ''
+        identity={'purpose':purpose,'query_hash':query_hash,'fingerprint':fingerprint}
+        previous, _ = repository.wendao_call(event,**identity)
         if previous:
             return {**previous, 'reused': True,
                     'status': 'result_unknown' if previous['status'] == 'submitted' else previous['status']}
@@ -78,9 +80,9 @@ class WendaoClient:
         if timeout < 5:
             raise WendaoError('insufficient_budget')
         result = {'status': 'submitted', 'submission_reservations': 1, 'physical_calls': None, 'usage': None, 'cost': None,
-                  'query_summary': self.redact(query[:400]), 'query_hash': hashlib.sha256(query.encode()).hexdigest(),
+                  'query_summary': self.redact(query[:400]), 'query_hash': query_hash,'fingerprint':fingerprint,'purpose':purpose,
                   'submitted_at': datetime.now(timezone.utc).isoformat(), 'bytes': None}
-        previous, reserved = repository.wendao_call(event, reserve=result)
+        previous, reserved = repository.wendao_call(event, reserve=result,**identity)
         if not reserved:
             return {**previous, 'reused': True,
                     'status': 'result_unknown' if previous['status'] == 'submitted' else previous['status']}
@@ -101,13 +103,13 @@ class WendaoClient:
             code = error.code
             if isinstance(error, PublicHTTPError):
                 result['physical_calls'] = error.attempts
-            result.update(status='result_unknown' if code in {'network_error', 'deadline_exceeded', 'response_limit'} else 'failed', error_code=code)
+            result.update(status='result_unknown' if code in {'network_error', 'connect_error', 'read_timeout', 'deadline_exceeded', 'response_limit'} else 'failed', error_code=code)
         except (OSError, TimeoutError):
             result.update(status='result_unknown', error_code='network_error')
         result['elapsed_ms'] = round((time.monotonic() - started) * 1000)
         ensure_execution_active()
-        repository.finish_wendao(event, result)
+        repository.finish_wendao(event, result,purpose=purpose)
         if self.diagnostics:
-            self.diagnostics('tool', {'name': 'ctrip_wendao', **{k: result[k] for k in
+            self.diagnostics('tool', {'name': 'ctrip_wendao', 'purpose':purpose, **{k: result[k] for k in
                 ('status', 'physical_calls', 'elapsed_ms', 'bytes', 'usage', 'cost')}})
         return result

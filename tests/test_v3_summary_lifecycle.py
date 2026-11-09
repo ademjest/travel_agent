@@ -9,7 +9,8 @@ from unittest.mock import patch
 
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.conversation_summary_service import select_batch, validate_items
+from app.conversation_context import select_batch
+from core.summary_validation import validate_items
 
 
 class SummaryLifecycleTests(unittest.TestCase):
@@ -19,7 +20,7 @@ class SummaryLifecycleTests(unittest.TestCase):
         self.store = MemoryStore(Path(self.temp.name)/'summary.db')
         self.event = ChatEvent('web', 'group', 'e', 'c', 'u', '继续讨论')
         self.repo = self.store.conversation_summaries
-        self.store.save_turn('web:c','u','s1','明确不去夜游'+'甲'*30000,'助手不是事实')
+        self.store.conversations.save_turn('web:c','u','s1','明确不去夜游'+'甲'*30000,'助手不是事实')
 
     def test_long_message_keeps_valid_json_and_does_not_advance_unprocessed_turn(self):
         turns = self.repo.pending_turns(self.event)

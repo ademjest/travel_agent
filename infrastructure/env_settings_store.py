@@ -19,11 +19,14 @@ from dotenv.parser import parse_stream
 
 from infrastructure.public_http import public_address, request_public
 from core.model_pricing import parse_profiles
+from core.model_config import CONFIG_KEY, ModelConfigError, parse_config, resolve_config
 
 
 FIELDS = (
+    CONFIG_KEY,
     'SEARCH_API_KEY', 'SEARCH_BASE_URL', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL_ID', 'AMAP_API_KEY',
-    'WENDAO_API_KEY', 'WENDAO_ENABLED',
+    'WENDAO_API_KEY', 'WENDAO_ENABLED', 'HOTEL_QUOTES_ENABLED',
+    'RAIL_MCP_CONFIG',
     'LLM_INTENT_MODEL_ID', 'LLM_SUMMARY_MODEL_ID', 'LLM_RESEARCH_MODEL_ID', 'LLM_VISION_MODEL_ID',
     'LLM_PROVIDER_ALIAS', 'LLM_CONFIG_VERSION',
     'AI_BUDGET_TIER', 'AI_DAILY_TOKEN_LIMIT', 'AI_MONTHLY_TOKEN_LIMIT',
@@ -31,7 +34,10 @@ FIELDS = (
     'LLM_INPUT_PRICE_PER_M', 'LLM_CACHED_INPUT_PRICE_PER_M', 'LLM_OUTPUT_PRICE_PER_M',
     'LLM_PRICE_CURRENCY', 'LLM_MODEL_PRICES', 'AI_DAILY_COST_LIMIT', 'AI_MONTHLY_COST_LIMIT', 'AI_COST_CURRENCY',
 )
-SECRET_FIELDS = {'SEARCH_API_KEY', 'LLM_API_KEY', 'AMAP_API_KEY', 'WENDAO_API_KEY'}
+SECRET_FIELDS = {'SEARCH_API_KEY', 'LLM_API_KEY', 'AMAP_API_KEY', 'WENDAO_API_KEY', 'RAIL_MCP_CONFIG',CONFIG_KEY}
+MODEL_LEGACY_FIELDS = {key for key in FIELDS if key.startswith('LLM_') and key!=CONFIG_KEY} | {
+    'AI_DAILY_COST_LIMIT','AI_MONTHLY_COST_LIMIT','AI_COST_CURRENCY'}
+UNSET = object()
 SEARCH_URL = 'https://api.tavily.com'
 WEB_OVERRIDES_KEY = 'WEB_SETTINGS_OVERRIDE_KEYS'
 START_ENV = {key: os.environ[key] for key in FIELDS if key in os.environ}
@@ -147,7 +153,7 @@ class EnvSettingsStore:
             values[key] = (self.inherited if source == 'environment' else expanded if source == 'project' else parent).get(key) or ''
             sources[key] = source
         values['SEARCH_BASE_URL'] = values['SEARCH_BASE_URL'] or SEARCH_URL
-        defaults = {'WENDAO_ENABLED': 'false', 'AI_BUDGET_TIER': 'balanced', 'AI_DAILY_TOKEN_LIMIT': '0',
+        defaults = {'WENDAO_ENABLED': 'false', 'HOTEL_QUOTES_ENABLED':'true', 'AI_BUDGET_TIER': 'balanced', 'AI_DAILY_TOKEN_LIMIT': '0',
                     'AI_MONTHLY_TOKEN_LIMIT': '0', 'AI_SUMMARY_ENABLED': 'false',
                     'AI_VECTOR_ENABLED': 'false', 'AI_EMBEDDING_MIN_SIMILARITY': '0.5', 'LLM_PRICE_CURRENCY': 'USD'}
         for key, default in defaults.items():
@@ -168,6 +174,7 @@ class EnvSettingsStore:
         raw = self._read()
         values, sources = self._effective(raw)
         _, local = self._parse(raw)
+        block_present=sources[CONFIG_KEY]!='default'
         overrides = self._override_keys(local)
         fields = {}
         for key in FIELDS:
@@ -179,10 +186,30 @@ class EnvSettingsStore:
                 except ValueError:
                     safe_value = ''
             fields[key] = {'configured': bool(value), 'source': sources[key],
-                'editable': key != 'SEARCH_BASE_URL', 'value': safe_value,
+                'editable': key != 'SEARCH_BASE_URL' and not (block_present and key in MODEL_LEGACY_FIELDS), 'value': safe_value,
                 'overrides_environment': key in overrides,
                 'runtime_configured': bool(self.runtime.get(key)), 'pending_restart': value != self.runtime.get(key)}
-        return {'version': self._version(raw), 'fields': fields, 'restart_required': values != self.runtime,
+        from infrastructure.mcp_client import RailMCPConfig
+        try:
+            rail = RailMCPConfig.parse(values['RAIL_MCP_CONFIG']).status()
+        except ValueError:
+            rail = {'alias': 'rail-remote', 'state': 'invalid_config'}
+        try:
+            model=resolve_config(values[CONFIG_KEY] if block_present else None,values)
+            model_status={**model.as_dict(),'valid':True,'legacy':model.legacy,'configured':model.configured,
+                'config_version':model.version,'source':sources[CONFIG_KEY] if block_present else 'legacy',
+                'pending_restart':any(values[k]!=self.runtime[k] for k in (CONFIG_KEY,*MODEL_LEGACY_FIELDS))}
+        except ModelConfigError as error:
+            model_status={'valid':False,'legacy':False,'configured':False,'error':str(error),
+                **parse_config('').as_dict(),'source':sources[CONFIG_KEY],'pending_restart':values!=self.runtime}
+        try:
+            runtime_model=resolve_config(self.runtime[CONFIG_KEY] if self._effective(self.initial)[1][CONFIG_KEY]!='default' else None,self.runtime)
+            model_status['runtime_config_version']=runtime_model.version
+            model_status['runtime_pricing']=runtime_model.pricing_status()
+        except ModelConfigError:
+            model_status['runtime_config_version']=''
+            model_status['runtime_pricing']=[]
+        return {'version': self._version(raw), 'fields': fields, 'rail_mcp': rail,'model_config':model_status, 'restart_required': values != self.runtime,
                 'provider': 'tavily', 'scope': 'project', 'plaintext_on_disk': True}
 
     @staticmethod
@@ -193,6 +220,11 @@ class EnvSettingsStore:
             raise ValueError('配置不允许控制字符或环境插值语法。')
         if key == 'LLM_MODEL_PRICES':
             parse_profiles(value)
+        if key == 'RAIL_MCP_CONFIG':
+            from infrastructure.mcp_client import RailMCPConfig
+            config = RailMCPConfig.parse(value)
+            if network and config.endpoint:
+                public_address(config.endpoint)
         if key == 'AI_BUDGET_TIER' and value and value not in {'economy', 'balanced', 'quality'}:
             raise ValueError('预算档位必须是 economy、balanced 或 quality。')
         if key == 'AI_EMBEDDING_MIN_SIMILARITY' and value:
@@ -202,7 +234,7 @@ class EnvSettingsStore:
                 valid = False
             if not valid:
                 raise ValueError('语义检索相似度门槛必须为0到1。')
-        if key in {'AI_SUMMARY_ENABLED', 'AI_VECTOR_ENABLED', 'WENDAO_ENABLED'} and value.lower() not in {'', 'true', 'false'}:
+        if key in {'AI_SUMMARY_ENABLED', 'AI_VECTOR_ENABLED', 'WENDAO_ENABLED', 'HOTEL_QUOTES_ENABLED'} and value.lower() not in {'', 'true', 'false'}:
             raise ValueError('开关值必须是 true 或 false。')
         if key in {'AI_DAILY_TOKEN_LIMIT', 'AI_MONTHLY_TOKEN_LIMIT'} and value:
             if not value.isdigit() or not 0 <= int(value) <= 10**12:
@@ -244,10 +276,12 @@ class EnvSettingsStore:
             if (self.root / '.git').exists():
                 raise ValueError('无法检查 Git 配置，未保存。') from None
 
-    def save(self, version, changes):
+    def save(self, version, changes, *, model_config=UNSET):
         if not isinstance(changes, dict) or any(key not in FIELDS for key in changes):
             raise ValueError('存在不支持的配置字段。')
         changes = {key: value for key, value in changes.items() if value != ''}
+        if CONFIG_KEY in changes:
+            raise SettingsInputError('模型配置请使用连接与模型档案表单，不能通过普通字符串字段写入。')
         for key, value in changes.items():
             self.validate(key, '' if value is None else value)
         with file_lock(self.root / '.env.settings.lock'):
@@ -257,7 +291,11 @@ class EnvSettingsStore:
             self._check_git()
             bindings, local = self._parse(raw)
             overrides = self._override_keys(local)
-            effective, _ = self._effective(raw)
+            effective, sources = self._effective(raw)
+            if sources[CONFIG_KEY]!='default' and MODEL_LEGACY_FIELDS & changes.keys():
+                raise SettingsInputError('版本化模型配置已生效，旧模型字段仅供回滚读取，请在模型档案中修改。')
+            if model_config is not UNSET:
+                changes[CONFIG_KEY]=self._merge_models(model_config,effective,sources)
             for url_key, secret_key in [('LLM_BASE_URL', 'LLM_API_KEY'), ('SEARCH_BASE_URL', 'SEARCH_API_KEY')]:
                 if url_key in changes and (changes[url_key] or '').rstrip('/') != effective[url_key].rstrip('/'):
                     if effective[secret_key] and not changes.get(secret_key):
@@ -294,13 +332,53 @@ class EnvSettingsStore:
                 temporary.unlink(missing_ok=True)
         return self.status()
 
+    def _merge_models(self, value, effective, sources):
+        if value is None:
+            return ''  # An explicit clear disables models; it cannot reactivate old credentials.
+        if not isinstance(value,dict):raise SettingsInputError('模型配置需要结构化对象。')
+        value=json.loads(json.dumps(value))
+        try:
+            previous=resolve_config(effective[CONFIG_KEY] if sources[CONFIG_KEY]!='default' else None,effective)
+        except ModelConfigError:
+            previous=parse_config('')
+        for row in value.get('connections',[]) if isinstance(value.get('connections'),list) else []:
+            if not isinstance(row,dict):raise SettingsInputError('模型连接格式无效。')
+            old=previous.connection(row.get('id'))
+            row.pop('key_configured',None)
+            key=row.get('api_key',UNSET)
+            if isinstance(key,str):key=key.strip()
+            url=row.get('base_url','')
+            url=url.strip().rstrip('/') if isinstance(url,str) else ''
+            if old and url!=old.base_url.rstrip('/') and old.api_key and (key is UNSET or not key):
+                raise SettingsInputError('更换模型连接地址时，必须重新输入用于新地址的 Key。')
+            row['api_key']=old.api_key if old and (key is UNSET or key=='') else ('' if key is UNSET or key is None else key)
+        # Omitted and empty credentials mean retain; explicit null means clear.
+        try:
+            config=parse_config(value)
+            serialized=json.dumps(config.as_dict(include_keys=True),ensure_ascii=False,separators=(',',':'))
+            parse_config(serialized)
+        except ModelConfigError as error:raise SettingsInputError(str(error)) from None
+        for connection in config.connections:public_address(connection.base_url)
+        return serialized
+
     def test(self, service):
-        values, _ = self._effective(self._read())
-        if service == 'search':
+        values, sources = self._effective(self._read())
+        if service == 'rail':
+            if not self._probe_lock.acquire(blocking=False):
+                raise SettingsConflict('服务测试正在运行，请等待完成后再试。')
+            try:
+                import asyncio
+                from infrastructure.service_probes import probe_rail_config
+                return asyncio.run(probe_rail_config(values['RAIL_MCP_CONFIG']))
+            finally:
+                self._probe_lock.release()
+        elif service == 'search':
             from infrastructure.search_client import SearchClient
             SearchClient(values['SEARCH_API_KEY'], values['SEARCH_BASE_URL']).search('武汉 官方 旅游')
         elif service == 'llm':
-            key, url = values['LLM_API_KEY'], values['LLM_BASE_URL']
+            config=resolve_config(values[CONFIG_KEY] if sources[CONFIG_KEY]!='default' else None,values)
+            connection,_=config.select('unspecified',force_default=True)
+            key, url = connection.api_key, connection.base_url
             if not key or not url:
                 raise ValueError('尚未配置模型服务。')
             self.validate('LLM_BASE_URL', url)
@@ -311,13 +389,18 @@ class EnvSettingsStore:
             raise ValueError('不支持的服务测试。')
         return {'status': 'ok', 'detail': '服务请求成功；不代表所有模型/工具能力都可用。'}
 
-    def test_all(self, store):
+    def test_all(self, store, *, profile_id='', capability=''):
         if not self._probe_lock.acquire(blocking=False):
             raise SettingsConflict('服务测试正在运行，请等待完成后再试。')
         try:
             from infrastructure.service_probes import run_service_probes
-            values, _ = self._effective(self._read())
-            result = run_service_probes(values, store)
+            values, sources = self._effective(self._read())
+            try:config=resolve_config(values[CONFIG_KEY] if sources[CONFIG_KEY]!='default' else None,values)
+            except ModelConfigError:
+                if profile_id:raise
+                config=None
+            result = run_service_probes(values, store,configuration=config,profile_id=profile_id,capability=capability)
+            result['config_version']=config.version if config else ''
             result['restart_required'] = values != self.runtime
             return result
         finally:

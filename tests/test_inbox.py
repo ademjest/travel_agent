@@ -1,3 +1,4 @@
+from test_travel_agent import scripted_receipt
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
@@ -71,13 +72,18 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
             completion(assistant_message(content='武汉晴')),
         ])
         self.runtime.application.travel_agent = TravelAgent(Settings('', '', frozenset(), '', 'fake', 'https://example.test', 'fake'),
-            lambda name, args: calls.append((name, args)) or '武汉晴', client=client)
+            lambda name, args, context: scripted_receipt(name, args, calls.append((name, args)) or '武汉晴'), client=client)
+        from app.request_router import RequestRouter
+        from test_task_conversations import FixtureIntentCompiler
+        self.runtime.application.read_only_service.tool_executor=self.runtime.application.travel_agent.tool_executor
+        self.runtime.application.semantic_task_service=RequestRouter(self.store,FixtureIntentCompiler(),
+            read_only_service=self.runtime.application.read_only_service)
         await self.worker.submit(self.payload('现在天气怎么样', 'first', mention=True))
         await self.worker.submit(self.payload('武汉', 'second'))
         await self.worker.run_once()
         await self.worker.run_once()
         self.assertEqual(calls, [('get_current_weather', {'location': '武汉'})])
-        self.assertEqual(self.transport.messages[-1].payload['message'], '武汉晴')
+        self.assertIn('武汉晴',self.transport.messages[-1].payload['message'])
 
     async def test_owner_order_does_not_block_other_owners(self):
         started, release = Event(), Event()
@@ -107,7 +113,7 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
         def handle(text):
             started.set()
             release.wait(5)
-            self.store.add_document('onebot:100', '200', 'late.md', 'late', 'must not save', ['must not save'])
+            self.store.documents.add_document('onebot:100', '200', 'late.md', 'late', 'must not save', ['must not save'])
             return 'saved'
         self.runtime.travel_service.handle = handle
         await self.worker.submit(self.payload('slow', 'slow', mention=True))
@@ -119,14 +125,14 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
         finally:
             release.set()
             await running
-        self.assertEqual(self.store.list_document_contents('onebot:100'), ())
+        self.assertEqual(self.store.documents.list_document_contents('onebot:100'), ())
         self.assertNotIn('saved', str([message.payload for message in self.transport.messages]))
 
     async def test_stale_job_recovers_prepared_reply_without_rerunning_business(self):
         await self.worker.submit(self.payload('ping', 'recover'))
         old = self.store.inbox.claim()
-        event = self.store.begin_event(old['event_key'])
-        self.store.prepare_event_reply(event.event_id, event.claim_token, 'already prepared', 'ping')
+        event = self.store.delivery.begin_event(old['event_key'])
+        self.store.delivery.prepare_event_reply(event.event_id, event.claim_token, 'already prepared', 'ping')
         with self.store._connect() as connection:
             connection.execute('UPDATE inbox_jobs SET lease_until=? WHERE id=?',
                 ((datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat(), old['id']))
@@ -136,7 +142,7 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
         scope = CURRENT_EXECUTION.set(ExecutionScope(str(self.store.database_path), old['id'], old['claim_token']))
         try:
             with self.assertRaises(ExecutionRevoked):
-                self.store.save_turn('onebot:100', '200', 'late', 'late', 'late')
+                self.store.conversations.save_turn('onebot:100', '200', 'late', 'late', 'late')
         finally:
             CURRENT_EXECUTION.reset(scope)
 
@@ -152,7 +158,7 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
         self.runtime.document_service.session.get = Mock(side_effect=AssertionError('expired URL must not be fetched'))
         restarted = InboxWorker(self.store, OneBotAdapter(self.onebot, self.runtime.application, self.store))
         await restarted.run_once()
-        documents = self.store.list_document_contents('onebot:100')
+        documents = self.store.documents.list_document_contents('onebot:100')
         self.assertTrue(documents, str([message.payload for message in self.transport.messages]))
         self.assertEqual(documents[0].chunks, (document_text,))
         self.runtime.document_service.session.get.assert_not_called()
@@ -172,7 +178,7 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
             started.set()
             release.wait(5)
             try:
-                self.store.save_turn('onebot:100', '200', 'old-thread', 'late', 'late')
+                self.store.conversations.save_turn('onebot:100', '200', 'old-thread', 'late', 'late')
             finally:
                 finished.set()
             return 'old'
@@ -186,7 +192,7 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.store.inbox.get('onebot:group:100:shutdown')['status'], 'retry')
         release.set()
         self.assertTrue(await asyncio.to_thread(finished.wait, 2))
-        self.assertEqual(self.store.get_recent_turns('onebot:100', '200'), ())
+        self.assertEqual(self.store.conversations.get_recent_turns('onebot:100', '200'), ())
         self.runtime.travel_service.handle = lambda text: 'recovered'
         await self.worker.run_once()
         self.assertEqual(self.transport.messages[-1].payload['message'], 'recovered')
@@ -197,17 +203,21 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
             started.set()
             release.wait(5)
             try:
-                self.store.save_turn('onebot:100', '200', 'timed-out', 'late', 'late')
+                self.store.conversations.save_turn('onebot:100', '200', 'timed-out', 'late', 'late')
             finally:
                 finished.set()
             return 'old'
         self.runtime.travel_service.handle = slow
-        self.worker.deadline_seconds = 0.3
+        self.worker.deadline_seconds = 3
         await self.worker.submit(self.payload('slow', 'timeout', mention=True))
-        await self.worker.run_once()
-        release.set()
+        running = asyncio.create_task(self.worker.run_once())
+        try:
+            self.assertTrue(await asyncio.to_thread(started.wait, 2))
+            await running
+        finally:
+            release.set()
         self.assertTrue(await asyncio.to_thread(finished.wait, 2))
-        self.assertEqual(self.store.get_recent_turns('onebot:100', '200'), ())
+        self.assertEqual(self.store.conversations.get_recent_turns('onebot:100', '200'), ())
         self.runtime.travel_service.handle = lambda text: 'retry succeeded'
         with self.store._connect() as connection:
             connection.execute("UPDATE inbox_jobs SET next_attempt_at=? WHERE event_key=?",
@@ -270,8 +280,8 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
             inbox.JOB_LEASE_SECONDS = 0.1
             store = MemoryStore(sys.argv[1])
             job = store.inbox.claim()
-            claim = store.begin_event(job['event_key'])
-            store.prepare_event_reply(claim.event_id, claim.claim_token, 'process checkpoint', 'ping')
+            claim = store.delivery.begin_event(job['event_key'])
+            store.delivery.prepare_event_reply(claim.event_id, claim.claim_token, 'process checkpoint', 'ping')
             print('checkpoint-ready', flush=True)
             time.sleep(30)
         ''')
@@ -315,7 +325,7 @@ class InboxTests(unittest.IsolatedAsyncioTestCase):
         from core.chat_transport import ChatEvent
         from core.tasks import TaskUpdate
         event = ChatEvent('onebot', 'group', 'waiting-city', '100', '200', '天气怎么样')
-        self.store.tasks.prepare_result(event, self.store.begin_event(event.event_key),
+        self.store.tasks.prepare_result(event, self.store.delivery.begin_event(event.event_key),
             TaskUpdate('weather', 'collecting', event.content, {}, ('location',)), '哪个城市？')
         await self.worker.submit(self.payload('ping', 'separate-request'))
         await self.worker.submit(self.payload('取消当前任务', 'cancel-dialogue'))

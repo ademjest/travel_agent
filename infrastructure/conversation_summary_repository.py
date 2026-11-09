@@ -4,8 +4,8 @@ import hashlib
 import json
 import copy
 import uuid
-from core.conversation_summary import render_summary
-from core.summary_contract import PROMPT_VERSION
+from core.summary_validation import render_summary
+from core.summary_validation import PROMPT_VERSION
 
 FORMAT_VERSION = 3
 GENERATION_LEASE_SECONDS = 330  # gateway queue <=180s + network <=90s + publication margin
@@ -99,8 +99,18 @@ class ConversationSummaryRepository:
 
     @staticmethod
     def _excluded(event,db,event_key):
-        return db.execute('SELECT 1 FROM summary_excluded_events WHERE platform=? AND owner=? AND scope=? AND event_key=?',
-                          (event.platform,event.sender_id,'' if event.platform=='web' else event.scope_id,event_key)).fetchone() is not None
+        return db.execute('''SELECT 1 FROM summary_excluded_events
+            WHERE platform=? AND owner=? AND scope=? AND event_key=?
+            UNION ALL SELECT 1 FROM task_event_results r JOIN travel_tasks t ON t.task_id=r.task_id
+            WHERE r.event_id=? AND t.platform=? AND t.scope_id=? AND t.owner_id=? AND t.status='cancelled'
+            LIMIT 1''', (event.platform,event.sender_id,'' if event.platform=='web' else event.scope_id,event_key,
+                        event_key,event.platform,event.storage_scope_id,event.sender_id)).fetchone() is not None
+
+    def _source_metadata(self,event,db,event_key):
+        excluded = self._excluded(event,db,event_key)
+        persisted = db.execute('SELECT 1 FROM processed_events WHERE event_id=?',(event_key,)).fetchone()
+        return {'summary_excluded':excluded,
+                'source_kind':'excluded' if excluded else 'conversation' if persisted else 'legacy'}
 
     def pending_turns(self, event, after_id=0, limit=100):
         if type(limit) is not int or not 1 <= limit <= 101:
@@ -112,7 +122,7 @@ class ConversationSummaryRepository:
                 (event.storage_scope_id,event.sender_id,after_id,limit)).fetchall()
             values = [dict(row) for row in rows]
             for row in values:
-                row['summary_excluded'] = self._excluded(event,db,row.pop('user_msg_id'))
+                row.update(self._source_metadata(event,db,row.pop('user_msg_id')))
         return tuple(values)
 
     def claim(self, event, previous, now=None):
@@ -148,6 +158,7 @@ class ConversationSummaryRepository:
 
     def publish(self, event, claim, turns, items, covered, progress, model_id, *,
                 prompt_version=PROMPT_VERSION, prompt_hash=''):
+        turns = [{key:value for key,value in turn.items() if key!='summary_eligible'} for turn in turns]
         now = datetime.now(timezone.utc).isoformat()
         with self.store._connect() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -160,12 +171,16 @@ class ConversationSummaryRepository:
                 return None
             current = []
             for turn in turns:
-                source = db.execute('''SELECT id,user_content,assistant_content,created_at FROM conversation_turns
+                source = db.execute('''SELECT id,user_content,assistant_content,created_at,user_msg_id FROM conversation_turns
                     WHERE id=? AND group_openid=? AND member_openid=?''',
                     (turn['id'],event.storage_scope_id,event.sender_id)).fetchone()
                 if not source:
                     return None
-                current.append({**dict(source),'summary_excluded':turn.get('summary_excluded',False)})
+                current_source = dict(source)
+                metadata = self._source_metadata(event,db,current_source.pop('user_msg_id'))
+                if 'source_kind' not in turn:
+                    metadata.pop('source_kind')
+                current.append({**current_source,**metadata})
             if source_hash(current) != source_hash(turns):
                 return None
             if row['status'] == 'active' and not self._validated_items(event, db, json.loads(row['items_json'])):

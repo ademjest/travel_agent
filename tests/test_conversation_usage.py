@@ -1,3 +1,4 @@
+from app.conversation_context import web_context
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
@@ -11,6 +12,14 @@ from infrastructure.web_repository import OWNER, WebRepository
 
 
 class ConversationUsageTests(unittest.TestCase):
+    def test_zero_model_confirmation_round_is_preserved_in_round_breakdown(self):
+        self.repo.accept(self.left,'保存这版行程',[],'save-without-model')
+        report=self.report()
+        self.assertEqual(len(report['rounds']),1)
+        self.assertEqual(report['rounds'][0]['totals']['calls'],0)
+        self.assertEqual(report['rounds'][0]['calls'],[])
+        self.assertEqual(report['rounds'][0]['user_message'],'保存这版行程')
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -67,7 +76,7 @@ class ConversationUsageTests(unittest.TestCase):
         self.assertEqual(first,self.report())
         self.call(f'web:group:{self.left}:second')
         self.assertEqual(self.report()['totals']['total_tokens'],240)
-        self.assertEqual(self.repo.context(self.left)['model_usage']['totals']['calls'],2)
+        self.assertEqual(web_context(self.repo, self.left)['model_usage']['totals']['calls'],2)
 
     def test_background_job_attribution_and_missing_usage_remain_visible(self):
         job=self.store.inbox.submit('scheduled-query:linked','web',self.left,OWNER,{})
@@ -107,4 +116,4 @@ class ConversationUsageTests(unittest.TestCase):
             store=MemoryStore(Path(folder)/'empty.db')
             repo=WebRepository(store)
             identity=repo.create_conversation()['id']
-            self.assertEqual(repo.context(identity)['model_usage']['totals']['calls'],0)
+            self.assertEqual(web_context(repo, identity)['model_usage']['totals']['calls'],0)

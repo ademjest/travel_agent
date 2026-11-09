@@ -2,11 +2,7 @@ import json
 from datetime import datetime, timezone
 
 
-LABELS = {'pace': '行程节奏', 'transport': '交通偏好', 'interests': '兴趣类别', 'night': '夜间活动',
-          'departure_city': '常用出发城市', 'budget': '默认预算', 'reply_style': '回复风格'}
-CHOICES = {'pace': ('轻松', '适中', '紧凑'), 'transport': ('公共交通', '步行', '驾车'),
-           'night': ('不安排夜游', '可以夜游'), 'reply_style': ('简洁', '详细', '表格')}
-INTERESTS = ('博物馆', '历史街区', '自然景观', '美食', '公园', '艺术')
+from core.preference_contract import LABELS, CHOICES, INTERESTS, validate_preferences
 
 
 class PreferenceConflict(ValueError):
@@ -15,28 +11,6 @@ class PreferenceConflict(ValueError):
 
 def owner_scope(event):
     return event.platform, event.sender_id, '' if event.platform == 'web' else event.scope_id
-
-
-def validate_preferences(values):
-    if not isinstance(values, dict) or set(values) - LABELS.keys():
-        raise ValueError('不支持的偏好字段。')
-    for key, value in values.items():
-        if value is None:
-            continue
-        if key in CHOICES and value not in CHOICES[key]:
-            raise ValueError('偏好值不在支持范围内。')
-        if key == 'interests' and (not isinstance(value, list) or not value or len(value) > 6 or any(v not in INTERESTS for v in value)):
-            raise ValueError('请选择支持的兴趣类别。')
-        if key == 'departure_city':
-            import re
-            if not isinstance(value, str) or not re.fullmatch(r'[\u4e00-\u9fffA-Za-z· ]{2,30}', value):
-                raise ValueError('请提供城市名称，不保存详细住址。')
-        if key == 'budget':
-            if (not isinstance(value, dict) or set(value) != {'amount', 'currency', 'basis', 'period', 'category'}
-                    or type(value['amount']) not in (int, float) or not 0 < value['amount'] <= 1000000
-                    or value['currency'] not in ('CNY', 'USD', 'EUR') or value['basis'] not in ('每人', '总额')
-                    or value['period'] not in ('每天', '全程') or value['category'] not in ('住宿', '餐饮', '交通', '旅行总预算')):
-                raise ValueError('预算需要金额、币种、每人/总额、每天/全程及适用项目。')
 
 
 class PreferenceRepository:
@@ -158,4 +132,9 @@ class PreferenceRepository:
 
     @staticmethod
     def describe(values):
-        return '；'.join(f'{LABELS[k]}：' + (('、'.join(v)) if isinstance(v, list) else json.dumps(v, ensure_ascii=False) if isinstance(v, dict) else str(v)) for k, v in values.items())
+        parts=[]
+        for key,value in values.items():
+            text=(f"{value['category']} {value['basis']}{value['period']} {value['amount']:g} {value['currency']}"
+                  if key=='budget' and isinstance(value,dict) else '、'.join(value) if isinstance(value,list) else str(value))
+            parts.append(f'{LABELS[key]}：'+text)
+        return '；'.join(parts)

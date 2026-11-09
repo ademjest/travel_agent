@@ -52,8 +52,8 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.temp_dir.cleanup()
 
     def enqueue(self, event_id="qq_official:group:group-a:message-1"):
-        claim = self.store.begin_event(event_id, now=self.now)
-        return self.store.prepare_event_outbox(
+        claim = self.store.delivery.begin_event(event_id, now=self.now)
+        return self.store.delivery.prepare_event_outbox(
             event_id=event_id,
             claim_token=claim.claim_token,
             platform="qq_official",
@@ -76,7 +76,7 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(delivered, 1)
         self.assertEqual(transport.messages, [self.expected])
         self.assertEqual(
-            self.store.get_event_status(
+            self.store.delivery.get_event_status(
                 "qq_official:group:group-a:message-1"
             ),
             "completed",
@@ -111,13 +111,13 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(delivered, 1)
         self.assertEqual(
-            self.store.get_event_status(
+            self.store.delivery.get_event_status(
                 "qq_official:group:group-a:message-1"
             ),
             "completed",
         )
         self.assertEqual(
-            self.store.list_due_outbox(
+            self.store.delivery.list_due_outbox(
                 "qq_official",
                 now=self.now + timedelta(days=1),
             ),
@@ -138,13 +138,13 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(delivered, 0)
         self.assertEqual(len(transport.messages), 1)
         self.assertEqual(
-            self.store.get_event_status(
+            self.store.delivery.get_event_status(
                 "qq_official:group:group-a:message-1"
             ),
             "dead_letter",
         )
         self.assertEqual(
-            self.store.list_due_outbox(
+            self.store.delivery.list_due_outbox(
                 "qq_official",
                 now=self.now + timedelta(days=1),
             ),
@@ -164,7 +164,7 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(transport.messages), 6)
         self.assertEqual(retry_delay(6), timedelta(seconds=900))
         self.assertEqual(
-            self.store.get_event_status(
+            self.store.delivery.get_event_status(
                 "qq_official:group:group-a:message-1"
             ),
             "processing",
@@ -182,13 +182,13 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(len(transport.messages), MAX_OUTBOX_ATTEMPTS)
         self.assertEqual(
-            self.store.get_event_status(
+            self.store.delivery.get_event_status(
                 "qq_official:group:group-a:message-1"
             ),
             "dead_letter",
         )
         self.assertEqual(
-            self.store.list_due_outbox("qq_official", now=current),
+            self.store.delivery.list_due_outbox("qq_official", now=current),
             (),
         )
         await worker.dispatch_due_once(now=current + timedelta(days=1))
@@ -196,7 +196,7 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_startup_recovery_sends_row_after_lease_expiry(self):
         outbox_id = self.enqueue()
-        self.store.claim_outbox(
+        self.store.delivery.claim_outbox(
             outbox_id,
             now=self.now,
             lease_duration=timedelta(minutes=1),
@@ -235,8 +235,8 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
     async def test_each_row_gets_a_fresh_lease_time_in_a_slow_batch(self):
         second_event = "qq_official:group:group-a:message-2"
         self.enqueue()
-        claim = self.store.begin_event(second_event, now=self.now)
-        self.store.prepare_event_outbox(
+        claim = self.store.delivery.begin_event(second_event, now=self.now)
+        self.store.delivery.prepare_event_outbox(
             event_id=second_event,
             claim_token=claim.claim_token,
             platform="qq_official",
@@ -256,7 +256,7 @@ class OutboxWorkerTests(unittest.IsolatedAsyncioTestCase):
                 if len(inner_self.messages) == 1:
                     clock.current += timedelta(minutes=3)
                     return
-                due = self.store.list_due_outbox(
+                due = self.store.delivery.list_due_outbox(
                     "qq_official",
                     now=clock.current,
                 )

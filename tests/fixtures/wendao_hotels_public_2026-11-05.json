@@ -1,0 +1,250 @@
+{
+  "stay": {
+    "check_in": "2026-11-07",
+    "check_out": "2026-11-09",
+    "rooms": 1,
+    "adults": 1,
+    "children_ages": []
+  },
+  "targets": {
+    "ji": {
+      "id": "ji",
+      "name": "全季酒店（南京总统府西安门地铁站店）",
+      "address": "南京市秦淮区中山东路482号",
+      "cityname": "南京市",
+      "type": "住宿服务;酒店"
+    },
+    "hanting": {
+      "id": "hanting",
+      "name": "汉庭酒店（南京浮桥地铁站未来城店）",
+      "address": "南京市玄武区珠江路488号未来城A座西门5楼",
+      "cityname": "南京市",
+      "type": "住宿服务;酒店"
+    },
+    "home": {
+      "id": "home",
+      "name": "如家酒店（南京总统府西安门地铁站店）",
+      "address": "南京市秦淮区中山东路二条巷64号",
+      "cityname": "南京市",
+      "type": "住宿服务;酒店"
+    }
+  },
+  "offers": [
+    {
+      "target_id": "ji",
+      "hotel_name": "全季酒店（南京总统府西安门地铁站店）",
+      "address": "南京市秦淮区中山东路482号",
+      "city": "南京",
+      "hotel_text": "<全季酒店（南京总统府西安门地铁站店）>\n\n\n### 全季酒店(南京总统府西安门地铁站店)\n- **地址**：南京市秦淮区中山东路482号\n- **携程钻级**：3钻（舒适型）\n- **可订房型及价格**（1间/1成人/2晚）：\n\n| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |\n|\n\n|\n\n\n|\n\n\n|\n\n\n-|\n\n|\n\n|\n| 特价房 | 499元 | 499元 | 998元 | 不含早 | 以预订页面为准 |\n| 高级大床房 | 549元 | 549元 | 1098元 | 可选加购 | 以预订页面为准 |\n| 高级双床房 | 549元 | 549元 | 1098元 | 可选加购 | 以预订页面为准 |\n| 商务大床房 | 579元 | 579元 | 1158元 | 可选加购 | 以预订页面为准 |\n| 商务双床房 | 579元 | 579元 | 1158元 | 可选加购 | 以预订页面为准 |\n\n- **早餐**：提供自助早餐，成人40元/人，12岁以下儿童免费\n- **退改条件**：未查到指定房型的具体退改规则，以下单页面显示为准\n- **携程酒店链接**：[全季酒店(南京总统府西安门地铁站店)](https://hotels.ctrip.com/hotels/98051717.html)\n- **查询时间**：2026年11月5日\n- **特别说明**：最低价特价房499元/晚，超出您350-450元/晚的预算。以上为指定日期参考价，不作为最终预算确认依据\n\n- [预定链接](<https://m.ctrip.com/webapp/hotels/detail?source_from_tag=bdai_datamining_wendao&hotelid=98051717&atime=20261107&days=2&pricemode=80|0>)\n",
+      "stay_text": "已为您查询三家酒店2026年11月7日入住、11月9日退房（2晚）的房态信息。以下价格均为指定日期查询时的参考价，**实际价格可能随时变动，以您下单时页面显示为准**。",
+      "check_in": "2026-11-07",
+      "check_out": "2026-11-09",
+      "rooms": 1,
+      "adults": 1,
+      "children_ages": [],
+      "room_name": "特价房",
+      "price_basis": "per_room_night",
+      "currency": "CNY",
+      "nightly_prices": [
+        {
+          "date": "2026-11-07",
+          "amount": "499"
+        },
+        {
+          "date": "2026-11-08",
+          "amount": "499"
+        }
+      ],
+      "reported_total": "998",
+      "price_header": "| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |",
+      "price_row": "| 特价房 | 499元 | 499元 | 998元 | 不含早 | 以预订页面为准 |",
+      "terms_text": "| 特价房 | 499元 | 499元 | 998元 | 不含早 | 以预订页面为准 |",
+      "taxes_and_fees_status": "unknown",
+      "breakfast": "不含早",
+      "cancellation": "以预订页面为准",
+      "eligibility": null,
+      "source_url": "https://hotels.ctrip.com/hotels/98051717.html",
+      "provider_hotel_id": "98051717"
+    },
+    {
+      "target_id": "ji",
+      "hotel_name": "全季酒店（南京总统府西安门地铁站店）",
+      "address": "南京市秦淮区中山东路482号",
+      "city": "南京",
+      "hotel_text": "<全季酒店（南京总统府西安门地铁站店）>\n\n\n### 全季酒店(南京总统府西安门地铁站店)\n- **地址**：南京市秦淮区中山东路482号\n- **携程钻级**：3钻（舒适型）\n- **可订房型及价格**（1间/1成人/2晚）：\n\n| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |\n|\n\n|\n\n\n|\n\n\n|\n\n\n-|\n\n|\n\n|\n| 特价房 | 499元 | 499元 | 998元 | 不含早 | 以预订页面为准 |\n| 高级大床房 | 549元 | 549元 | 1098元 | 可选加购 | 以预订页面为准 |\n| 高级双床房 | 549元 | 549元 | 1098元 | 可选加购 | 以预订页面为准 |\n| 商务大床房 | 579元 | 579元 | 1158元 | 可选加购 | 以预订页面为准 |\n| 商务双床房 | 579元 | 579元 | 1158元 | 可选加购 | 以预订页面为准 |\n\n- **早餐**：提供自助早餐，成人40元/人，12岁以下儿童免费\n- **退改条件**：未查到指定房型的具体退改规则，以下单页面显示为准\n- **携程酒店链接**：[全季酒店(南京总统府西安门地铁站店)](https://hotels.ctrip.com/hotels/98051717.html)\n- **查询时间**：2026年11月5日\n- **特别说明**：最低价特价房499元/晚，超出您350-450元/晚的预算。以上为指定日期参考价，不作为最终预算确认依据\n\n- [预定链接](<https://m.ctrip.com/webapp/hotels/detail?source_from_tag=bdai_datamining_wendao&hotelid=98051717&atime=20261107&days=2&pricemode=80|0>)\n",
+      "stay_text": "已为您查询三家酒店2026年11月7日入住、11月9日退房（2晚）的房态信息。以下价格均为指定日期查询时的参考价，**实际价格可能随时变动，以您下单时页面显示为准**。",
+      "check_in": "2026-11-07",
+      "check_out": "2026-11-09",
+      "rooms": 1,
+      "adults": 1,
+      "children_ages": [],
+      "room_name": "高级大床房",
+      "price_basis": "per_room_night",
+      "currency": "CNY",
+      "nightly_prices": [
+        {
+          "date": "2026-11-07",
+          "amount": "549"
+        },
+        {
+          "date": "2026-11-08",
+          "amount": "549"
+        }
+      ],
+      "reported_total": "1098",
+      "price_header": "| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |",
+      "price_row": "| 高级大床房 | 549元 | 549元 | 1098元 | 可选加购 | 以预订页面为准 |",
+      "terms_text": "| 高级大床房 | 549元 | 549元 | 1098元 | 可选加购 | 以预订页面为准 |",
+      "taxes_and_fees_status": "unknown",
+      "breakfast": "可选加购",
+      "cancellation": "以预订页面为准",
+      "eligibility": null,
+      "source_url": "https://hotels.ctrip.com/hotels/98051717.html",
+      "provider_hotel_id": "98051717"
+    },
+    {
+      "target_id": "hanting",
+      "hotel_name": "汉庭酒店（南京浮桥地铁站未来城店）",
+      "address": "南京市玄武区珠江路488号未来城A座西门5楼",
+      "city": "南京",
+      "hotel_text": "<汉庭酒店（南京浮桥地铁站未来城店）>\n\n\n### 汉庭酒店(南京浮桥地铁站未来城店)\n- **地址**：南京市玄武区珠江路488号未来城A座西门5楼\n- **携程钻级**：2钻（经济型）\n- **可订房型及价格**（1间/1成人/2晚）：\n\n| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |\n|\n\n|\n\n\n|\n\n\n|\n\n\n-|\n\n|\n\n|\n| 高级大床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |\n| 双床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |\n\n- **早餐**：提供固定套餐早餐，成人18元/人，12岁以下儿童免费\n- **退改条件**：未查到指定房型的具体退改规则，以下单页面显示为准\n- **携程酒店链接**：[汉庭酒店(南京浮桥地铁站未来城店)](https://hotels.ctrip.com/hotels/1686679.html)\n- **查询时间**：2026年11月5日\n- **特别说明**：346元/晚在您350-450元/晚的预算范围内。双床房页面显示\"仅剩4间\"，建议尽早确认。以上为指定日期参考价，不作为最终预算确认依据\n\n- [预定链接](<https://m.ctrip.com/webapp/hotels/detail?source_from_tag=bdai_datamining_wendao&hotelid=1686679&atime=20261107&days=2&pricemode=80|0>)\n",
+      "stay_text": "已为您查询三家酒店2026年11月7日入住、11月9日退房（2晚）的房态信息。以下价格均为指定日期查询时的参考价，**实际价格可能随时变动，以您下单时页面显示为准**。",
+      "check_in": "2026-11-07",
+      "check_out": "2026-11-09",
+      "rooms": 1,
+      "adults": 1,
+      "children_ages": [],
+      "room_name": "高级大床房",
+      "price_basis": "per_room_night",
+      "currency": "CNY",
+      "nightly_prices": [
+        {
+          "date": "2026-11-07",
+          "amount": "346"
+        },
+        {
+          "date": "2026-11-08",
+          "amount": "346"
+        }
+      ],
+      "reported_total": "692",
+      "price_header": "| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |",
+      "price_row": "| 高级大床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |",
+      "terms_text": "| 高级大床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |",
+      "taxes_and_fees_status": "unknown",
+      "breakfast": "不含早",
+      "cancellation": "以预订页面为准",
+      "eligibility": null,
+      "source_url": "https://hotels.ctrip.com/hotels/1686679.html",
+      "provider_hotel_id": "1686679"
+    },
+    {
+      "target_id": "hanting",
+      "hotel_name": "汉庭酒店（南京浮桥地铁站未来城店）",
+      "address": "南京市玄武区珠江路488号未来城A座西门5楼",
+      "city": "南京",
+      "hotel_text": "<汉庭酒店（南京浮桥地铁站未来城店）>\n\n\n### 汉庭酒店(南京浮桥地铁站未来城店)\n- **地址**：南京市玄武区珠江路488号未来城A座西门5楼\n- **携程钻级**：2钻（经济型）\n- **可订房型及价格**（1间/1成人/2晚）：\n\n| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |\n|\n\n|\n\n\n|\n\n\n|\n\n\n-|\n\n|\n\n|\n| 高级大床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |\n| 双床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |\n\n- **早餐**：提供固定套餐早餐，成人18元/人，12岁以下儿童免费\n- **退改条件**：未查到指定房型的具体退改规则，以下单页面显示为准\n- **携程酒店链接**：[汉庭酒店(南京浮桥地铁站未来城店)](https://hotels.ctrip.com/hotels/1686679.html)\n- **查询时间**：2026年11月5日\n- **特别说明**：346元/晚在您350-450元/晚的预算范围内。双床房页面显示\"仅剩4间\"，建议尽早确认。以上为指定日期参考价，不作为最终预算确认依据\n\n- [预定链接](<https://m.ctrip.com/webapp/hotels/detail?source_from_tag=bdai_datamining_wendao&hotelid=1686679&atime=20261107&days=2&pricemode=80|0>)\n",
+      "stay_text": "已为您查询三家酒店2026年11月7日入住、11月9日退房（2晚）的房态信息。以下价格均为指定日期查询时的参考价，**实际价格可能随时变动，以您下单时页面显示为准**。",
+      "check_in": "2026-11-07",
+      "check_out": "2026-11-09",
+      "rooms": 1,
+      "adults": 1,
+      "children_ages": [],
+      "room_name": "双床房",
+      "price_basis": "per_room_night",
+      "currency": "CNY",
+      "nightly_prices": [
+        {
+          "date": "2026-11-07",
+          "amount": "346"
+        },
+        {
+          "date": "2026-11-08",
+          "amount": "346"
+        }
+      ],
+      "reported_total": "692",
+      "price_header": "| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |",
+      "price_row": "| 双床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |",
+      "terms_text": "| 双床房 | 346元 | 346元 | 692元 | 不含早 | 以预订页面为准 |",
+      "taxes_and_fees_status": "unknown",
+      "breakfast": "不含早",
+      "cancellation": "以预订页面为准",
+      "eligibility": null,
+      "source_url": "https://hotels.ctrip.com/hotels/1686679.html",
+      "provider_hotel_id": "1686679"
+    },
+    {
+      "target_id": "home",
+      "hotel_name": "如家酒店（南京总统府西安门地铁站店）",
+      "address": "南京市秦淮区中山东路二条巷64号",
+      "city": "南京",
+      "hotel_text": "<如家酒店（南京总统府西安门地铁站店）>\n\n\n### 如家酒店(南京总统府西安门地铁站店)\n- **地址**：南京市秦淮区中山东路二条巷64号\n- **携程钻级**：2钻（经济型）\n- **可订房型及价格**（1间/1成人/2晚）：\n\n| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |\n|\n\n|\n\n\n|\n\n\n|\n\n\n-|\n\n|\n\n|\n| 商务大床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |\n| 双床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |\n| 商务大床房 | 291元 | 291元 | 582元 | 不含早 | 以预订页面为准 |\n| 高级双床房 | 311元 | 311元 | 622元 | 不含早 | 以预订页面为准 |\n\n- **早餐**：提供自助早餐，成人20元/人，身高130cm以下儿童免费\n- **退改条件**：未查到指定房型的具体退改规则，以下单页面显示为准\n- **携程酒店链接**：[如家酒店(南京总统府西安门地铁站店)](https://hotels.ctrip.com/hotels/4814294.html)\n- **查询时间**：2026年11月5日\n- **特别说明**：281-311元/晚均低于您350-450元/晚的预算下限，是三家中最经济的选项。以上为指定日期参考价，不作为最终预算确认依据\n\n- [预定链接](<https://m.ctrip.com/webapp/hotels/detail?source_from_tag=bdai_datamining_wendao&hotelid=4814294&atime=20261107&days=2&pricemode=80|0>)\n",
+      "stay_text": "已为您查询三家酒店2026年11月7日入住、11月9日退房（2晚）的房态信息。以下价格均为指定日期查询时的参考价，**实际价格可能随时变动，以您下单时页面显示为准**。",
+      "check_in": "2026-11-07",
+      "check_out": "2026-11-09",
+      "rooms": 1,
+      "adults": 1,
+      "children_ages": [],
+      "room_name": "商务大床房A",
+      "price_basis": "per_room_night",
+      "currency": "CNY",
+      "nightly_prices": [
+        {
+          "date": "2026-11-07",
+          "amount": "281"
+        },
+        {
+          "date": "2026-11-08",
+          "amount": "281"
+        }
+      ],
+      "reported_total": "562",
+      "price_header": "| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |",
+      "price_row": "| 商务大床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |",
+      "terms_text": "| 商务大床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |",
+      "taxes_and_fees_status": "unknown",
+      "breakfast": "不含早",
+      "cancellation": "以预订页面为准",
+      "eligibility": null,
+      "source_url": "https://hotels.ctrip.com/hotels/4814294.html",
+      "provider_hotel_id": "4814294"
+    },
+    {
+      "target_id": "home",
+      "hotel_name": "如家酒店（南京总统府西安门地铁站店）",
+      "address": "南京市秦淮区中山东路二条巷64号",
+      "city": "南京",
+      "hotel_text": "<如家酒店（南京总统府西安门地铁站店）>\n\n\n### 如家酒店(南京总统府西安门地铁站店)\n- **地址**：南京市秦淮区中山东路二条巷64号\n- **携程钻级**：2钻（经济型）\n- **可订房型及价格**（1间/1成人/2晚）：\n\n| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |\n|\n\n|\n\n\n|\n\n\n|\n\n\n-|\n\n|\n\n|\n| 商务大床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |\n| 双床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |\n| 商务大床房 | 291元 | 291元 | 582元 | 不含早 | 以预订页面为准 |\n| 高级双床房 | 311元 | 311元 | 622元 | 不含早 | 以预订页面为准 |\n\n- **早餐**：提供自助早餐，成人20元/人，身高130cm以下儿童免费\n- **退改条件**：未查到指定房型的具体退改规则，以下单页面显示为准\n- **携程酒店链接**：[如家酒店(南京总统府西安门地铁站店)](https://hotels.ctrip.com/hotels/4814294.html)\n- **查询时间**：2026年11月5日\n- **特别说明**：281-311元/晚均低于您350-450元/晚的预算下限，是三家中最经济的选项。以上为指定日期参考价，不作为最终预算确认依据\n\n- [预定链接](<https://m.ctrip.com/webapp/hotels/detail?source_from_tag=bdai_datamining_wendao&hotelid=4814294&atime=20261107&days=2&pricemode=80|0>)\n",
+      "stay_text": "已为您查询三家酒店2026年11月7日入住、11月9日退房（2晚）的房态信息。以下价格均为指定日期查询时的参考价，**实际价格可能随时变动，以您下单时页面显示为准**。",
+      "check_in": "2026-11-07",
+      "check_out": "2026-11-09",
+      "rooms": 1,
+      "adults": 1,
+      "children_ages": [],
+      "room_name": "双床房A",
+      "price_basis": "per_room_night",
+      "currency": "CNY",
+      "nightly_prices": [
+        {
+          "date": "2026-11-07",
+          "amount": "281"
+        },
+        {
+          "date": "2026-11-08",
+          "amount": "281"
+        }
+      ],
+      "reported_total": "562",
+      "price_header": "| 房型 | 11月7日 | 11月8日 | 2晚总价 | 含早 | 退改 |",
+      "price_row": "| 双床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |",
+      "terms_text": "| 双床房A | 281元 | 281元 | 562元 | 不含早 | 以预订页面为准 |",
+      "taxes_and_fees_status": "unknown",
+      "breakfast": "不含早",
+      "cancellation": "以预订页面为准",
+      "eligibility": null,
+      "source_url": "https://hotels.ctrip.com/hotels/4814294.html",
+      "provider_hotel_id": "4814294"
+    }
+  ]
+}

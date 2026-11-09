@@ -1,0 +1,71 @@
+{
+  "targets": {
+    "B0MAKCO3T7": {
+      "id": "B0MAKCO3T7",
+      "name": "汉庭酒店(武汉东西湖五环体育中心店)",
+      "address": "径河街道三店西路与径西二路交叉口北150米汉口澎湃城12栋",
+      "location": "114.136175,30.643864",
+      "type": "住宿服务;宾馆酒店;经济型连锁酒店",
+      "tel": "027-86666520",
+      "adname": "东西湖区",
+      "pname": "湖北省",
+      "cityname": "武汉市",
+      "typecode": "100105",
+      "parent": "B0MGB7U8OH"
+    }
+  },
+  "stay": {
+    "check_in": "2026-11-09",
+    "check_out": "2026-11-10",
+    "rooms": 1,
+    "adults": 1,
+    "children_ages": []
+  },
+  "rejected": [
+    {
+      "target_id": "B0MAKCO3T7",
+      "reason": "门店城市、完整名称或地址不一致，尚未唯一绑定。"
+    }
+  ],
+  "extraction_status": "completed",
+  "retrieved_at": "2026-11-07T09:51:56.941145+00:00",
+  "model_extraction_json_saved": false,
+  "source": "already saved public hotel supplier answer; not a new API call",
+  "constructed_extraction": {
+    "offers": [
+      {
+        "target_id": "B0MAKCO3T7",
+        "hotel_name": "汉庭酒店(武汉东西湖五环体育中心店)",
+        "address": "径河街道三店西路与径西二路交叉口北150米（汉口澎湃城12栋）一层大堂",
+        "city": "武汉",
+        "hotel_text": "### 汉庭酒店(武汉东西湖五环体育中心店)\n\n- **门店地址**：径河街道三店西路与径西二路交叉口北150米（汉口澎湃城12栋）一层大堂\n- **携程链接**：[查看详情](http://m.ctrip.com/webapp/hotel/hoteldetail/134357658.html)",
+        "stay_text": "2026-11-09 入住，2026-11-10 退房（1晚）",
+        "check_in": "2026-11-09",
+        "check_out": "2026-11-10",
+        "rooms": 1,
+        "adults": 1,
+        "children_ages": null,
+        "room_name": "基础房型参考价",
+        "price_basis": "per_room_night",
+        "currency": "CNY",
+        "nightly_prices": [
+          {
+            "date": "2026-11-09",
+            "amount": "210"
+          }
+        ],
+        "reported_total": null,
+        "price_header": "",
+        "price_row": "### 产品一：基础房型参考价\n\n- **入住/退房**：2026-11-09 入住，2026-11-10 退房（1晚）\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：**210 RMB**（2026-11-09 晚）\n- **总价含税否**：未知（工具未返回税费明细，以携程下单页为准）\n- **早餐**：未知（该房型是否含早以携程下单页标注为准）\n- **退改政策**：未知（以携程下单页展示的退改规则为准）\n- **会员优惠限制**：未知（工具未返回会员专属价信息，以携程App实际展示为准）",
+        "terms_text": "### 产品一：基础房型参考价\n\n- **入住/退房**：2026-11-09 入住，2026-11-10 退房（1晚）\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：**210 RMB**（2026-11-09 晚）\n- **总价含税否**：未知（工具未返回税费明细，以携程下单页为准）\n- **早餐**：未知（该房型是否含早以携程下单页标注为准）\n- **退改政策**：未知（以携程下单页展示的退改规则为准）\n- **会员优惠限制**：未知（工具未返回会员专属价信息，以携程App实际展示为准）",
+        "taxes_and_fees_status": "unknown",
+        "breakfast": null,
+        "cancellation": null,
+        "eligibility": null,
+        "source_url": "https://m.ctrip.com/webapp/hotels/detail?source_from_tag=bdai_datamining_wendao&hotelid=134357658&atime=20261109&days=1&pricemode=80|0",
+        "provider_hotel_id": "134357658"
+      }
+    ]
+  },
+  "fixture_note": "Public saved raw source; extraction below constructed faithfully for replay, NOT the unsaved original model JSON."
+}

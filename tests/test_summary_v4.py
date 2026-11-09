@@ -7,10 +7,11 @@ from unittest.mock import Mock, patch
 
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from scripts.evaluate_summary_quality import OFFLINE_ENV, ScriptedClient, load_cases, seed_stage
-from services.conversation_summary_service import ConversationSummaryService
+from evaluation.cases.evaluate_summary_quality import OFFLINE_ENV, ScriptedClient, load_cases, seed_stage
+from app.conversation_context import ConversationSummaryService
 
-from services.conversation_summary_service import select_batch, validate_items
+from app.conversation_context import select_batch
+from core.summary_validation import validate_items
 
 
 class SummaryV4SemanticsTests(unittest.TestCase):
@@ -116,7 +117,7 @@ class SummaryV4SemanticsTests(unittest.TestCase):
                 {'previous_items': [], 'new_turns': [{'message_id': 7, 'user': '不安排夜游'}]})
 
     def test_schema_error_has_safe_path_and_limit(self):
-        from core.summary_contract import SummaryValidationError
+        from core.summary_validation import SummaryValidationError
         with self.assertRaises(SummaryValidationError) as caught:
             validate_items({'items': [{'kind': 'reference', 'text': '背景',
                 'sources': [{'message_id': 7, 'quote': '背景'}] * 5}]},
@@ -131,7 +132,7 @@ class SummaryV4SemanticsTests(unittest.TestCase):
         self.assertFalse(any('id' in turn for turn in payload['new_turns']))
 
     def test_prompt_is_exact_user_file_and_versioned_by_content(self):
-        from core.summary_contract import load_summary_prompt, PROMPT_VERSION
+        from core.summary_validation import load_summary_prompt, PROMPT_VERSION
         prompt, digest = load_summary_prompt()
         path = Path(__file__).resolve().parents[1] / 'prompts/conversation_summary.md'
         import hashlib
@@ -140,7 +141,7 @@ class SummaryV4SemanticsTests(unittest.TestCase):
         self.assertTrue(PROMPT_VERSION.startswith('conversation-summary-v4'))
 
     def test_shared_schema_matches_wire_contract(self):
-        from core.summary_contract import OUTPUT_SCHEMA, MAX_ITEMS, MAX_SOURCES, MAX_QUOTE_CHARS
+        from core.summary_validation import OUTPUT_SCHEMA, MAX_ITEMS, MAX_SOURCES, MAX_QUOTE_CHARS
         items = OUTPUT_SCHEMA['properties']['items']
         sources = items['items']['properties']['sources']
         self.assertEqual(items['maxItems'], MAX_ITEMS)
@@ -187,7 +188,7 @@ class SummaryV4ServiceTests(unittest.TestCase):
                                                   'offline', self.diagnostics.append)
 
     def test_publication_stores_reviewed_prompt_hash_and_version(self):
-        from core.summary_contract import PROMPT_VERSION, load_summary_prompt
+        from core.summary_validation import PROMPT_VERSION, load_summary_prompt
         record = self.service.ensure(self.event)
         self.assertEqual(record['prompt_version'], PROMPT_VERSION)
         self.assertEqual(record['prompt_hash'], load_summary_prompt()[1])
@@ -204,7 +205,7 @@ class SummaryV4ServiceTests(unittest.TestCase):
         mapping = {}
         for turn in payload['new_turns']:
             key = f'q04-{turn["message_id"]}'
-            store.save_turn(event.storage_scope_id, event.sender_id, key, turn['user'], 'Neutral text. ' * 120)
+            store.conversations.save_turn(event.storage_scope_id, event.sender_id, key, turn['user'], 'Neutral text. ' * 120)
             with store._connect() as db:
                 mapping[turn['message_id']] = db.execute('SELECT id FROM conversation_turns WHERE user_msg_id=?', (key,)).fetchone()[0]
         sdk = ScriptedClient()
@@ -262,7 +263,7 @@ class SummaryV4ServiceTests(unittest.TestCase):
         self.service.repair_permit.assert_not_called()
 
     def test_contract_drift_fails_closed_without_claim_or_model(self):
-        with patch('services.conversation_summary_service.load_summary_prompt', side_effect=ValueError('mismatch')):
+        with patch('app.conversation_context.load_summary_prompt', side_effect=ValueError('mismatch')):
             self.assertIsNone(self.service.ensure(self.event))
         self.assertFalse(self.client.calls)
         self.assertIsNone(self.store.conversation_summaries.metadata(self.event))

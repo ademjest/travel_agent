@@ -1,3 +1,4 @@
+from tools.trip.tool import TripTool
 from copy import deepcopy
 from dataclasses import replace
 import unittest
@@ -6,11 +7,12 @@ from unittest.mock import Mock
 import test_trip_context_updates as fixtures
 from test_trips import PLACES, plan_value, model_response
 from test_travel_agent import FakeClient
-from agents.trip_planner import TripPlanError
-from agents.trip_planner import fresh_route
+from tools.trip.planner import TripPlanError
+from tools.trip.planner import fresh_route
 from datetime import datetime,timezone
-from core.trip_diff import facts,trip_diff,edit_text,state_context
-from services.semantic_task_service import SemanticTaskService
+from tools.trip.constraints import facts, trip_diff, edit_text
+from app.conversation_context import state_context
+from app.request_router import RequestRouter
 
 
 class StateIncrementalTests(unittest.TestCase):
@@ -31,7 +33,7 @@ class StateIncrementalTests(unittest.TestCase):
         for amount in range(280,320):
             self.budget(amount,f'budget-{amount}')
             saved=c.current()
-            draft=c.store.trips.draft(c.event(''),saved)
+            draft=TripTool.read_draft(c.store, c.event(''),saved)
             self.assertEqual(saved['version'],1)
             self.assertEqual(draft['candidate']['plan']['days'],previous)
             self.assertEqual(draft['task'].slots['change_diff']['base_version'],1)
@@ -47,17 +49,17 @@ class StateIncrementalTests(unittest.TestCase):
         c=self.case
         data={'trip_id':c.saved['trip_id'],'version':1,'draft_id':None,'draft_version':None,'field':'hotel_budget','value':'320'}
         compiler=Mock()
-        service=SemanticTaskService(c.store,compiler,c.service)
+        service=RequestRouter(c.store,compiler,c.service)
         event=replace(c.event(edit_text('hotel_budget','320'),'field'),trip_edit=data)
-        shadow=SemanticTaskService(c.store,compiler,c.service,mode='shadow')
+        shadow=RequestRouter(c.store,compiler,c.service,mode='shadow')
         self.assertIsNone(shadow.handle(event,None))
-        self.assertIsNone(c.store.trips.draft(event,c.current()))
-        self.assertIn('确认',service.handle(event,c.store.begin_event(event.event_key)))
+        self.assertIsNone(TripTool.read_draft(c.store, event,c.current()))
+        self.assertIn('确认',service.handle(event,c.store.delivery.begin_event(event.event_key)))
         stale=replace(event,event_id='stale')
-        self.assertIn('草稿已变化',service.handle(stale,c.store.begin_event(stale.event_key)))
+        self.assertIn('草稿已变化',service.handle(stale,c.store.delivery.begin_event(stale.event_key)))
         compiler.try_compile.assert_not_called()
         foreign=replace(event,event_id='foreign',sender_id='another')
-        self.assertIn('不属于',service.handle(foreign,c.store.begin_event(foreign.event_key)))
+        self.assertIn('不属于',service.handle(foreign,c.store.delivery.begin_event(foreign.event_key)))
 
     def test_local_day_preserves_other_days_and_rejects_out_of_scope_period(self):
         c=self.case
@@ -83,9 +85,9 @@ class StateIncrementalTests(unittest.TestCase):
         self.budget(320,'budget')
         c.planner.client=FakeClient([model_response({'activities':[{'poi_id':'f','period':'下午','reason':'室内备选'}]})])
         event=c.event('第二天下午改为室内','day')
-        reply=c.service.handle(event,c.store.begin_event(event.event_key))
+        reply=c.service.handle(event,c.store.delivery.begin_event(event.event_key))
         self.assertIn('累计变更',reply)
-        draft=c.store.trips.draft(event,c.current())
+        draft=TripTool.read_draft(c.store, event,c.current())
         self.assertEqual(draft['candidate']['spec']['budgets']['accommodation']['value'],'320')
         self.assertEqual(draft['task'].slots['change_diff']['changed_days'],[2])
         self.assertEqual(c.current()['version'],1)

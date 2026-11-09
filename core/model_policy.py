@@ -14,8 +14,18 @@ PURPOSE_MODEL_ENV = {
     'travel_answer_write': 'LLM_RESEARCH_MODEL_ID',
     'image_extract': 'LLM_VISION_MODEL_ID',
 }
+PURPOSE_ROLES = {
+    'hotel_quote_extract':'regular',
+    'intent_parse':'basic', 'conversation_summary':'basic', 'reminder_extract':'basic',
+    'trip_plan':'complex', 'trip_plan_repair':'complex', 'trip_plan_compare':'complex',
+    'travel_answer_write':'complex', 'image_extract':'vision',
+    'trip_answer_write':'regular',
+}
 
 PURPOSE_OUTPUTS = {
+    'hotel_quote_extract':(4096,4096,4096),
+    'trip_answer_write':(1536,2048,3072),
+    'trip_plan_compare': (4096,6144,8192),
     'intent_parse': (768, 1024, 1536),
     'reminder_extract': (768, 1024, 1536),
     'tool_reasoning': (1024, 2048, 4096),

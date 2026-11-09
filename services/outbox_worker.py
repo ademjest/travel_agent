@@ -39,23 +39,23 @@ class OutboxWorker:
         listing_time = now or self.clock()
         delivered = 0
         rows = await asyncio.to_thread(
-            self.store.list_due_outbox,
+            self.store.delivery.list_due_outbox,
             self.platform,
             listing_time,
         )
         for row in rows:
             claim_time = now or self.clock()
             token = await asyncio.to_thread(
-                self.store.claim_outbox,
+                self.store.delivery.claim_outbox,
                 row.outbox_id,
                 claim_time,
             )
             if token is None:
                 continue
-            if await asyncio.to_thread(self.store.expire_outbox_if_needed, row.outbox_id, token, now or self.clock()):
+            if await asyncio.to_thread(self.store.delivery.expire_outbox_if_needed, row.outbox_id, token, now or self.clock()):
                 continue
             if row.channel == 'group' and not self.group_allowed(row.target_id):
-                await asyncio.to_thread(self.store.mark_outbox_failed, row.outbox_id, token,
+                await asyncio.to_thread(self.store.delivery.mark_outbox_failed, row.outbox_id, token,
                     'group_not_allowed', now or self.clock(), self.max_attempts, True)
                 continue
             if row.event_id.startswith('reminder:'):
@@ -72,19 +72,22 @@ class OutboxWorker:
                     delivery_key=f"web:outbox:{row.outbox_id}" if self.platform == 'web' else '',
                 ))
             except DeliveryError as exc:
-                self.store.diagnostics.record('delivery', {'event_key': row.event_id,
-                    'outbox_id': row.outbox_id, 'status': 'delivered' if exc.delivered else 'failed',
-                    'error_code': exc.code, 'attempt_count': row.attempt_count + 1})
+                if not exc.delivered:
+                    self.store.diagnostics.record('delivery', {'event_key': row.event_id,
+                        'outbox_id': row.outbox_id, 'status': 'failed',
+                        'error_code': exc.code, 'attempt_count': row.attempt_count + 1})
                 if exc.delivered:
                     sent_at = now or self.clock()
                     sent = await asyncio.to_thread(
-                        self.store.mark_outbox_sent,
+                        self.store.delivery.mark_outbox_sent,
                         row.outbox_id,
                         token,
                         sent_at,
                     )
                     if sent:
                         delivered += 1
+                    self.store.diagnostics.record('delivery',{'event_key':row.event_id,'outbox_id':row.outbox_id,
+                        'status':'sent' if sent else 'confirmation_lost','attempt_count':row.attempt_count+1})
                     logger.info(
                         "Outbox delivery already completed: outbox_id=%s "
                         "attempt=%s code=%s",
@@ -97,7 +100,7 @@ class OutboxWorker:
                 retry_at = failed_at + retry_delay(row.attempt_count + 1)
                 state_at = retry_at if exc.retryable else failed_at
                 await asyncio.to_thread(
-                    self.store.mark_outbox_failed,
+                    self.store.delivery.mark_outbox_failed,
                     row.outbox_id,
                     token,
                     exc.code,
@@ -123,7 +126,7 @@ class OutboxWorker:
                 failed_at = now or self.clock()
                 retry_at = failed_at + retry_delay(row.attempt_count + 1)
                 await asyncio.to_thread(
-                    self.store.mark_outbox_failed,
+                    self.store.delivery.mark_outbox_failed,
                     row.outbox_id,
                     token,
                     type(exc).__name__,
@@ -140,7 +143,7 @@ class OutboxWorker:
             else:
                 sent_at = now or self.clock()
                 sent = await asyncio.to_thread(
-                    self.store.mark_outbox_sent,
+                    self.store.delivery.mark_outbox_sent,
                     row.outbox_id,
                     token,
                     sent_at,

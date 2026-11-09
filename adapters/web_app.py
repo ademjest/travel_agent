@@ -1,5 +1,6 @@
 import asyncio
 from core.runtime_identity import runtime_status, retrieval_status
+from core.commands import request_priority
 from contextlib import asynccontextmanager, nullcontext
 import io
 import mimetypes
@@ -7,8 +8,9 @@ from pathlib import Path
 import secrets
 import uuid
 import zipfile
+from typing import Literal
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
@@ -21,14 +23,15 @@ from core.data_paths import PROJECT_ROOT
 from core.web_settings import WebSettings, web_data_lease
 from core.web_lifecycle import ConversationDeleted, publish_files
 from infrastructure.memory_store import MemoryStore
-from infrastructure.web_repository import OWNER, WebConflict, WebRepository
-from services.document_service import DocumentService
+from infrastructure.web_repository import OWNER, WebConflict, WebReferenceError, WebRepository
+from infrastructure.document_formats import validate_office_archive
 from services.inbox_worker import InboxWorker
 from services.conversation_deletion import ConversationDeletionService
 from infrastructure.env_settings_store import EnvSettingsStore, SettingsConflict, SettingsInputError
 from infrastructure.preference_repository import PreferenceConflict
 from infrastructure.planning_repository import PlanningConflict
 from infrastructure.model_gateway import usage_report
+from infrastructure.trip_repository import DraftActionConflict
 from core.chat_transport import ChatEvent
 
 
@@ -43,6 +46,7 @@ class MessageInput(BaseModel):
     content: str = Field(default='', max_length=8000)
     upload_ids: list[str] = Field(default_factory=list, max_length=8)
     client_request_id: str = Field(min_length=1, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
+    quoted_message_id: str | None = Field(default=None,max_length=256,min_length=1)
 
 
 class TitleInput(BaseModel):
@@ -50,10 +54,35 @@ class TitleInput(BaseModel):
     title: str = Field(min_length=1, max_length=80)
 
 
+class RailQueryInput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    period: Literal['current','all_day','morning','afternoon','evening']
+    client_request_id: str = Field(min_length=1,max_length=80,pattern=r'^[A-Za-z0-9_-]+$')
+
+
 class ConfirmationInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     version: int = Field(ge=1)
     client_request_id: str = Field(min_length=1, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
+
+
+class DraftActionInput(ConfirmationInput):
+    action: Literal['revalidate','discard']
+    version: int = Field(strict=True,ge=1)
+
+
+class HotelActionInput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    kind: Literal['select','accept_dates','reject_dates']
+    task_id: str = Field(min_length=1,max_length=100)
+    task_version: int = Field(strict=True,ge=1)
+    query_index: int | None = Field(default=None,strict=True,ge=0,le=7)
+    candidate_set_id: str | None = Field(default=None,max_length=100)
+    candidate_set_version: int | None = Field(default=None,strict=True,ge=1)
+    candidate_id: str | None = Field(default=None,max_length=100)
+    proposal_id: str | None = Field(default=None,max_length=100)
+    proposal_version: int | None = Field(default=None,strict=True,ge=1)
+    client_request_id: str = Field(min_length=1,max_length=80,pattern=r'^[A-Za-z0-9_-]+$')
 
 
 class TripEditInput(ConfirmationInput):
@@ -78,7 +107,10 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
     runtime = build_runtime(travel_settings, platform='web', store=store,
                             transport=WebTransport(repository), reply_renderer=WebReplyRenderer(),
                             group_allowed=repository.allows)
-    adapter = WebAdapter(runtime.application, repository)
+    from functools import partial
+    from app.conversation_context import web_context
+    build_context = partial(web_context, repository,clock=lambda:runtime.application.trip_service.clock())
+    adapter = WebAdapter(runtime.application, repository, context_builder=build_context)
     worker = InboxWorker(store, adapter)
     deletion = ConversationDeletionService(repository)
 
@@ -159,7 +191,11 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
     async def conflict(request, error):
         return JSONResponse({'detail': str(error)}, status_code=409)
 
-    @app.get('/api/bootstrap')
+    conversations_api = APIRouter()
+    settings_api = APIRouter()
+    operations_api = APIRouter()
+
+    @operations_api.get('/api/bootstrap')
     def bootstrap(request: Request):
         token = request.cookies.get(COOKIE)
         csrf = repository.session(token)
@@ -171,15 +207,17 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         response.set_cookie(COOKIE, token, httponly=True, samesite='strict', max_age=7*86400)
         return response
 
-    @app.get('/api/conversations')
+    @conversations_api.get('/api/conversations')
     def conversations():
         return repository.conversations()
 
-    @app.get('/api/runtime-status')
+    @operations_api.get('/api/runtime-status')
     def runtime_information():
-        return runtime_status(store, travel_settings.llm_model_id)
+        gateway=runtime.travel_agent.client if runtime.travel_agent else None
+        return runtime_status(store, runtime.travel_agent.model if runtime.travel_agent else travel_settings.llm_model_id,
+                              getattr(gateway,'configuration',None))
 
-    @app.get('/api/conversations/{identity}/retrieval-status')
+    @conversations_api.get('/api/conversations/{identity}/retrieval-status')
     def retrieval_information(identity: str):
         repository.conversation(identity)
         return retrieval_status(store, f'web:{identity}')
@@ -190,21 +228,25 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             settings_store = EnvSettingsStore(PROJECT_ROOT)
         return settings_store
 
-    @app.get('/api/settings/services')
+    @settings_api.get('/api/settings/services')
     def get_service_settings():
         try:
-            return service_settings().status()
+            status = service_settings().status()
+            if runtime.rail_client is not None:
+                status['rail_mcp']['runtime'] = runtime.rail_client.mcp.status()
+            return status
         except Exception:
             raise HTTPException(400, '配置读取失败，请检查文件格式与权限。') from None
 
-    @app.patch('/api/settings/services')
+    @settings_api.patch('/api/settings/services')
     async def save_service_settings(request: Request):
         # Deliberately no Pydantic input echo in validation errors on credential routes.
         try:
             body = await request.json()
-            if not isinstance(body, dict) or set(body) != {'version', 'changes'}:
+            if not isinstance(body, dict) or not {'version','changes'} <= set(body) or set(body)-{'version','changes','model_config'}:
                 raise ValueError()
-            return await asyncio.to_thread(service_settings().save, body['version'], body['changes'])
+            extra={'model_config':body['model_config']} if 'model_config' in body else {}
+            return await asyncio.to_thread(service_settings().save, body['version'], body['changes'],**extra)
         except SettingsConflict:
             raise HTTPException(409, '配置已变化或正在保存，请刷新后重试。') from None
         except SettingsInputError as error:
@@ -212,11 +254,15 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         except Exception:
             raise HTTPException(400, '保存失败：检查字段、HTTPS 地址、端点更换时的新 Key、Git 忽略及文件权限。原有配置未被替换。') from None
 
-    @app.post('/api/settings/services/test')
+    @settings_api.post('/api/settings/services/test')
     async def test_service_settings(request: Request):
         try:
             body = await request.json()
-            if not isinstance(body, dict) or set(body) != {'service'} or body['service'] not in ('search', 'llm', 'all'):
+            if not isinstance(body, dict):raise ValueError()
+            if body.get('service')=='model':
+                if set(body)!={'service','profile_id','capability'} or not all(isinstance(body[k],str) for k in body):raise ValueError()
+                return await asyncio.to_thread(service_settings().test_all,store,profile_id=body['profile_id'],capability=body['capability'])
+            if set(body) != {'service'} or body['service'] not in ('search', 'llm', 'rail', 'all'):
                 raise ValueError()
             if body['service'] == 'all':
                 return await asyncio.to_thread(service_settings().test_all, store)
@@ -226,65 +272,48 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         except Exception:
             raise HTTPException(400, '连接测试未通过：请检查已保存的配置、网络和服务额度。未回传供应商错误正文。') from None
 
-    @app.get('/api/settings/model-usage')
+    @settings_api.get('/api/settings/model-usage')
     def model_usage():
         return usage_report(store)
 
     def preference_event():
         return ChatEvent('web', 'group', 'preferences-settings', '', OWNER, '')
 
-    @app.get('/api/preferences')
+    @settings_api.get('/api/preferences')
     def get_preferences():
-        return store.preferences.snapshot(preference_event())
+        return runtime.application.preference_service.snapshot(preference_event())
 
-    @app.patch('/api/preferences')
+    @settings_api.patch('/api/preferences')
     async def edit_preferences(request: Request):
         try:
             body = await request.json()
             if (not isinstance(body, dict) or set(body) - {'version', 'values', 'enabled', 'suggestions', 'clear'}
                     or 'version' not in body or type(body.get('clear', False)) is not bool):
                 raise ValueError('偏好请求字段无效。')
-            return await asyncio.to_thread(store.preferences.update, preference_event(), body['version'], body.get('values', {}),
+            return await asyncio.to_thread(runtime.application.preference_service.update, preference_event(), body['version'], body.get('values', {}),
                 enabled=body.get('enabled'), suggestions=body.get('suggestions'), clear=body.get('clear', False))
         except PreferenceConflict:
             raise HTTPException(409, '偏好已经变化，请刷新后重试。') from None
         except (ValueError, TypeError):
             raise HTTPException(400, '偏好字段无效，请检查字段、单位和版本。') from None
 
-    @app.get('/api/conversations/{identity}/research')
+    @conversations_api.get('/api/conversations/{identity}/research')
     def research_results(identity: str):
-        from core.attraction_projection import attraction_report
         repository.conversation(identity)
         event = ChatEvent('web', 'group', '', identity, OWNER, '')
-        # No full source bodies in progress responses.
-        rows = store.research.latest(event)
-        from core.attraction_answers import has_provider
-        from core.travel_answer import presentation, render, fingerprint, VERSION as ANSWER_VERSION
-        result = []
-        for row in rows:
-            view = presentation(row) if has_provider(row) and row.get('report') else None
-            identity_key = fingerprint([(s.get('content_hash'),s.get('retrieved_at')) for s in row.get('sources',[])])[:16]
-            item = {'stage':row['stage'],'updated_at':row['updated_at'], 'research_id':fingerprint(row['research_id'])[:16] if row.get('research_id') else identity_key,
-                    'report':render(view,detailed=True) if view else
-                        attraction_report(row,detailed=True) if row.get('fact_schema')=='attraction-facts-v1' and row.get('report') else row.get('report',''),
-                    'source_count':len(row.get('sources',[]))}
-            if view:
-                item['presentation'] = {**view,'replayed_saved_answer':row.get('answer_schema')!=ANSWER_VERSION}
-            item['content_version'] = fingerprint(item)
-            result.append(item)
-        return result
+        return runtime.application.research_service.web_reports(event)
 
-    @app.post('/api/conversations', status_code=201)
+    @conversations_api.post('/api/conversations', status_code=201)
     def create_conversation():
         return repository.create_conversation()
 
-    @app.patch('/api/conversations/{identity}')
+    @conversations_api.patch('/api/conversations/{identity}')
     def rename(identity: str, body: TitleInput):
         if not body.title.strip():
             raise HTTPException(422, '标题不能为空。')
         return repository.rename(identity, body.title.strip())
 
-    @app.delete('/api/conversations/{identity}/plans/{artifact_id}')
+    @conversations_api.delete('/api/conversations/{identity}/plans/{artifact_id}')
     def delete_plan(identity: str, artifact_id: str, version: int):
         event=ChatEvent('web','group','',identity,OWNER,'')
         repository.conversation(identity)
@@ -294,35 +323,73 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             raise HTTPException(409,str(error)) from None
         return {'status':'deleted'}
 
-    @app.get('/api/conversations/{identity}/deletion-summary')
+    @conversations_api.get('/api/conversations/{identity}/deletion-summary')
     def deletion_summary(identity: str):
         return deletion.summary(identity)
 
-    @app.delete('/api/conversations/{identity}', status_code=202)
+    @conversations_api.delete('/api/conversations/{identity}', status_code=202)
     async def delete_conversation(identity: str):
         result = await asyncio.to_thread(deletion.request, identity)
         deletion.wakeup.set()
         return result
 
-    @app.get('/api/conversation-deletions')
+    @conversations_api.get('/api/conversation-deletions')
     def deletion_jobs():
         return deletion.list_jobs()
 
-    @app.get('/api/conversation-deletions/{identity}')
+    @conversations_api.get('/api/conversation-deletions/{identity}')
     def deletion_status(identity: str):
         return deletion.status(identity)
 
-    @app.post('/api/conversation-deletions/{identity}/retry', status_code=202)
+    @conversations_api.post('/api/conversation-deletions/{identity}/retry', status_code=202)
     async def retry_deletion(identity: str):
         result = await asyncio.to_thread(deletion.retry, identity)
         deletion.wakeup.set()
         return result
 
-    @app.get('/api/conversations/{identity}/messages')
+    @conversations_api.get('/api/conversations/{identity}/messages')
     def messages(identity: str, before: str | None = None):
-        return repository.messages(identity, before)
+        page=repository.messages(identity,before)
+        event=ChatEvent('web','group','',identity,OWNER,'')
+        native=['web-'+item['id'][2:] for item in page['items'] if item['role']=='assistant' and item['kind']!='progress']
+        links=store.tasks.message_events(event,native)
+        hotel=runtime.travel_service.hotel_prices
+        for item in page['items']:
+            source=links.get('web-'+item['id'][2:]) if item['role']=='assistant' else None
+            if source:
+                actions=hotel.actions(event,store.tasks.for_event(event,source),source)
+                presentation=hotel.presentation(event,source,item['content'])
+                if presentation:
+                    item['hotel_presentation']=presentation
+                    actions=[{k:v for k,v in action.items() if k!='reference_text'} for action in actions]
+                if actions:item['hotel_actions']=actions
+        return page
 
-    @app.post('/api/conversations/{identity}/messages', status_code=202)
+    @conversations_api.get('/api/conversations/{identity}/hotel-quotes/{source_event}/original')
+    def hotel_original(identity:str,source_event:str,revision:str='',cursor:int=0):
+        repository.conversation(identity)
+        try:
+            return runtime.travel_service.hotel_prices.original(ChatEvent('web','group','',identity,OWNER,''),source_event,revision,cursor=cursor)
+        except ValueError as error:raise HTTPException(404,str(error)) from None
+
+    @conversations_api.post('/api/conversations/{identity}/hotel-actions',status_code=202)
+    async def hotel_action(identity:str,body:HotelActionInput):
+        await asyncio.to_thread(repository.conversation,identity)
+        action=body.model_dump(exclude_none=True,exclude={'client_request_id'})
+        previous=store.inbox.get(f'web:group:{identity}:{body.client_request_id}')
+        if previous:
+            import json
+            if json.loads(previous['payload_json']).get('hotel_action')!=action:raise WebConflict('相同请求编号对应不同酒店操作。')
+            return {'job_id':previous['id'],'status':previous['status']}
+        text={'select':'选择当前酒店候选','accept_dates':'使用这组日期','reject_dates':'修改日期'}[body.kind]
+        event=ChatEvent('web','group',body.client_request_id,identity,OWNER,text,hotel_action=action)
+        try:runtime.travel_service.hotel_prices.validate_action(event,action)
+        except ValueError as error:raise HTTPException(409,str(error)) from None
+        result=await asyncio.to_thread(repository.accept,identity,text,[],body.client_request_id,hotel_action=action)
+        worker.wakeup.set()
+        return result
+
+    @conversations_api.post('/api/conversations/{identity}/messages', status_code=202)
     async def send(identity: str, body: MessageInput):
         await asyncio.to_thread(repository.conversation, identity)
         if not body.content.strip() and not body.upload_ids:
@@ -333,19 +400,45 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         if any(item['content_type'].startswith('image/') for item in uploads) and any(not item['content_type'].startswith('image/') for item in uploads):
             raise HTTPException(422, '图片与文档请分成两条消息发送，以便分别识别和导入。')
         try:
-            result = await asyncio.to_thread(repository.accept, identity, body.content.strip(), body.upload_ids, body.client_request_id)
+            result = await asyncio.to_thread(repository.accept, identity, body.content.strip(), body.upload_ids, body.client_request_id,
+                                             priority=request_priority(body.content, bool(body.upload_ids)),quoted_message_id=body.quoted_message_id)
         except WebConflict:
             raise
+        except WebReferenceError as error:
+            raise HTTPException(422,str(error)) from None
         except ValueError as error:
             raise HTTPException(503, str(error)) from None
         worker.wakeup.set()
         return result
 
-    @app.get('/api/tasks/{identity}')
+    @operations_api.get('/api/tasks/{identity}')
     def task(identity: int):
         return repository.job(identity)
 
-    @app.get('/api/conversations/{identity}/jobs/{job_id}/diagnostics')
+    @conversations_api.get('/api/conversations/{identity}/rail-results/{result_id}')
+    def rail_result(identity:str,result_id:str,page:int=1,period:str='current'):
+        try:
+            return repository.rail_result(identity,result_id,page=page,period=period)
+        except ValueError as error:
+            raise HTTPException(422,str(error)) from None
+
+    @conversations_api.post('/api/conversations/{identity}/rail-results/{result_id}/query',status_code=202)
+    async def query_rail_result(identity:str,result_id:str,body:RailQueryInput):
+        await asyncio.to_thread(repository.conversation,identity)
+        previous=store.inbox.get(f'web:group:{identity}:{body.client_request_id}')
+        if previous:
+            import json
+            action=json.loads(previous['payload_json']).get('rail_query',{})
+            if action.get('source_result_id')!=result_id or action.get('period')!=body.period:
+                raise WebConflict('相同请求编号对应不同的车次查询。')
+            return {'job_id':previous['id'],'status':previous['status']}
+        values,content=await asyncio.to_thread(repository.rail_query_arguments,identity,result_id,body.period)
+        result=await asyncio.to_thread(repository.accept,identity,content,[],body.client_request_id,
+            rail_query={'source_result_id':result_id,'period':body.period,'request':values})
+        worker.wakeup.set()
+        return result
+
+    @conversations_api.get('/api/conversations/{identity}/jobs/{job_id}/diagnostics')
     def diagnostics(identity: str, job_id: int):
         from infrastructure.execution_report import web_report
         repository.conversation(identity)
@@ -357,7 +450,11 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         repository.conversation(identity)
         return result
 
-    @app.post('/api/tasks/{identity}/cancel')
+    @conversations_api.get('/api/conversations/{identity}/messages/{message_id}/plan-comparison')
+    def plan_comparison(identity:str,message_id:str):
+        return repository.plan_comparison(identity,message_id)
+
+    @operations_api.post('/api/tasks/{identity}/cancel')
     def cancel(identity: int):
         row = repository.job(identity)
         cancelled = store.inbox.cancel(row['event_key'], 'web', row['scope_id'], OWNER)
@@ -365,13 +462,16 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             raise HTTPException(409, '任务已完成或结果正在投递，不能回滚；已创建的提醒请单独取消。')
         return {'status': 'cancelled'}
 
-    @app.get('/api/conversations/{identity}/context')
+    @conversations_api.get('/api/conversations/{identity}/context')
     def context(identity: str):
-        return repository.context(identity)
+        repository.conversation(identity)
+        event = ChatEvent('web', 'group', '', identity, OWNER, '')
+        runtime.application.planning_service.ensure_history(event)
+        return build_context(identity)
 
-    @app.post('/api/conversations/{identity}/trips/{trip_id}/fields',status_code=202)
+    @conversations_api.post('/api/conversations/{identity}/trips/{trip_id}/fields',status_code=202)
     async def edit_trip_field(identity: str, trip_id: str, body: TripEditInput):
-        from core.trip_diff import edit_text
+        from tools.trip.constraints import edit_text
         try:
             content=edit_text(body.field,body.value)
         except ValueError as exc:
@@ -383,7 +483,7 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         worker.wakeup.set()
         return result
 
-    @app.post('/api/conversations/{identity}/confirmations/{confirmation_id}', status_code=202)
+    @conversations_api.post('/api/conversations/{identity}/confirmations/{confirmation_id}', status_code=202)
     async def confirm(identity: str, confirmation_id: str, body: ConfirmationInput):
         await asyncio.to_thread(repository.conversation, identity)
         # Replay first: a successfully executed confirmation no longer appears in the pending list.
@@ -394,7 +494,7 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             if payload.get('confirmation') != {'id': confirmation_id, 'version': body.version}:
                 raise WebConflict('相同请求编号对应不同的确认。')
             return {'job_id': previous['id'], 'status': previous['status']}
-        pending = await asyncio.to_thread(repository.context, identity)
+        pending = await asyncio.to_thread(build_context, identity)
         matches = [item for item in pending['confirmations'] if item['id'] == confirmation_id and item['version'] == body.version]
         if matches and not matches[0]['can_confirm']:
             raise HTTPException(409, matches[0]['unavailable_reason'])
@@ -405,16 +505,28 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         worker.wakeup.set()
         return result
 
-    @app.get('/api/notifications')
+    @conversations_api.post('/api/conversations/{identity}/drafts/{draft_id}/actions',status_code=202)
+    async def draft_action(identity:str,draft_id:str,body:DraftActionInput):
+        data={'id':draft_id,'version':body.version,'action':body.action}
+        content='重新核对这份草案' if body.action=='revalidate' else '放弃这份草案'
+        try:
+            result=await asyncio.to_thread(repository.accept,identity,content,[],body.client_request_id,
+                draft_action=data,priority=1 if body.action=='discard' else 0)
+        except DraftActionConflict as error:
+            return JSONResponse(status_code=409,content={'detail':str(error),'latest_draft':error.latest})
+        worker.wakeup.set()
+        return result
+
+    @operations_api.get('/api/notifications')
     def notifications():
         return repository.notifications()
 
-    @app.post('/api/notifications/{identity}/read')
+    @operations_api.post('/api/notifications/{identity}/read')
     def read_notification(identity: int):
         repository.read_notification(identity)
         return {'status': 'read'}
 
-    @app.post('/api/uploads', status_code=201)
+    @conversations_api.post('/api/uploads', status_code=201)
     async def upload(conversation_id: str = Form(...), file: UploadFile = File(...)):
         await asyncio.to_thread(repository.conversation, conversation_id)
         data = await file.read(MAX_UPLOAD + 1)
@@ -435,7 +547,7 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
                     content_type = {'JPEG': 'image/jpeg', 'PNG': 'image/png', 'WEBP': 'image/webp'}[IMAGES[suffix]]
                 else:
                     if suffix in {'.docx', '.xlsx'}:
-                        DocumentService._validate_office_archive(data)
+                        validate_office_archive(data)
                         with zipfile.ZipFile(io.BytesIO(data)) as archive:
                             required = 'word/document.xml' if suffix == '.docx' else 'xl/workbook.xml'
                             if required not in archive.namelist():
@@ -445,8 +557,7 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
                     content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
             except (ValueError, UnidentifiedImageError, OSError, Image.DecompressionBombError, zipfile.BadZipFile) as error:
                 raise HTTPException(415, '文件校验失败，请检查文件格式与内容。') from error
-            with store._connect() as db:
-                total = db.execute('SELECT coalesce(sum(size),0) FROM web_uploads').fetchone()[0]
+            total = repository.upload_bytes()
             if total + len(data) > 512 * 1024 * 1024:
                 raise HTTPException(413, '本地附件容量已达 512 MB，请清理过期资料。')
             identity = uuid.uuid4().hex
@@ -465,14 +576,14 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             return {key: item[key] for key in ('id', 'filename', 'content_type', 'size')}
         return await asyncio.to_thread(save)
 
-    @app.get('/api/uploads/{identity}')
+    @conversations_api.get('/api/uploads/{identity}')
     def download(identity: str):
         item = repository.upload(identity)
         inline = item['content_type'].startswith('image/')
         return FileResponse(repository.root / item['relative_path'], media_type=item['content_type'],
                             filename=item['filename'], content_disposition_type='inline' if inline else 'attachment')
 
-    @app.get('/api/status')
+    @operations_api.get('/api/status')
     def status():
         return {'version': '0.1.0', 'mode': 'local', 'llm_configured': travel_settings.llm_configured,
                 'amap_configured': bool(travel_settings.amap_api_key), 'tasks': runtime.supervisor.snapshot(),
@@ -492,6 +603,9 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         except Exception:
             healthy = False
         return JSONResponse({'status': 'ok' if healthy else 'degraded'}, status_code=200 if healthy else 503)
+
+    for router in (conversations_api, settings_api, operations_api):
+        app.include_router(router)
 
     distribution = PROJECT_ROOT / 'frontend' / 'dist'
     if (distribution / 'assets').is_dir():

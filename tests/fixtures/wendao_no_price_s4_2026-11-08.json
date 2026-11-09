@@ -1,0 +1,156 @@
+{
+  "targets": {
+    "B0L2XRYIXR": {
+      "id": "B0L2XRYIXR",
+      "name": "汉庭酒店(南京德基广场新街口地铁站店)",
+      "address": "中山东路56号南京图书发行大厦8-12层",
+      "location": "118.787144,32.041351",
+      "type": "住宿服务;宾馆酒店;经济型连锁酒店",
+      "tel": "025-69516699",
+      "adname": "秦淮区",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "typecode": "100105",
+      "parent": "B00190AANA"
+    },
+    "B0FFIRLXVW": {
+      "id": "B0FFIRLXVW",
+      "name": "汉庭酒店(南京新街口珠江路店)",
+      "address": "大石桥街29号",
+      "location": "118.787657,32.053920",
+      "type": "住宿服务;住宿服务相关;住宿服务相关",
+      "tel": "025-69576699",
+      "adname": "玄武区",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "typecode": "100000",
+      "parent": "B001909S4X"
+    },
+    "B0FFGX9OJ8": {
+      "id": "B0FFGX9OJ8",
+      "name": "汉庭酒店(南京鼓楼广场店)",
+      "address": "中山北路28号江苏商厦(鼓楼地铁站6号口步行450米)",
+      "location": "118.781016,32.062175",
+      "type": "住宿服务;宾馆酒店;经济型连锁酒店",
+      "tel": "025-69782777,0",
+      "adname": "鼓楼区",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "typecode": "100105",
+      "parent": "B001904836"
+    }
+  },
+  "stay": {
+    "check_in": "2026-11-10",
+    "check_out": "2026-11-11",
+    "rooms": 1,
+    "adults": 1,
+    "children_ages": []
+  },
+  "city": "南京市",
+  "extracted_facts": {
+    "offers": [
+      {
+        "target_id": "B0L2XRYIXR",
+        "hotel_name": "汉庭酒店(南京德基广场新街口地铁站店)",
+        "address": "中山东路56号南京图书发行大厦8-12层",
+        "city": null,
+        "hotel_text": "- **门店地址**：中山东路56号南京图书发行大厦8-12层",
+        "stay_text": "- **入住/退房**：2026-11-10 / 2026-11-11",
+        "check_in": "2026-11-10",
+        "check_out": "2026-11-11",
+        "rooms": 1,
+        "adults": 1,
+        "children_ages": null,
+        "room_name": "基础房型（无早）",
+        "price_basis": "from",
+        "currency": "CNY",
+        "nightly_prices": [],
+        "reported_total": null,
+        "from_price": "347",
+        "price_header": null,
+        "price_row": "### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 347 RMB/晚，该起价可能对应特定房型，具体房型价格未知）\n- **币种**：人民币（RMB）\n- **总价是否含全部税费**：未知\n- **早餐**：无（该产品未含早）\n- **退改**：未知\n- **会员优惠**：未知",
+        "terms_text": "### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 347 RMB/晚，该起价可能对应特定房型，具体房型价格未知）\n- **币种**：人民币（RMB）\n- **总价是否含全部税费**：未知\n- **早餐**：无（该产品未含早）\n- **退改**：未知\n- **会员优惠**：未知",
+        "taxes_and_fees_status": "unknown",
+        "breakfast": "无（该产品未含早）",
+        "cancellation": null,
+        "eligibility": null,
+        "source_url": "https://hotels.ctrip.com/hotels/132021966.html",
+        "provider_hotel_id": "132021966"
+      },
+      {
+        "target_id": "B0FFIRLXVW",
+        "hotel_name": "汉庭酒店(南京新街口珠江路店)",
+        "address": "大石桥街29号",
+        "city": null,
+        "hotel_text": "- **门店地址**：大石桥街29号",
+        "stay_text": "- **入住/退房**：2026-11-10 / 2026-11-11",
+        "check_in": "2026-11-10",
+        "check_out": "2026-11-11",
+        "rooms": 1,
+        "adults": 1,
+        "children_ages": null,
+        "room_name": "基础房型（无早）",
+        "price_basis": "from",
+        "currency": "CNY",
+        "nightly_prices": [],
+        "reported_total": null,
+        "from_price": "333",
+        "price_header": null,
+        "price_row": "### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 333 RMB/晚，该起价可能对应特定房型，具体房型价格未知）\n- **币种**：人民币（RMB）\n- **总价是否含全部税费**：未知\n- **早餐**：无\n- **退改**：未知\n- **会员优惠**：未知",
+        "terms_text": "### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 333 RMB/晚，该起价可能对应特定房型，具体房型价格未知）\n- **币种**：人民币（RMB）\n- **总价是否含全部税费**：未知\n- **早餐**：无\n- **退改**：未知\n- **会员优惠**：未知",
+        "taxes_and_fees_status": "unknown",
+        "breakfast": "无",
+        "cancellation": null,
+        "eligibility": null,
+        "source_url": "https://hotels.ctrip.com/hotels/128046007.html",
+        "provider_hotel_id": "128046007"
+      },
+      {
+        "target_id": "B0FFGX9OJ8",
+        "hotel_name": "汉庭酒店(南京鼓楼广场店)",
+        "address": "中山北路28号江苏商厦（鼓楼地铁站6号口步行450米）",
+        "city": null,
+        "hotel_text": "- **门店地址**：中山北路28号江苏商厦（鼓楼地铁站6号口步行450米）",
+        "stay_text": "- **入住/退房**：2026-11-10 / 2026-11-11",
+        "check_in": "2026-11-10",
+        "check_out": "2026-11-11",
+        "rooms": 1,
+        "adults": 1,
+        "children_ages": null,
+        "room_name": "基础房型（无早）",
+        "price_basis": "from",
+        "currency": "CNY",
+        "nightly_prices": [],
+        "reported_total": null,
+        "from_price": "273",
+        "price_header": null,
+        "price_row": "### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 273 RMB/晚，该起价可能对应特定房型，具体房型价格未知）\n- **币种**：人民币（RMB）\n- **总价是否含全部税费**：未知\n- **早餐**：无\n- **退改**：未知\n- **会员优惠**：未知",
+        "terms_text": "### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 273 RMB/晚，该起价可能对应特定房型，具体房型价格未知）\n- **币种**：人民币（RMB）\n- **总价是否含全部税费**：未知\n- **早餐**：无\n- **退改**：未知\n- **会员优惠**：未知",
+        "taxes_and_fees_status": "unknown",
+        "breakfast": "无",
+        "cancellation": null,
+        "eligibility": null,
+        "source_url": "https://hotels.ctrip.com/hotels/5127223.html",
+        "provider_hotel_id": "5127223"
+      }
+    ],
+    "price_absence": [
+      {
+        "target_id": "B0L2XRYIXR",
+        "evidence_text": "## 一、<汉庭酒店(南京德基广场新街口地铁站店)>\n\n\n### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 347 RMB/晚，该起价可能对应特定房型，具体房型价格未知）"
+      },
+      {
+        "target_id": "B0FFIRLXVW",
+        "evidence_text": "## 二、<汉庭酒店(南京新街口珠江路店)>\n\n\n### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 333 RMB/晚，该起价可能对应特定房型，具体房型价格未知）"
+      },
+      {
+        "target_id": "B0FFGX9OJ8",
+        "evidence_text": "## 三、<汉庭酒店(南京鼓楼广场店)>\n\n\n### 产品1：基础房型（无早）\n- **入住/退房**：2026-11-10 / 2026-11-11\n- **人数/房数**：1成人 / 1间\n- **每晚价格**：未知（携程展示起价约 273 RMB/晚，该起价可能对应特定房型，具体房型价格未知）"
+      }
+    ]
+  },
+  "evidence_version": "hotel-reference-evidence-v3",
+  "provenance": "real_S4_extraction_2026-11-08",
+  "model_extraction_saved": true
+}

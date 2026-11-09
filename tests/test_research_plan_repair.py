@@ -1,4 +1,6 @@
 """Regression of the 21st-arrival / 22nd-sightseeing research incident."""
+from tools.trip.tool import PlanningArtifacts
+from tools.trip.constraints import plan_destination, plan_durations
 from dataclasses import replace
 from datetime import datetime, timezone
 import json
@@ -7,17 +9,17 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from agents.intent_compiler import IntentCompiler
-from agents.research_search_planner import ResearchSearchPlanner
+from agents.intent_compiler import IntentCompiler,IntentCompilationError
+from tools.research.tool import ResearchSearchPlanner
 from core.chat_transport import ChatEvent
 from core.intent_ir import parse_intent_ir, to_jsonable
 from core.research_contract import project_request, ResearchRequestError
 from infrastructure.execution_diagnostics import metadata
 from infrastructure.execution_report import explain
 from infrastructure.memory_store import MemoryStore
-from services.research_context import research_dates, resolve_plan
-from services.research_service import ResearchService
-from services.semantic_task_service import SemanticTaskService
+from tools.research.tool import research_dates, resolve_plan
+from tools.research.tool import ResearchTool
+from app.request_router import RequestRouter
 from test_travel_agent import FakeClient
 from test_trips import model_response
 
@@ -59,7 +61,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         self.event = ChatEvent('web','group','request','conversation','owner',TEXT,
                                occurred_at=datetime(2026,10,19,2,tzinfo=timezone.utc))
         self.plan_event = replace(self.event,event_id='plan',content='帮我规划北京三天旅行')
-        self.artifact = self.store.planning.capture(self.plan_event,PLAN)
+        self.artifact = PlanningArtifacts(self.store.planning).capture(self.plan_event,PLAN)
         self.request = {**project_request(ir_value()['operations'][0] | {},TEXT)[0],
                         'original_request':TEXT,'plan':self.artifact}
         # The operation envelope is never forwarded as executable parameters.
@@ -67,7 +69,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         self.request.pop('operation',None)
 
     def save_turn(self, event, content):
-        self.store.save_turn(event.storage_scope_id,event.sender_id,event.event_key,event.content,content)
+        self.store.conversations.save_turn(event.storage_scope_id,event.sender_id,event.event_key,event.content,content)
 
     def test_inert_extensions_remain_raw_but_never_execute_or_repair(self):
         value = ir_value(reason='explanation',notes={'arbitrary':'untrusted'},confidence=.9)
@@ -90,7 +92,9 @@ class ResearchPlanRepairTests(unittest.TestCase):
         bad = ir_value(arrival_date_text='2030年1月1日')
         client = FakeClient([model_response(bad),model_response(bad)])
         with patch.dict('os.environ',{'LLM_INTENT_MODEL_ID':'small'}):
-            self.assertIsNone(IntentCompiler(client,'default').try_compile(TEXT))
+            with self.assertRaises(IntentCompilationError) as caught:
+                IntentCompiler(client,'default').try_compile(TEXT)
+        self.assertEqual(caught.exception.code,'invalid_response')
         self.assertEqual(len(client.completions.requests),2)
 
     def test_extra_identity_and_actions_stay_strict(self):
@@ -134,23 +138,23 @@ class ResearchPlanRepairTests(unittest.TestCase):
         for body in (INTRO,'```\n'+PLAN+'\n```','\n'.join('> '+line for line in PLAN.splitlines()),
                      '“'+PLAN+'”','北京门票研究报告\n'+'故宫票价待核对。'*30):
             with self.subTest(body=body[:20]):
-                self.assertIsNone(self.store.planning.capture(replace(self.event,event_id=body[:20]),body,kind='research_backed'))
-        self.assertEqual(self.store.planning._destination('介绍一下自己',INTRO),'')
+                self.assertIsNone(PlanningArtifacts(self.store.planning).capture(replace(self.event,event_id=body[:20]),body,kind='research_backed'))
+        self.assertEqual(plan_destination('介绍一下自己',INTRO),'')
 
     def test_total_days_excludes_local_day_trip(self):
         self.assertEqual(self.artifact['duration_options'],[3])
-        self.assertEqual(self.store.planning._durations('',PLAN),[3])
+        self.assertEqual(plan_durations('',PLAN),[3])
         alternatives = '开封参考规划\n方案A：2天1晚\n第1天：古城；第2天：开封府。\n方案B：3天2晚\n第1天：古城；第2天：园林；第3天：博物馆。'
-        record = self.store.planning.capture(replace(self.event,event_id='alternatives',content='想去开封玩'),alternatives)
+        record = PlanningArtifacts(self.store.planning).capture(replace(self.event,event_id='alternatives',content='想去开封玩'),alternatives)
         self.assertEqual(record['duration_options'],[2,3])
 
     def test_conflicting_total_days_or_missing_day_are_not_auto_captured(self):
-        self.assertIsNone(self.store.planning.capture(replace(self.event,content='北京两天行程'),PLAN))
-        self.assertIsNone(self.store.planning.capture(self.event,PLAN.replace('第二天','第三天')))
+        self.assertIsNone(PlanningArtifacts(self.store.planning).capture(replace(self.event,content='北京两天行程'),PLAN))
+        self.assertIsNone(PlanningArtifacts(self.store.planning).capture(self.event,PLAN.replace('第二天','第三天')))
 
     def test_declared_variant_and_injected_duration_must_match_actual_structure(self):
-        self.assertIsNone(self.store.planning.capture(replace(self.event,content='北京四天行程'),PLAN,duration_options=[4]))
-        self.assertIsNone(self.store.planning.capture(self.event,'北京参考方案\n方案A：3天\n第1天：故宫；第2天：长城。'))
+        self.assertIsNone(PlanningArtifacts(self.store.planning).capture(replace(self.event,content='北京四天行程'),PLAN,duration_options=[4]))
+        self.assertIsNone(PlanningArtifacts(self.store.planning).capture(self.event,'北京参考方案\n方案A：3天\n第1天：故宫；第2天：长城。'))
 
     def test_metadata_revalidation_is_versioned_idempotent_and_keeps_ordinals(self):
         self.save_turn(self.plan_event,PLAN)
@@ -159,7 +163,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
             db.execute('''INSERT INTO planning_artifacts
                 SELECT 'P-introduction',platform,scope_id,owner_id,2,kind,'intro-source','和推进参考方案','和推进','[]',
                 summary,?,'active',1,created_at,updated_at,1,'' FROM planning_artifacts LIMIT 1''',(INTRO,))
-        self.store.planning.ensure_history(self.event)
+        PlanningArtifacts(self.store.planning).ensure_history(self.event)
         current = self.store.planning.get(self.event,self.artifact['artifact_id'])
         invalid = self.store.planning.get(self.event,'P-introduction')
         self.assertEqual(current['duration_options'],[3])
@@ -167,7 +171,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         self.assertEqual(current['ordinal'],1)
         self.assertEqual(invalid['status'],'invalid')
         self.assertEqual(invalid['content'],INTRO)
-        self.store.planning.ensure_history(self.event)
+        PlanningArtifacts(self.store.planning).ensure_history(self.event)
         self.assertEqual(self.store.planning.get(self.event,current['artifact_id'])['version'],2)
         self.assertEqual(len(self.store.planning.list_for_owner(self.event)),1)
 
@@ -175,7 +179,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         for status in ('deleted','adopted'):
             with self.store._connect() as db:
                 db.execute('UPDATE planning_artifacts SET status=?,capture_version=1 WHERE artifact_id=?',(status,self.artifact['artifact_id']))
-            self.store.planning.revalidate(self.event)
+            PlanningArtifacts(self.store.planning).revalidate(self.event)
             row = self.store.planning.get(self.event,self.artifact['artifact_id'])
             self.assertEqual(row['status'],status)
             self.assertEqual(row['version'],1)
@@ -188,15 +192,15 @@ class ResearchPlanRepairTests(unittest.TestCase):
                     SELECT ?,platform,scope_id,owner_id,?,kind,?,title,destination,duration_options_json,
                     summary,content,status,version,created_at,updated_at,capture_version,validation_reason
                     FROM planning_artifacts WHERE artifact_id=?''',(f'P-legacy-{i}',i,f'legacy-{i}',self.artifact['artifact_id']))
-        self.store.planning.revalidate(self.event)
+        PlanningArtifacts(self.store.planning).revalidate(self.event)
         self.assertEqual(len(self.store.planning.list_for_owner(self.event)),50)
-        self.store.planning.revalidate(self.event)
+        PlanningArtifacts(self.store.planning).revalidate(self.event)
         self.assertEqual(len(self.store.planning.list_for_owner(self.event)),52)
 
     def test_plan_resolver_unique_adjacent_ambiguous_and_scope_isolation(self):
         self.assertEqual(resolve_plan(self.store,self.event,self.request)[1],'unique_plan')
         second = replace(self.plan_event,event_id='second')
-        self.store.planning.capture(second,PLAN)
+        PlanningArtifacts(self.store.planning).capture(second,PLAN)
         self.assertEqual(resolve_plan(self.store,self.event,self.request)[1],'ambiguous_plan')
         self.save_turn(second,PLAN)
         resolved,reason = resolve_plan(self.store,self.event,self.request)
@@ -205,10 +209,11 @@ class ResearchPlanRepairTests(unittest.TestCase):
         self.assertIsNone(resolve_plan(self.store,replace(self.event,sender_id='other'),self.request)[0])
 
     def test_natural_request_dispatch_passes_full_text_plan_and_date_context(self):
-        research = Mock()
+        research = ResearchTool(self.store,Mock())
+        research.handle_intent=Mock()
         research.handle_intent.return_value = 'research result'
         ir = parse_intent_ir(ir_value(reason='ignored'),TEXT)
-        service = SemanticTaskService(self.store,Mock(try_compile=Mock(return_value=ir)),research_service=research)
+        service = RequestRouter(self.store,Mock(try_compile=Mock(return_value=ir)),research_service=research)
         self.assertEqual(service.handle(self.event,None),'research result')
         forwarded = research.handle_intent.call_args.kwargs['request']
         self.assertEqual(forwarded['original_request'],TEXT)
@@ -217,15 +222,16 @@ class ResearchPlanRepairTests(unittest.TestCase):
         self.assertNotIn('reason',forwarded)
 
     def test_ambiguous_plan_clarifies_before_searching(self):
-        self.store.planning.capture(replace(self.plan_event,event_id='second'),PLAN)
-        research = Mock()
-        service = SemanticTaskService(self.store,Mock(),research_service=research)
+        PlanningArtifacts(self.store.planning).capture(replace(self.plan_event,event_id='second'),PLAN)
+        research = ResearchTool(self.store,Mock())
+        research.handle_intent=Mock()
+        service = RequestRouter(self.store,Mock(),research_service=research)
         reply = service._research(self.event,None,parse_intent_ir(ir_value(),TEXT))
         self.assertIn('哪份方案',reply)
         research.handle_intent.assert_not_called()
 
     def test_explicit_reference_and_saved_trip_resolution(self):
-        self.store.planning.capture(replace(self.plan_event,event_id='second'),PLAN)
+        PlanningArtifacts(self.store.planning).capture(replace(self.plan_event,event_id='second'),PLAN)
         selected, reason = resolve_plan(self.store,self.event,{**self.request,'plan_index':1,'plan_reference':'最开始的方案'})
         self.assertEqual(selected['artifact_id'],self.artifact['artifact_id'])
         self.assertEqual(reason,'explicit_reference')
@@ -234,7 +240,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         trip = {'trip_id':'TR-saved','title':'北京已保存行程','spec':{'destination':'北京','day_count':3},
                 'version':2,'plan':{'days':[]},'sources':{}}
         self.store.trips.list_for_owner = Mock(return_value=[trip])
-        with patch('services.trip_service.TripService.format_trip',return_value=PLAN):
+        with patch('tools.trip.tool.TripTool.format_trip',return_value=PLAN):
             selected, reason = resolve_plan(self.store,self.event,self.request)
         self.assertEqual(reason,'saved_trip')
         self.assertEqual(selected['content'],PLAN)
@@ -276,7 +282,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         search.search.return_value = [{'url':'https://example.org/palace','title':'故宫游客须知','snippet':'故宫信息','published_at':''}]
         reader = Mock(return_value={'status':'read','text':'故宫成人门票60元。\n生效日期：2026-10-01\n有效期至：2026-10-31',
                                     'retrieved_at':'2026-10-19T02:00:00+00:00','content_hash':'hash'})
-        return ResearchService(self.store,search,client,'test',reader=reader)
+        return ResearchTool(self.store,search,client,'test',reader=reader)
 
     def test_fact_research_evidence_dates_checkpoints_and_no_implicit_writes(self):
         coverage = [{'target_index':1,'topic':'ticket_price','item':{
@@ -311,7 +317,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
 
     def test_soft_budget_returns_partial_without_losing_targets(self):
         service = self.fact_service()
-        with patch('services.research_service.time.monotonic',side_effect=[0,200]):
+        with patch('tools.research.tool.time.monotonic',side_effect=[0,200]):
             reply = service.handle_intent(self.event,None,request=self.request)
         self.assertIn('尚未完成核验的景点：故宫',reply)
         service.search.search.assert_not_called()
@@ -324,6 +330,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         rows = service.search.search.return_value
         self.store.research.save(self.event,'reading',{'query':TEXT,'sources':[],'target_scope':scope,
             'dates':research_dates(self.request,self.event,[3]),'plan_title':'北京参考方案','plan_version':1,
+            'plan_snapshot':self.request['plan'],
             'fact_batches':[{'start':0,'searches':[{'results':rows}],'sources':[]}]})
         service.client = FakeClient([model_response({'coverage':[]})])
         service.handle_intent(self.event,None,request=self.request)
@@ -365,7 +372,7 @@ class ResearchPlanRepairTests(unittest.TestCase):
         self.assertEqual(clean['ignored_fields'],['reason'])
         self.assertNotIn('secret',json.dumps(clean))
         self.assertTrue(explain({'id':1,'stage':'routing','created_at':'now','details':clean})['warning'])
-        self.store.save_chat_message(self.event.event_key,'web',self.event.scope_id,self.event.sender_id,
+        self.store.conversations.save_chat_message(self.event.event_key,'web',self.event.scope_id,self.event.sender_id,
                                      self.event.event_id,'','user',TEXT)
         self.store.diagnostics.record('routing',{'event_key':self.event.event_key,**clean})
         with self.store._connect() as db:

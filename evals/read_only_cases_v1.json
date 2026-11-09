@@ -1,0 +1,719 @@
+{
+  "schema_version": "readonly-regression-v1",
+  "reference_time": "2030-09-09T10:00:00+08:00",
+  "provenance": "Constructed fixed facts and adversarial model outputs; not real-model or live-provider evaluation.",
+  "fixtures": {
+    "weather": {
+      "action": "get_current_weather",
+      "data": "【当前天气】武汉\n天气：晴\n温度：20℃\n湿度：60%\n发布时间：2030-09-09 10:00",
+      "payload": {
+        "weather": "晴",
+        "temperature": "20",
+        "humidity": "60",
+        "report_time": "2030-09-09 10:00"
+      }
+    },
+    "forecast": {
+      "action": "get_weather_forecast",
+      "data": "【天气预报】武汉\n发布时间：2030-09-09 10:00\n2030-09-10：白天晴，夜间雨；夜间8℃，白天20℃。"
+    },
+    "route": {
+      "action": "get_driving_route",
+      "data": "起点：武汉站\n终点：湖北省博物馆\n距离：10.0 公里\n预计耗时：10 分钟\n预计收费：5 元\n查询时间：2030-09-09 10:00",
+      "payload": {
+        "origin": {
+          "query": "武汉站"
+        },
+        "destination": {
+          "query": "湖北省博物馆"
+        },
+        "distance_meters": 10000,
+        "duration_seconds": 600,
+        "tolls_yuan": 5
+      }
+    },
+    "traffic": {
+      "action": "get_route_traffic",
+      "data": "起点：武汉站\n终点：湖北省博物馆\n距离：10.0 公里\n预计耗时：10 分钟\n预计收费：5 元\n查询时间：2030-09-09 10:00\n路况覆盖不足；不能据此证明道路开放或保证安全。",
+      "payload": {
+        "origin": {
+          "query": "武汉站"
+        },
+        "destination": {
+          "query": "湖北省博物馆"
+        },
+        "distance_meters": 10000,
+        "duration_seconds": 600,
+        "tolls_yuan": 5
+      }
+    },
+    "walking": {
+      "action": "get_walking_route",
+      "data": "起点：武汉站\n终点：湖北省博物馆\n距离：10.0 公里\n预计耗时：10 分钟\n预计收费：5 元\n查询时间：2030-09-09 10:00",
+      "payload": {
+        "origin": {
+          "query": "武汉站"
+        },
+        "destination": {
+          "query": "湖北省博物馆"
+        },
+        "distance_meters": 10000,
+        "duration_seconds": 600,
+        "tolls_yuan": 5
+      }
+    },
+    "transit": {
+      "action": "get_transit_route",
+      "data": "起点：武汉站\n终点：湖北省博物馆\n距离：10.0 公里\n预计耗时：10 分钟\n预计收费：5 元\n查询时间：2030-09-09 10:00\n公交方案与班次可能变化。",
+      "payload": {
+        "origin": {
+          "query": "武汉站"
+        },
+        "destination": {
+          "query": "湖北省博物馆"
+        },
+        "distance_meters": 10000,
+        "duration_seconds": 600,
+        "tolls_yuan": 5
+      }
+    },
+    "places": {
+      "action": "search_travel_places",
+      "data": "【高德地点查询】武汉\n1. 湖北省博物馆｜东湖路｜POI ID: fixture\n查询时间：2030-09-09 10:00\n地点信息不代表营业中、实时价格或库存。"
+    }
+  },
+  "arguments": {
+    "weather": {
+      "location": "武汉"
+    },
+    "forecast": {
+      "location": "武汉"
+    },
+    "route": {
+      "origin": "武汉站",
+      "destination": "湖北省博物馆"
+    },
+    "traffic": {
+      "origin": "武汉站",
+      "destination": "湖北省博物馆"
+    },
+    "walking": {
+      "origin": "武汉站",
+      "destination": "湖北省博物馆"
+    },
+    "transit": {
+      "origin": "武汉站",
+      "destination": "湖北省博物馆",
+      "city": "武汉"
+    },
+    "places": {
+      "city": "武汉",
+      "keywords": "湖北省博物馆"
+    }
+  },
+  "cases": [
+    {
+      "id": "F01",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "武汉当前20℃。",
+      "required": [
+        "20℃"
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "F02",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "武汉40℃。",
+      "required": [
+        "20℃"
+      ],
+      "forbidden": [
+        "40℃"
+      ]
+    },
+    {
+      "id": "F03",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "武汉20°F。",
+      "required": [
+        "20℃"
+      ],
+      "forbidden": [
+        "20°F"
+      ]
+    },
+    {
+      "id": "F04",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "湿度20%，气温60℃。",
+      "required": [
+        "20℃",
+        "60%"
+      ],
+      "forbidden": [
+        "60℃",
+        "20%"
+      ]
+    },
+    {
+      "id": "F05",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "武汉正在下暴雪。",
+      "required": [
+        "天气：晴"
+      ],
+      "forbidden": [
+        "正在下暴雪"
+      ]
+    },
+    {
+      "id": "F06",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "forecast",
+      "message": "武汉明天天气怎么样",
+      "proposal": "2030-09-20白天40℃。",
+      "required": [
+        "2030-09-10",
+        "夜间8℃"
+      ],
+      "forbidden": [
+        "2030-09-20",
+        "40℃"
+      ]
+    },
+    {
+      "id": "F07",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "forecast",
+      "message": "武汉明天天气怎么样",
+      "proposal": "白天8℃，夜间20℃。",
+      "required": [
+        "夜间8℃",
+        "白天20℃"
+      ],
+      "forbidden": [
+        "白天8℃，夜间20℃"
+      ]
+    },
+    {
+      "id": "F08",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "route",
+      "message": "从武汉站到湖北省博物馆开车怎么走",
+      "proposal": "起点：湖北省博物馆，终点：武汉站。",
+      "required": [
+        "起点：武汉站",
+        "终点：湖北省博物馆"
+      ],
+      "forbidden": [
+        "起点：湖北省博物馆"
+      ]
+    },
+    {
+      "id": "F09",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "route",
+      "message": "从武汉站到湖北省博物馆开车怎么走",
+      "proposal": "距离100公里。",
+      "required": [
+        "10.0 公里"
+      ],
+      "forbidden": [
+        "100公里"
+      ]
+    },
+    {
+      "id": "F10",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "route",
+      "message": "从武汉站到湖北省博物馆开车怎么走",
+      "proposal": "预计耗时10小时。",
+      "required": [
+        "10 分钟"
+      ],
+      "forbidden": [
+        "10小时"
+      ]
+    },
+    {
+      "id": "F11",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "route",
+      "message": "从武汉站到湖北省博物馆开车怎么走",
+      "proposal": "收费50元。",
+      "required": [
+        "5 元"
+      ],
+      "forbidden": [
+        "50元"
+      ]
+    },
+    {
+      "id": "F12",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "traffic",
+      "message": "从武汉站到湖北省博物馆路况怎么样",
+      "proposal": "保证道路绝对安全且不封路。",
+      "required": [
+        "路况覆盖不足"
+      ],
+      "forbidden": [
+        "绝对安全"
+      ]
+    },
+    {
+      "id": "F13",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "walking",
+      "message": "从武汉站到湖北省博物馆步行怎么走",
+      "proposal": "步行预计10小时。",
+      "required": [
+        "10 分钟"
+      ],
+      "forbidden": [
+        "10小时"
+      ]
+    },
+    {
+      "id": "F14",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "transit",
+      "message": "从武汉站到湖北省博物馆坐地铁怎么走",
+      "proposal": "保证18:30准点发车。",
+      "required": [
+        "班次可能变化"
+      ],
+      "forbidden": [
+        "18:30"
+      ]
+    },
+    {
+      "id": "F15",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "places",
+      "message": "在武汉搜索湖北省博物馆",
+      "proposal": "湖北省博物馆保证24小时营业，门票80元。",
+      "required": [
+        "POI ID: fixture",
+        "不代表营业中"
+      ],
+      "forbidden": [
+        "24小时营业",
+        "80元"
+      ]
+    },
+    {
+      "id": "F16",
+      "kind": "agent",
+      "label": "positive",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "武汉20℃。建议途中适当休息。",
+      "required": [
+        "20℃",
+        "建议途中适当休息"
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "F17",
+      "kind": "agent",
+      "label": "negative",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "武汉40℃。",
+      "required": [],
+      "forbidden": [
+        "40℃"
+      ],
+      "receipt_override": {
+        "data": "查询成功",
+        "payload": null
+      },
+      "not_completed": true
+    },
+    {
+      "id": "F18",
+      "kind": "agent",
+      "label": "negative",
+      "domain": "weather",
+      "message": "武汉现在天气怎么样",
+      "proposal": "武汉40℃。",
+      "required": [
+        "不可用"
+      ],
+      "forbidden": [
+        "40℃"
+      ],
+      "receipt_override": {
+        "status": "failed",
+        "data": "工具错误：天气数据不可用",
+        "error_code": "not_available"
+      },
+      "not_completed": true
+    },
+    {
+      "id": "R01",
+      "kind": "semantic",
+      "label": "positive",
+      "message": "武汉现在天气怎么样",
+      "operations": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        }
+      ],
+      "required": [
+        "20℃"
+      ],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "expected_tools": [
+        "get_current_weather"
+      ]
+    },
+    {
+      "id": "R02",
+      "kind": "command",
+      "label": "positive",
+      "message": "查询天气 武汉",
+      "operations": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        }
+      ],
+      "required": [
+        "20℃"
+      ],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "expected_tools": [
+        "get_current_weather"
+      ]
+    },
+    {
+      "id": "R03",
+      "kind": "semantic",
+      "label": "positive",
+      "message": "从武汉站去武汉天气博物馆，帮我分析路线",
+      "operations": [
+        {
+          "domain": "route",
+          "operation": "query",
+          "origin": "武汉站",
+          "destination": "武汉天气博物馆"
+        }
+      ],
+      "required": [
+        "10.0 公里"
+      ],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "expected_tools": [
+        "get_driving_route"
+      ]
+    },
+    {
+      "id": "R04",
+      "kind": "semantic",
+      "label": "positive",
+      "message": "不要取消预约，只查询武汉天气",
+      "operations": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        }
+      ],
+      "required": [
+        "20℃"
+      ],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "expected_tools": [
+        "get_current_weather"
+      ]
+    },
+    {
+      "id": "R05",
+      "kind": "semantic",
+      "label": "negative",
+      "message": "在武汉怎么坐地铁去湖北省博物馆",
+      "operations": [
+        {
+          "domain": "transit",
+          "operation": "query",
+          "destination": "湖北省博物馆",
+          "city": "武汉"
+        }
+      ],
+      "required": [
+        "起点"
+      ],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "action": "clarify",
+      "expected_tools": [],
+      "not_completed": true
+    },
+    {
+      "id": "R06",
+      "kind": "rule",
+      "label": "positive",
+      "message": "查询天气武汉；查询天气长沙",
+      "operations": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        },
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "长沙"
+        }
+      ],
+      "required": [
+        "武汉",
+        "长沙"
+      ],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "expected_tools": [
+        "get_current_weather",
+        "get_current_weather"
+      ]
+    },
+    {
+      "id": "R07",
+      "kind": "semantic",
+      "label": "negative",
+      "message": "从武汉站去湖北省博物馆坐地铁，并告诉我是否带伞",
+      "operations": [
+        {
+          "domain": "transit",
+          "operation": "query",
+          "origin": "武汉站",
+          "destination": "湖北省博物馆",
+          "city": "武汉"
+        }
+      ],
+      "required": [],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "expected_tools": [],
+      "not_completed": true
+    },
+    {
+      "id": "R08",
+      "kind": "semantic",
+      "label": "negative",
+      "message": "比较武汉和长沙天气",
+      "operations": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        },
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "长沙"
+        }
+      ],
+      "required": [
+        "20℃",
+        "尚未完成",
+        "长沙"
+      ],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "proposal_queries": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        }
+      ],
+      "not_completed": true
+    },
+    {
+      "id": "R09",
+      "kind": "semantic",
+      "label": "negative",
+      "message": "从武汉站到湖北省博物馆开车怎么走",
+      "operations": [
+        {
+          "domain": "route",
+          "operation": "query",
+          "origin": "武汉天河机场",
+          "destination": "湖北省博物馆"
+        }
+      ],
+      "required": [],
+      "forbidden": [],
+      "proposal": "查询已经完成。",
+      "expected_tools": [],
+      "not_completed": true
+    },
+    {
+      "id": "R10",
+      "kind": "semantic",
+      "label": "positive",
+      "message": "武汉现在天气怎么样",
+      "operations": [],
+      "required": [
+        "20℃"
+      ],
+      "forbidden": [
+        "40℃"
+      ],
+      "proposal": "武汉40℃。",
+      "action": "none",
+      "proposal_queries": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        }
+      ],
+      "expected_tools": [
+        "get_current_weather"
+      ]
+    },
+    {
+      "id": "R11",
+      "kind": "rule",
+      "label": "negative",
+      "message": "查询天气武汉；查询路线武汉到宜昌",
+      "operations": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        },
+        {
+          "domain": "route",
+          "operation": "query",
+          "origin": "武汉",
+          "destination": "宜昌"
+        }
+      ],
+      "receipt_overrides": [
+        {
+          "name": "get_driving_route",
+          "arguments": {
+            "origin": "武汉",
+            "destination": "宜昌"
+          },
+          "result": {
+            "data": "查询成功",
+            "payload": {}
+          }
+        }
+      ],
+      "required": [
+        "20℃",
+        "尚未完成"
+      ],
+      "not_completed": true
+    },
+    {
+      "id": "R12",
+      "kind": "semantic",
+      "label": "negative",
+      "message": "比较武汉和长沙天气",
+      "operations": [
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "武汉"
+        },
+        {
+          "domain": "weather",
+          "operation": "query",
+          "location": "长沙"
+        }
+      ],
+      "receipt_overrides": [
+        {
+          "name": "get_current_weather",
+          "arguments": {
+            "location": "长沙"
+          },
+          "result": {
+            "data": "查询成功",
+            "payload": {}
+          }
+        }
+      ],
+      "required": [
+        "20℃",
+        "尚未完成",
+        "长沙"
+      ],
+      "not_completed": true
+    },
+    {
+      "id": "R13",
+      "kind": "semantic",
+      "label": "positive",
+      "domain": "places",
+      "message": "在武汉搜索湖北省博物馆",
+      "receipt_override": {
+        "data": "未找到匹配地点",
+        "payload": {
+          "places": []
+        }
+      },
+      "required": [
+        "未找到匹配地点"
+      ]
+    },
+    {
+      "id": "R14",
+      "kind": "semantic",
+      "label": "negative",
+      "message": "武汉现在天气怎么样",
+      "receipt_override": {
+        "data": "查询成功",
+        "payload": {
+          "weather": "未知",
+          "temperature": "",
+          "report_time": ""
+        }
+      },
+      "not_completed": true
+    }
+  ],
+  "revision": "2026-10-24-operation-facts"
+}

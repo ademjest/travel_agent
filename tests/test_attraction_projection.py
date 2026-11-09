@@ -2,8 +2,8 @@ from copy import deepcopy
 import json
 import unittest
 
-from core.attraction_projection import attraction_report, grouped_facts, planning_facts, poi_detail_view
-from core.attraction_facts import page_facts, provider_facts
+from tools.research.evidence import attraction_report, grouped_facts, planning_facts, poi_detail_view
+from tools.research.evidence import page_facts, provider_facts
 from infrastructure.amap_client import normalize_poi_detail
 
 

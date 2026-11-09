@@ -13,7 +13,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     # Full regression and offline scenarios need headroom on Windows runners.
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,13 +23,12 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt -c constraints-py311.txt
       - run: python -m pip check
       - run: python scripts/check_secrets.py --all-tracked
-      - run: python -X utf8 -m unittest discover -s tests -q
-      - run: python -X utf8 scripts/evaluate_tasks.py --output evals/ci-offline.json
+      - run: python -X utf8 scripts/run_release_checks.py --checks backend task_scenarios read_only architecture --timeout 2400 --output .upgrade-testing/ci-backend
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: task-evaluation-${{ matrix.os }}
-          path: evals/ci-offline.json
+          path: .upgrade-testing/ci-backend
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -38,11 +37,18 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm test
-      - run: npm run build
+      - run: python -X utf8 ../scripts/run_release_checks.py --checks frontend build --output ../.upgrade-testing/ci-web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-checks
+          path: .upgrade-testing/ci-web

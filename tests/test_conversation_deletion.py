@@ -1,3 +1,5 @@
+from app.conversation_context import web_context
+from tools.trip.tool import PlanningArtifacts
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -116,11 +118,11 @@ class ConversationDeletionTests(unittest.TestCase):
     def test_enqueued_and_sending_reminders_cannot_deliver_after_boundary(self):
         self.send('10分钟后提醒我带身份证')
         asyncio.run(self.worker.run_once())
-        reminder = self.repo.context(self.a)['reminders'][0]
+        reminder = web_context(self.repo, self.a)['reminders'][0]
         due = datetime.fromisoformat(reminder['scheduled_at_utc'])+timedelta(seconds=1)
         asyncio.run(self.runtime.reminder_scheduler.scan_once(due))
-        row = self.store.list_due_outbox('web', due)[0]
-        self.assertIsNotNone(self.store.claim_outbox(row.outbox_id, due))
+        row = self.store.delivery.list_due_outbox('web', due)[0]
+        self.assertIsNotNone(self.store.delivery.claim_outbox(row.outbox_id, due))
         self.delete()
         # This imitates a sender that cached its message before deletion was requested.
         with self.assertRaises(ConversationDeleted):
@@ -189,7 +191,7 @@ class ConversationDeletionTests(unittest.TestCase):
         self.assertFalse(path.exists())
 
     def image_record(self, identity, path):
-        return self.store.create_reservation_image(storage_scope_id='web:'+identity,platform='web',group_id=identity,
+        return self.store.reservations.create_reservation_image(storage_scope_id='web:'+identity,platform='web',group_id=identity,
             uploader_id=OWNER,sha256='same-digest',file_path=str(path),content_type='image/png',byte_size=5,model_id='test')[0]
 
     def test_shared_image_is_removed_only_after_last_conversation_reference(self):
@@ -197,7 +199,7 @@ class ConversationDeletionTests(unittest.TestCase):
         self.image_record(self.a,path); self.image_record(self.b,path)
         self.delete(); self.finish()
         self.assertTrue(path.exists())
-        self.assertEqual(self.store.get_reservation_image('web:'+self.b,'same-digest').file_path,str(path))
+        self.assertEqual(self.store.reservations.get_reservation_image('web:'+self.b,'same-digest').file_path,str(path))
         self.delete(self.b); self.finish(self.b)
         self.assertFalse(path.exists())
 
@@ -254,11 +256,11 @@ class ConversationDeletionTests(unittest.TestCase):
 
     def test_full_graph_purge_including_trip_reservation_and_scheduled_jobs(self):
         event = ChatEvent('web','group','fixture-trip',self.a,OWNER,'创建行程')
-        self.store.planning.capture(ChatEvent('web','group','fixture-plan',self.a,OWNER,'规划武汉2天行程'),
+        PlanningArtifacts(self.store.planning).capture(ChatEvent('web','group','fixture-plan',self.a,OWNER,'规划武汉2天行程'),
             '武汉参考方案\n第1天：湖北省博物馆。第2天：东湖。')
         self.store.research.update_context(event,{'destination':'武汉','requested_domains':['zhihu.com'],
             'excluded_domains':[],'strict_sources':False})
-        self.store.trips.commit(event,self.store.begin_event(event.event_key),
+        self.store.trips.commit(event,self.store.delivery.begin_event(event.event_key),
             TaskUpdate('itinerary','completed',event.content,{}),'saved',trip={
                 'trip_id':'TR-fixture','title':'测试行程','status':'active','spec':{},'plan':{'days':[]},'sources':{}})
         from infrastructure.model_gateway import ModelGateway
@@ -272,19 +274,19 @@ class ConversationDeletionTests(unittest.TestCase):
         extraction = SimpleNamespace(attraction_name='测试博物馆',price_text='',opening_hours='',booking_channel='',
             source_text='测试',confidence=1,requires_reservation=True,advance_value=1,advance_unit='days')
         now = datetime.now(timezone.utc)
-        draft = self.store.create_reservation_draft(image.image_id,'web',self.a,OWNER,(
+        draft = self.store.reservations.create_reservation_draft(image.image_id,'web',self.a,OWNER,(
             {'extraction':extraction,'visit_date':(now+timedelta(days=2)).date(),'booking_date':(now+timedelta(days=1)).date(),
              'date_candidates':(),'custom_reminder_times':(),'reminder_policy':'default','status':'ready'},))
-        self.store.confirm_reservation_plan('web',self.a,OWNER,draft.plan_code,
+        self.store.reservations.confirm_reservation_plan('web',self.a,OWNER,draft.plan_code,
             {draft.items[0].item_id:(SimpleNamespace(scheduled_at_utc=now+timedelta(minutes=10),is_custom=True),)})
-        self.runtime.application.scheduled_query_service._extract = Mock(return_value={
+        self.runtime.application.scheduled_query_service._extract_query = Mock(return_value={
             'kind':'weather','arguments':{'location':'武汉'},'time_text':'10分钟后'})
         self.send('10分钟后告诉我武汉天气',key='schedule'); asyncio.run(self.worker.run_once())
-        from services.booking_policy import BookingPolicyResolver
-        from services.policy_watch_service import PolicyWatchService
+        from tools.reminders.policy import BookingPolicyResolver
+        from tools.reminders.tool import RemindersTool
         resolver = BookingPolicyResolver(sources={'湖北省博物馆':'https://museum.example/policy'},
             fetch_text=lambda url:'湖北省博物馆\n个人入馆预约可提前5天。每日0点开始放票。')
-        self.runtime.application.policy_watch_service = PolicyWatchService(self.store,resolver)
+        self.runtime.application.reminders_tool.resolver = resolver
         ending = now+timedelta(days=3)
         self.send(f'监测湖北省博物馆预约规则，到{ending.year}年{ending.month:02d}月{ending.day:02d}日',key='watch')
         asyncio.run(self.worker.run_once())
@@ -349,11 +351,11 @@ class ConversationDeletionTests(unittest.TestCase):
 
     def test_other_platform_same_raw_scope_and_shared_public_evidence_survive(self):
         event = ChatEvent('onebot','group','qq-event',self.a,'qq-owner','10分钟后提醒我带水')
-        self.runtime.application.personal_reminder_service.handle(event,self.store.begin_event(event.event_key))
-        self.store.add_document('onebot:'+self.a,'qq-owner','qq.md','qq-digest','QQ data',['QQ data'])
+        self.runtime.application.personal_reminder_service.handle(event,self.store.delivery.begin_event(event.event_key))
+        self.store.documents.add_document('onebot:'+self.a,'qq-owner','qq.md','qq-digest','QQ data',['QQ data'])
         self.delete(); self.finish()
         self.assertEqual(len(self.store.reminders.list_for_owner('onebot',self.a,'qq-owner')),1)
-        self.assertEqual(len(self.store.list_document_contents('onebot:'+self.a)),1)
+        self.assertEqual(len(self.store.documents.list_document_contents('onebot:'+self.a)),1)
 
     def test_concurrent_deletions_share_one_durable_operation(self):
         barrier = Barrier(2)

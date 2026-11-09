@@ -73,3 +73,28 @@ class OfficialSources:
 
     def policy_sources(self):
         return {entry['canonical_name']: entry['policy_urls'][0] for entry in self.entries}
+
+    def navigation(self, name, city, page):
+        """Navigation identity is separate from admission-policy verification."""
+        entry = self.match(name, city)
+        text = page.get('title', '') + '\n' + page.get('text', '')
+        if (entry and page.get('status') == 'read' and scoped_url(page['url'], entry)
+                and any(label in text for label in [entry['canonical_name'], *entry.get('aliases', [])])
+                and all(marker in page.get('text', '') for marker in entry.get('page_entity_markers', []))):
+            return {'kind':'reviewed_registry', 'entity_key':entry['entity_key'],
+                    'registry_version':entry['registry_version'], 'evidence_url':entry['identity_evidence_url'],
+                    'evidence_quote':entry['identity_evidence_quote']}
+        return None
+
+    def navigation_authority(self, page, city):
+        if page.get('status') != 'read' or not public_policy_url(page.get('url')):
+            return None
+        for entry in self.entries:
+            if self.navigation(entry['canonical_name'], entry['city'], page):
+                return {'kind':'reviewed_publisher', 'entity_key':entry['entity_key']}
+        host = urlsplit(page['url']).hostname
+        agency = re.search(re.escape(city.removesuffix('市')) + r'(?:市|省|区|县)?(?:人民政府|文化(?:和|广电和)?旅游(?:局|厅|委员会))',
+                           page.get('title', '') + '\n' + page.get('text', '')) if city else None
+        if host.endswith('.gov.cn') and agency:
+            return {'kind':'government_publisher', 'name':agency[0]}
+        return None

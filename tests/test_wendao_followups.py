@@ -1,5 +1,7 @@
 """Observed Nanjing follow-up; constructed extractor/HTTP responses, no live calls."""
-from datetime import datetime, timezone
+from tools.trip.tool import PlanningArtifacts
+from dataclasses import replace
+from datetime import datetime, timezone, timedelta
 import asyncio
 import json
 from pathlib import Path
@@ -7,15 +9,15 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from agents.research_search_planner import ResearchSearchPlanner
-from agents.trip_planner import TripPlanner
+from tools.research.tool import ResearchSearchPlanner
+from tools.trip.planner import TripPlanner
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
 from infrastructure.wendao_client import WendaoClient, ENDPOINT
-from services.research_context import research_dates, resolve_plan
+from tools.research.tool import research_dates, resolve_plan
 from services.official_sources import OfficialSources
-from services.research_service import ResearchService
-from services.trip_service import TripService
+from tools.research.tool import ResearchTool
+from tools.trip.tool import TripTool
 from test_travel_agent import FakeClient
 from test_trips import model_response
 from test_wendao import ANSWER, PLACES, PLAN
@@ -30,7 +32,7 @@ class NanjingFollowupTests(unittest.TestCase):
                    'topics': ['opening_hours', 'ticket_price', 'reservation_rules']}
         response = {'targets': [{'name': '六朝博物馆', 'source_text': '六朝博物馆', 'day_index': 1,
                                 'optional': False, 'visit_mode': 'entry'}],
-                    'topics': request['topics'], 'arrival_date_text': '', 'visit_start_date_text': '2026-10-22',
+                    'topics': request['topics'], 'arrival_date_text': '', 'visit_start_date_text': (datetime.now(timezone.utc)+timedelta(days=7)).date().isoformat(),
                     'requested_domains': [], 'excluded_domains': [], 'strict_sources': False, 'language': 'zh-cn'}
         client = FakeClient([model_response(response)])
         result = ResearchSearchPlanner(client, 'test').plan_targets(request, FIXTURE['plan'])
@@ -50,13 +52,13 @@ class NanjingFollowupTests(unittest.TestCase):
         output = {'targets': [{'name': n, 'source_text': n, 'day_index': 1 if i < 3 else 2,
                               'optional': False, 'visit_mode': 'entry'} for i, n in enumerate(names)],
                   'topics': ['opening_hours', 'ticket_price', 'reservation_rules'],
-                  'visit_start_date_text': '2026-10-22', 'arrival_date_text': '',
+                  'visit_start_date_text': (datetime.now(timezone.utc)+timedelta(days=7)).date().isoformat(), 'arrival_date_text': '',
                   'requested_domains': [], 'excluded_domains': [], 'strict_sources': False, 'language': 'zh-cn'}
         answer = '\n'.join('### ' + n + '\n这里的展陈适合慢慢参观。\n- **开放时间**：每日开放时间09:00-17:00。' for n in names[:4])
         http = Mock(return_value=(answer.encode(), ENDPOINT, 'text/markdown'))
         amap = Mock()
         amap.search_poi_details.return_value = []
-        service = ResearchService(store, Mock(configured=False), FakeClient([model_response(output)]), 'test',
+        service = ResearchTool(store, Mock(configured=False), FakeClient([model_response(output)]), 'test',
             amap=amap, official_sources=OfficialSources([]), wendao=WendaoClient('fixture-key', True, transport=http))
         event = ChatEvent('onebot', 'group', 'followup', 'g', 'u', FIXTURE['followup'], occurred_at=NOW)
         reply = service.handle_intent(event, None, request={'original_request': event.content, 'query_text': event.content,
@@ -90,46 +92,53 @@ class AutomaticResearchTests(unittest.TestCase):
         self.client = FakeClient([model_response(extract), model_response(PLAN)])
         self.amap = Mock()
         self.amap.search_places.return_value = list(PLACES.values())
-        self.trip = TripService(self.store, TripPlanner(self.client, 'test', self.amap), clock=lambda: NOW)
-        self.research = ResearchService(self.store, Mock(), trip_service=self.trip, wendao=self.wendao)
+        self.trip = TripTool(self.store, TripPlanner(self.client, 'test', self.amap), clock=lambda: datetime.now(timezone.utc))
+        self.research = ResearchTool(self.store, Mock(), wendao=self.wendao)
         self.trip.research_service = self.research
 
     def test_enabled_provider_enriches_plain_planning_request_and_view_does_not_resubmit(self):
         event = ChatEvent('onebot', 'group', 'create', 'g', 'u', '我想去成都玩一天，后面的某个周末', occurred_at=NOW)
-        reply = self.trip.handle(event, self.store.begin_event(event.event_key))
+        reply = self.trip.handle(event, self.store.delivery.begin_event(event.event_key))
         self.assertEqual(self.http.call_count, 1)
         self.assertIn('仿古文化街区', reply)
         self.assertIn('实际出发日尚未确定', self.http.call_args.kwargs['payload']['query'])
+        self.assertEqual(self.store.trips.list_for_owner(event), ())
+        confirm = replace(event,event_id='confirm',content='确认行程修改')
+        confirmed_reply = self.trip.handle(confirm,self.store.delivery.begin_event(confirm.event_key))
         saved = self.store.trips.list_for_owner(event)[0]
         self.assertEqual(saved['spec']['start_date'], '2026-10-22')
         self.assertTrue(saved['spec']['date_is_tentative'])
         self.assertIn('description', saved['plan']['days'][0]['activities'][0])
-        artifact = self.store.planning.capture(event, reply, destination='成都', duration_options=[1])
+        artifact = PlanningArtifacts(self.store.planning).capture(confirm, confirmed_reply, destination='成都', duration_options=[1])
+        self.assertIsNone(artifact,'A saved trip receipt is not a new exploratory plan')
         followup = ChatEvent('onebot', 'group', 'followup', 'g', 'u', '查询这个行程的景点信息', occurred_at=NOW)
-        selected, _ = resolve_plan(self.store, followup, {'plan_index': artifact['ordinal'], 'plan_reference': '这个行程'})
+        selected, _ = resolve_plan(self.store, followup, {'plan_reference': '这个行程'})
         self.assertEqual(selected['planning_spec']['start_date'], '2026-10-22')
         self.assertTrue(selected['planning_spec']['date_is_tentative'])
         view = ChatEvent('onebot', 'group', 'view', 'g', 'u', '查看行程', occurred_at=NOW)
-        self.trip.handle(view, self.store.begin_event(view.event_key))
+        self.trip.handle(view, self.store.delivery.begin_event(view.event_key))
         self.assertEqual(self.http.call_count, 1)
 
     def test_source_restrictions_and_disabled_setting_do_not_auto_submit(self):
         for text in ('不要联网', '不联网', '只看官网', '只使用官网', '只用高德', '不要用问道', '只看携程网站', '只看携程'):
             event = ChatEvent('onebot', 'group', text, 'g', 'u', text, occurred_at=NOW)
             spec = {'destination': '成都', 'day_count': 1, 'start_date': '2026-10-22', 'date_is_tentative': True}
-            self.assertIsNone(self.research.prepare_planning(event, spec))
+            self.assertIsNone(self.research.prepare_for_planning(event, spec).source)
         self.wendao.enabled = False
         event = ChatEvent('onebot', 'group', 'disabled', 'g', 'u', '规划成都一天行程', occurred_at=NOW)
-        self.assertIsNone(self.research.prepare_planning(event, {'destination': '成都', 'day_count': 1}))
+        self.assertIsNone(self.research.prepare_for_planning(event, {'destination': '成都', 'day_count': 1}).source)
         self.http.assert_not_called()
 
     def test_failed_automatic_query_degrades_without_retrying(self):
         from infrastructure.public_http import PublicHTTPError
         self.http.side_effect = PublicHTTPError('network_error', attempts=1)
         event = ChatEvent('onebot', 'group', 'failed', 'g', 'u', '规划成都一天行程', occurred_at=NOW)
-        reply = self.trip.handle(event, self.store.begin_event(event.event_key))
+        reply = self.trip.handle(event, self.store.delivery.begin_event(event.event_key))
         self.assertIn('问道本次未取得完整回答', reply)
         self.assertEqual(self.http.call_count, 1)
+        self.assertEqual(self.store.trips.list_for_owner(event), ())
+        confirm = replace(event,event_id='failed-confirm',content='确认行程修改')
+        self.trip.handle(confirm,self.store.delivery.begin_event(confirm.event_key))
         self.assertTrue(self.store.trips.list_for_owner(event))
 
 
@@ -148,8 +157,9 @@ class NanjingWebFlowTests(unittest.TestCase):
         plan = {'days': [{'day_index': d+1, 'activities': [
             {'poi_id': 'B'+str(i), 'period': ('上午', '下午', '晚上')[i % 3], 'reason': '文化参观'}
             for i in range(d*3, d*3+3)]} for d in range(2)]}
-        none = {'schema_version': 1, 'action': 'none', 'operations': [], 'missing_fields': [],
-                'requires_confirmation': False, 'source_spans': [], 'confidence': 0.99}
+        creation = {'schema_version': 1, 'action': 'create', 'operations': [
+            {'domain':'trip','operation':'create','request_text':FIXTURE['initial_request']}], 'missing_fields': [],
+            'requires_confirmation': False, 'source_spans': [FIXTURE['initial_request'][:80]], 'confidence': 0.99}
         ir = {'schema_version': 1, 'action': 'read', 'operations': [{'domain': 'research',
             'operation': 'search_travel_guides', 'query_text': FIXTURE['followup'], 'plan_reference': '这个行程',
             'topics': ['opening_hours', 'ticket_price', 'reservation_rules']}], 'missing_fields': [],
@@ -158,10 +168,11 @@ class NanjingWebFlowTests(unittest.TestCase):
                    'preferences': [], 'must_visit': []}
         targets = {'targets': [{'name': n, 'source_text': n, 'day_index': i//3+1, 'optional': False,
                                'visit_mode': 'entry'} for i, n in enumerate(names)],
-                   'topics': ir['operations'][0]['topics'], 'visit_start_date_text': '2026-10-22',
+                   'topics': ir['operations'][0]['topics'], 'visit_start_date_text': (datetime.now(timezone.utc)+timedelta(days=7)).date().isoformat(),
                    'arrival_date_text': '', 'requested_domains': [], 'excluded_domains': [],
                    'strict_sources': False, 'language': 'zh-cn'}
-        model = FakeClient([model_response(none), model_response(extract), model_response(plan),
+        from test_trip_presentation import ANSWER as NARRATIVE
+        model = FakeClient([model_response(creation), model_response(extract), model_response(plan),model_response(NARRATIVE),
                             model_response(ir), model_response(targets)])
         model.close = Mock()
         amap = Mock()
@@ -184,16 +195,16 @@ class NanjingWebFlowTests(unittest.TestCase):
             with TestClient(app, base_url='http://127.0.0.1:8080') as client:
                 headers = {'x-csrf-token': client.get('/api/bootstrap').json()['csrf_token']}
                 cid = client.post('/api/conversations', headers=headers).json()['id']
-                for i, text in enumerate((FIXTURE['initial_request'], FIXTURE['followup'])):
+                for i, text in enumerate((FIXTURE['initial_request'], '确认行程修改', FIXTURE['followup'])):
                     response = client.post(f'/api/conversations/{cid}/messages', headers=headers,
                         json={'content': text, 'client_request_id': 'offline-'+str(i)})
                     self.assertEqual(response.status_code, 202)
                     asyncio.run(app.state.worker.run_once())
                 replies = [m['content'] for m in client.get(f'/api/conversations/{cid}/messages').json()['items']
                            if m['role'] == 'assistant']
-                self.assertEqual(len(replies), 2)
+                self.assertEqual(len(replies), 3)
                 self.assertTrue(all('研究请求校验失败' not in r for r in replies))
-                self.assertIn('已获取携程问道参考', replies[0])
+                self.assertIn('文化参观与户外散步', replies[0])
                 self.assertIn('这里的展陈', replies[0])
                 for _ in range(2):
                     self.assertTrue(client.get(f'/api/conversations/{cid}/research').json())

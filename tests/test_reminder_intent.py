@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from agents.reminder_intent import ReminderIntentParser
+from tools.reminders.tool import ReminderIntentParser
 from test_travel_agent import FakeClient, assistant_message, completion
 
 

@@ -24,11 +24,12 @@ export function RetrievalStatusView({ status }: { status: RetrievalStatus }) {
   </div>;
 }
 export function RuntimeStatusPanel() {
-  const [value, setValue] = useState<{ backend_id: string; model: string; retrieval: { state: string } } | null>(null);
+  type Runtime = { backend_id:string; model:string; retrieval:{ state:string }; models?:{ config_version:string; routes:{ role:string;connection_id:string;profile_id:string;model_id:string }[] } };
+  const [value, setValue] = useState<Runtime | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     let active = true;
-    api<{ backend_id: string; model: string; retrieval: { state: string } }>("/runtime-status")
+    api<Runtime>("/runtime-status")
       .then((v) => { if (active && typeof v.backend_id === "string") setValue(v); else if (active) setError(true); })
       .catch(() => { if (active) setError(true); });
     return () => { active = false; };
@@ -37,6 +38,9 @@ export function RuntimeStatusPanel() {
     <p>网页版本：{__FRONTEND_BUILD_ID__}</p>
     {error && <p>后端版本暂未确认；若刚升级网页，请重启新版后端后刷新。</p>}
     {value && <><p>后端版本：{value.backend_id} · 默认模型：{value.model || "未配置"}</p>
+      {!!value.models?.routes.length && <details><summary>当前运行的模型分工</summary><ul>{value.models.routes.map(route => <li key={route.role}>
+        {{ basic:"基础",regular:"常规",complex:"复杂",vision:"视觉" }[route.role] || route.role}：{route.model_id} · {route.connection_id} / {route.profile_id}
+      </li>)}</ul><small>这是启动时采用的连接与档案；能力以各项显式测试结果为准。</small></details>}
       <RetrievalStatusView status={{ configuration: value.retrieval }} /></>}
   </section>;
 }

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from core.data_paths import app_data_dir, database_path, image_root, log_directory
 from infrastructure.memory_store import MemoryStore
-from services.vision_service import ReservationImageService
+from tools.reservation.tool import ReservationImageService
 
 
 class DataPathTests(unittest.TestCase):

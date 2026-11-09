@@ -1,3 +1,5 @@
+from tools.research.tool import ResearchTool
+from tools.trip.tool import PlanningArtifacts
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -6,12 +8,12 @@ import unittest
 from unittest.mock import Mock
 
 from agents.intent_compiler import IntentCompiler
-from agents.trip_planner import TripPlanner
+from tools.trip.planner import TripPlanner
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.semantic_task_service import SemanticTaskService
-from services.trip_service import TripService
-from services.planning_service import PlanningService
+from app.request_router import RequestRouter
+from tools.trip.tool import TripTool
+from tools.trip.tool import PlanningArtifacts
 from test_trips import PLACES, model_response, plan_value
 from test_travel_agent import FakeClient
 
@@ -35,8 +37,8 @@ class ConversationPlanContextTests(unittest.TestCase):
         self.event=lambda text,key='event':ChatEvent('web','group',key,'conversation','owner',text,occurred_at=self.now)
 
     def test_artifacts_persist_order_restart_isolation_and_soft_delete(self):
-        first=self.store.planning.capture(self.event('我想去开封玩','first'),INITIAL)
-        second=self.store.planning.capture(self.event('搜索开封四日游攻略','second'),
+        first=PlanningArtifacts(self.store.planning).capture(self.event('我想去开封玩','first'),INITIAL)
+        second=PlanningArtifacts(self.store.planning).capture(self.event('搜索开封四日游攻略','second'),
             '开封四日研究方案\n第1天古城，第2天清明上河园，第3天开封府，第4天休整。',kind='research_backed')
         self.assertEqual(first['duration_options'],[2,3])
         self.assertEqual(second['duration_options'],[4])
@@ -49,10 +51,10 @@ class ConversationPlanContextTests(unittest.TestCase):
         self.assertEqual([p['artifact_id'] for p in restarted.planning.list_for_owner(self.event(''))],[second['artifact_id']])
 
     def test_user_can_list_and_delete_plan_drafts_without_touching_others(self):
-        first=self.store.planning.capture(self.event('我想去开封玩','first-command'),INITIAL)
-        second=self.store.planning.capture(self.event('搜索开封四日游攻略','second-command'),
+        first=PlanningArtifacts(self.store.planning).capture(self.event('我想去开封玩','first-command'),INITIAL)
+        second=PlanningArtifacts(self.store.planning).capture(self.event('搜索开封四日游攻略','second-command'),
             '开封四日研究方案\n第1天古城，第2天景区，第3天人文，第4天休整。',kind='research_backed')
-        service=PlanningService(self.store.planning)
+        service=PlanningArtifacts(self.store.planning)
         self.assertIn('方案 1',service.handle(self.event('查看方案草稿')))
         self.assertIn('已删除',service.handle(self.event('删除方案草稿 '+first['artifact_id'])))
         self.assertEqual([p['artifact_id'] for p in self.store.planning.list_for_owner(self.event(''))],[second['artifact_id']])
@@ -63,8 +65,9 @@ class ConversationPlanContextTests(unittest.TestCase):
             'query_text':'了解一下大概的攻略参考','source_request':'网上的攻略比如小红书'}],
             'missing_fields':[],'requires_confirmation':False,
             'source_spans':['了解一下大概的攻略参考','网上的攻略比如小红书']}
-        research=Mock(); research.handle_intent.return_value='已搜索小红书和国内攻略'
-        service=SemanticTaskService(self.store,Mock(try_compile=Mock(return_value=ir(value,text))),
+        research=ResearchTool(self.store,Mock())
+        research.handle_intent=Mock(); research.handle_intent.return_value='已搜索小红书和国内攻略'
+        service=RequestRouter(self.store,Mock(try_compile=Mock(return_value=ir(value,text))),
             research_service=research,mode='execute')
         self.assertEqual(service.handle(self.event(text),object()),'已搜索小红书和国内攻略')
         research.handle_intent.assert_called_once()
@@ -75,10 +78,10 @@ class ConversationPlanContextTests(unittest.TestCase):
         extract={'destination':'开封','duration_text':'3天','start_date_text':'','end_date_text':'',
                  'preferences':[],'must_visit':[],'budget_text':'','transport_text':''}
         client=FakeClient([model_response(extract),model_response({**plan_value(),'hotel_ids':['hotel']})])
-        return TripService(self.store,TripPlanner(client,'test',amap),clock=lambda:self.now)
+        return TripTool(self.store,TripPlanner(client,'test',amap),clock=lambda:self.now)
 
     def test_exact_reference_clarifies_duration_then_creates_unsaved_preview_and_confirms(self):
-        artifact=self.store.planning.capture(self.event('我想去开封玩','initial'),INITIAL)
+        artifact=PlanningArtifacts(self.store.planning).capture(self.event('我想去开封玩','initial'),INITIAL)
         trip_service=self.trip_service()
         first_text='那还是按照最开始的规划安排吧，但是要加上酒店推荐'
         first={'schema_version':1,'action':'clarify','operations':[{'domain':'trip','operation':'create_from_plan_artifact',
@@ -86,9 +89,9 @@ class ConversationPlanContextTests(unittest.TestCase):
                 'accommodation':{'value':'酒店推荐','requested':True,'source':'要加上酒店推荐'}}}],
             'missing_fields':['plan_duration'],'requires_confirmation':True,
             'source_spans':['最开始的规划','要加上酒店推荐']}
-        service=SemanticTaskService(self.store,Mock(try_compile=Mock(return_value=ir(first,first_text))),trip_service=trip_service)
+        service=RequestRouter(self.store,Mock(try_compile=Mock(return_value=ir(first,first_text))),trip_service=trip_service)
         event=self.event(first_text,'choose')
-        reply=service.handle(event,self.store.begin_event(event.event_key))
+        reply=service.handle(event,self.store.delivery.begin_event(event.event_key))
         self.assertIn('2天和3天',reply)
         self.assertEqual(self.store.trips.list_for_owner(self.event('')),())
 
@@ -97,7 +100,7 @@ class ConversationPlanContextTests(unittest.TestCase):
             'selected_days':3}], 'missing_fields':[],'requires_confirmation':True,'source_spans':['采用3天2晚']}
         service.compiler=Mock(try_compile=Mock(return_value=ir(second,first_text+'\n用户补充：'+second_text)))
         event=self.event(second_text,'duration')
-        preview=service.handle(event,self.store.begin_event(event.event_key))
+        preview=service.handle(event,self.store.delivery.begin_event(event.event_key))
         self.assertIn('行程创建预览',preview)
         self.assertIn('测试连锁酒店',preview)
         self.assertEqual(self.store.trips.list_for_owner(self.event('')),())
@@ -105,7 +108,7 @@ class ConversationPlanContextTests(unittest.TestCase):
         self.assertTrue(any(t.task_type=='itinerary' and t.slots.get('new_trip_pending') for t in tasks))
 
         event=self.event('确认行程修改','confirm')
-        result=trip_service.handle(event,self.store.begin_event(event.event_key))
+        result=trip_service.handle(event,self.store.delivery.begin_event(event.event_key))
         self.assertIn('已创建行程',result)
         trips=self.store.trips.list_for_owner(self.event(''))
         self.assertEqual(len(trips),1)
@@ -116,11 +119,11 @@ class ConversationPlanContextTests(unittest.TestCase):
         self.assertEqual(self.store.planning.get(self.event(''),artifact['artifact_id'])['status'],'adopted')
 
     def test_update_without_saved_trip_recovers_earliest_artifact(self):
-        self.store.planning.capture(self.event('我想去开封玩','initial'),INITIAL)
+        PlanningArtifacts(self.store.planning).capture(self.event('我想去开封玩','initial'),INITIAL)
         text='那还是按照最开始的规划安排吧，但是要加上酒店推荐'
         value={'schema_version':1,'action':'update','operations':[{'domain':'trip','operation':'update_constraints',
             'target_ref':'current_trip','changes':{'accommodation':{'value':'酒店推荐','requested':True,'source':'要加上酒店推荐'}}}],
             'missing_fields':[],'requires_confirmation':True,'source_spans':['最开始的规划','要加上酒店推荐']}
-        service=SemanticTaskService(self.store,Mock(try_compile=Mock(return_value=ir(value,text))),trip_service=self.trip_service())
+        service=RequestRouter(self.store,Mock(try_compile=Mock(return_value=ir(value,text))),trip_service=self.trip_service())
         event=self.event(text,'recover')
-        self.assertIn('2天和3天',service.handle(event,self.store.begin_event(event.event_key)))
+        self.assertIn('2天和3天',service.handle(event,self.store.delivery.begin_event(event.event_key)))

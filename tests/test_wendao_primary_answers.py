@@ -8,9 +8,9 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 
-from core.attraction_answers import answer_view, render_answer
-from core.wendao_answer import extract_candidates, _legacy_extract
-from core.attraction_answers import supported
+from tools.research.evidence import answer_view, render_answer
+from tools.research.sources import extract_candidates, _legacy_extract
+from tools.research.evidence import supported
 
 FIXTURE = json.loads((Path(__file__).parent/'fixtures/wendao_nanjing_saved_2026-10-21.json').read_text(encoding='utf-8'))
 
@@ -31,7 +31,7 @@ class SavedNanjingAnswersTests(unittest.TestCase):
     def test_real_saved_fixture_reproduces_legacy_omissions(self):
         source = next(s for s in FIXTURE['sources'] if s['provider']=='ctrip_wendao')
         self.assertEqual(hashlib.sha256(source['text'].encode()).hexdigest(),FIXTURE['response_sha256'])
-        legacy = _legacy_extract(source,FIXTURE['targets'],{1:'2026-10-22',2:'2026-10-23'})
+        legacy = _legacy_extract(source,FIXTURE['targets'],{1:'2026-10-22',2:'2026-10-23'}, extraction_version='wendao-markdown-v2')
         self.assertEqual(len(legacy['activity_materials']),2)
         self.assertFalse(any(f['topic']=='ticket_price' for f in legacy['facts']))
         self.assertIn('普通入馆规则尚未核实',FIXTURE['legacy_brief'])
@@ -88,13 +88,13 @@ class SavedNanjingAnswersTests(unittest.TestCase):
         self.assertNotIn('普通入馆规则尚未核实',reply)
 
     def test_planning_uses_the_same_selected_answers_without_promoting_trust(self):
-        from core.planning_evidence import research_context
+        from tools.research.evidence import research_context
         original = data()
         view = answer_view(original)
         context = research_context(original)
         selected = {(s['target_id'],s['topic']):s for e in view['entries'] for s in e['slots']}
         self.assertTrue(context['planning_answers'])
-        from core.travel_answer import limits
+        from tools.research.evidence import limits
         from infrastructure.model_gateway import estimate_input
         self.assertLessEqual(estimate_input(context),limits()[0]-10000)
         for row in context['planning_answers']:
@@ -218,23 +218,23 @@ class ConstructedBlockTests(unittest.TestCase):
 
 
 class QueryScopeTests(unittest.TestCase):
-    def run_query(self,count,returned=None,source_request='查询每个景点信息'):
+    def run_query(self,count,returned=None,source_request='查询每个景点信息',answer_text=None,official_links_enabled=True):
         from core.chat_transport import ChatEvent
         from infrastructure.memory_store import MemoryStore
         from infrastructure.wendao_client import WendaoClient, ENDPOINT
-        from services.research_service import ResearchService
+        from tools.research.tool import ResearchTool
         from services.official_sources import OfficialSources
         folder=tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         store=MemoryStore(Path(folder.name)/'test.db')
         targets=[{'name':f'测试馆{i+1}','day_index':1,'visit_mode':'entry'} for i in range(count)]
         returned=min(count,8) if returned is None else returned
-        answer='\n'.join('### '+t['name']+'\n开放时间：全年09:00-17:00\n门票价格：成人票27元\n预约要求：无需预约。' for t in targets[:returned])
+        answer=answer_text or '\n'.join('### '+t['name']+'\n开放时间：全年09:00-17:00\n门票价格：成人票27元\n预约要求：无需预约。' for t in targets[:returned])
         http=Mock(return_value=(answer.encode(),'https://wendao-skill-prod.ctrip.com/skill/query','text/markdown'))
         search=Mock(configured=True)
         search.search.return_value=[]
         reader=Mock()
-        service=ResearchService(store,search,reader=reader,official_sources=OfficialSources([]),
+        service=ResearchTool(store,search,reader=reader,official_sources=OfficialSources([]),official_links_enabled=official_links_enabled,
                                 wendao=WendaoClient('fixture',True,transport=http))
         event=ChatEvent('onebot','group','scope','g','u',source_request,occurred_at=datetime(2026,10,21,tzinfo=timezone.utc))
         scope={'targets':targets,'fields':{'topics':['opening_hours','ticket_price','reservation_rules']},
@@ -245,19 +245,22 @@ class QueryScopeTests(unittest.TestCase):
         reply=service.attraction_research.run(event,request,value,lambda:True)
         return value,http,search,reader,reply,service,event
 
-    def test_four_six_eight_and_over_eight_targets_use_one_submission(self):
-        for count in (4,6,8,10):
+    def test_four_six_eight_and_over_eight_targets_use_one_provider_submission_and_bounded_navigation(self):
+        for count in (4,6,8,10,12):
             with self.subTest(count=count):
                 value,http,search,reader,reply,_,_=self.run_query(count)
                 self.assertEqual(http.call_count,1)
                 query=http.call_args.kwargs['payload']['query']
-                for i in range(min(count,8)):
+                for i in range(count):
                     self.assertIn('测试馆'+str(i+1)+'（',query)
-                if count>8:
-                    self.assertNotIn('测试馆9（',query)
+                self.assertEqual(len(value['provider_requested_target_ids']),count)
+                for entry in answer_view(value)['entries'][8:]:
+                    self.assertEqual(entry['retrieval_state'],'requested_unreturned')
                 self.assertLessEqual(len(reply),6000)
                 self.assertEqual(value['answer_metrics']['collected_target_count'],min(count,8))
-                search.search.assert_not_called()
+                self.assertEqual(search.search.call_count,min(count,8))
+                self.assertTrue(all('官方网站' in call.args[0] and '票价' not in call.args[0] for call in search.search.call_args_list))
+                self.assertFalse(any(progress['searches'] for progress in value['target_progress'].values()))
                 reader.assert_not_called()
 
     def test_requested_but_unreturned_is_not_called_unqueried(self):
@@ -271,6 +274,22 @@ class QueryScopeTests(unittest.TestCase):
         _,http,search,_,_,_,_=self.run_query(4,source_request='请核实官网规定，核对这些景点')
         self.assertEqual(http.call_count,1)
         self.assertGreater(search.search.call_count,0)
+
+    def test_raw_pending_does_not_trigger_fact_enrichment_but_explicit_verification_does(self):
+        answer = '### 测试馆1\n普通票27元，适用人群未明确。\n开放时间：全年09:00-17:00\n预约要求：无需预约。'
+        value, _, search, reader, _, _, _ = self.run_query(1, answer_text=answer)
+        self.assertEqual(slot(answer_view(value), 0, 'ticket_price')['answer_state'], 'raw_pending')
+        self.assertEqual(search.search.call_count,1)
+        self.assertFalse(any(progress['searches'] for progress in value['target_progress'].values()))
+        reader.assert_not_called()
+        verified, _, search, _, _, _, _ = self.run_query(1, source_request='请核实官网规定', answer_text=answer)
+        self.assertGreater(search.search.call_count, 0)
+        self.assertTrue(any(progress['searches'] for progress in verified['target_progress'].values()))
+
+    def test_disabling_navigation_preserves_the_original_zero_search_contract(self):
+        value, _, search, reader, _, _, _ = self.run_query(6,official_links_enabled=False)
+        self.assertFalse(any(progress['searches'] for progress in value['target_progress'].values()))
+        search.search.assert_not_called();reader.assert_not_called()
 
     def test_source_restrictions_never_call_provider(self):
         for text in ('只看官网','只用高德','不要联网'):
@@ -322,7 +341,7 @@ class SavedReportApiTests(unittest.TestCase):
         from core.chat_transport import ChatEvent
         from infrastructure.web_repository import OWNER
         from infrastructure.env_settings_store import EnvSettingsStore
-        from core.planning_evidence import research_context
+        from tools.research.evidence import research_context
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
             app=create_web_app(WebSettings(data_dir=root,open_browser=False),Settings('','',frozenset(),'','','',''),

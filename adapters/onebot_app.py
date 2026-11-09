@@ -352,7 +352,7 @@ class OneBotAdapter:
                     triggered = False
         if triggered:
             event_status = await asyncio.to_thread(
-                self.store.get_event_status,
+                self.store.delivery.get_event_status,
                 event.event_key,
             )
             if event_status == "completed":
@@ -383,7 +383,7 @@ class OneBotAdapter:
             await self.application.handle(event)
             return {"status": "handled"}
         await asyncio.to_thread(
-            self.store.save_chat_message,
+            self.store.conversations.save_chat_message,
             event.event_key,
             event.platform,
             event.scope_id,
@@ -457,7 +457,7 @@ class OneBotAdapter:
         if not await self.trigger_policy.should_handle(event):
             return {"status": "observed"}
         event_status = await asyncio.to_thread(
-            self.store.get_event_status,
+            self.store.delivery.get_event_status,
             event.event_key,
         )
         if event_status == "completed":
@@ -722,7 +722,7 @@ def create_onebot_app(
     @app.get("/health")
     async def health_endpoint():
         storage = await asyncio.to_thread(
-            store.runtime_health,
+            store.delivery.runtime_health,
             "onebot",
         )
         tasks = task_supervisor.snapshot()
@@ -766,6 +766,9 @@ def create_onebot_app(
 
 
 def create_runtime_app() -> FastAPI:
+    from core.logging_config import configure_logging
+    from core.data_paths import log_directory
+    configure_logging(log_directory(),'travel-onebot.log')
     load_dotenv()
     onebot_settings = OneBotSettings.from_env()
     travel_settings = Settings(
@@ -776,6 +779,8 @@ def create_runtime_app() -> FastAPI:
         llm_api_key=os.getenv("LLM_API_KEY", "").strip(),
         llm_base_url=os.getenv("LLM_BASE_URL", "").strip(),
         llm_model_id=os.getenv("LLM_MODEL_ID", "").strip(),
+        rail_mcp_config=os.getenv('RAIL_MCP_CONFIG', ''),
+        model_config_json=os.getenv('LLM_CONFIG_JSON'),
     )
     transport = OneBotTransport(
         onebot_settings.http_url,

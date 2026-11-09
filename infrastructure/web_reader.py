@@ -2,11 +2,12 @@ from datetime import datetime, timezone
 import hashlib
 import html
 import re
+import time
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, parse_qsl
 
-from infrastructure.public_http import request_public, PublicHTTPError, LAST_FETCH_AT
-from services.booking_policy import PolicyTextParser
+from infrastructure.public_http import request_public, PublicHTTPError, LAST_FETCH_AT, LAST_FETCH_CHAIN
+from infrastructure.html_text import HTMLTextParser
 
 
 def public_text_issue(text):
@@ -31,20 +32,31 @@ class PageLinks(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.base, self.links, self.current, self.words = base, [], None, []
         self.publication = None
+        self.context = ''
+        self.link_context = ''
+        self.refresh = ''
 
     def handle_starttag(self, tag, attrs):
+        if tag in {'p', 'li', 'tr', 'h1', 'h2', 'h3', 'section'}:
+            self.context = ''
         values = dict(attrs)
+        if tag == 'meta' and values.get('http-equiv', '').lower() == 'refresh':
+            match = re.fullmatch(r'\s*\d+\s*;\s*url\s*=\s*[\"\']?([^\"\']+?)[\"\']?\s*', values.get('content', ''), re.I)
+            if match:
+                self.refresh = match[1]
         field = values.get('property') or values.get('name')
         if tag == 'meta' and field in {'article:published_time', 'datePublished', 'pubdate'} and values.get('content'):
             self.publication = {'kind': 'html_meta', 'field': field, 'raw_value': values['content'][:80]}
         if tag == 'base' and dict(attrs).get('href'):
             candidate = urljoin(self.base, dict(attrs)['href'])
-            if urlsplit(candidate).scheme == 'https' and urlsplit(candidate).hostname == urlsplit(self.base).hostname:
+            if urlsplit(candidate).scheme in {'http','https'} and urlsplit(candidate).hostname == urlsplit(self.base).hostname:
                 self.base = candidate
         if tag == 'a':
             self.current, self.words = dict(attrs).get('href'), []
+            self.link_context = self.context
 
     def handle_data(self, data):
+        self.context = (self.context + data)[-300:]
         if self.current is not None:
             self.words.append(data)
 
@@ -53,9 +65,12 @@ class PageLinks(HTMLParser):
             return
         url = urljoin(self.base, self.current).split('#')[0]
         parsed = urlsplit(url)
-        if (len(self.links) < 200 and parsed.scheme == 'https' and parsed.hostname
-                and not parsed.username and not parsed.password and not parsed.query):
+        if (len(self.links) < 200 and parsed.scheme in {'http','https'} and parsed.hostname
+                and not parsed.username and not parsed.password
+                and not any(re.search(r'key|token|auth|secret|password|signature|^sig$|^code$',key,re.I) for key,_ in parse_qsl(parsed.query))):
             row = {'url': url, 'text': ' '.join(self.words).strip()[:200]}
+            if self.link_context.strip():
+                row['context'] = (self.link_context + ' ' + row['text']).strip()[-400:]
             if row not in self.links:
                 self.links.append(row)
         self.current = None
@@ -63,9 +78,40 @@ class PageLinks(HTMLParser):
 
 def read_page(url, *, diagnostics=None, url_allowed=None):
     LAST_FETCH_AT.set(None)
-    data, final_url, mime = request_public(url, redirects=2,
-        content_types=('text/html', 'text/plain', 'application/xhtml+xml'), max_bytes=2_000_000, timeout=20,
-        diagnostics=diagnostics, **({'url_allowed': url_allowed} if url_allowed is not None else {}))
+    chain, started = [], time.monotonic()
+    for _ in range(3):
+        if url_allowed is not None and not url_allowed(url):
+            raise PublicHTTPError('source_policy_rejected')
+        if url in chain or len(chain) > 2:
+            raise PublicHTTPError('redirect_rejected')
+        LAST_FETCH_CHAIN.set(())
+        data, final_url, mime = request_public(url, redirects=2-len(chain),
+            allow_http=True,
+            content_types=('text/html', 'text/plain', 'application/xhtml+xml'), max_bytes=2_000_000,
+            timeout=max(0, 20-(time.monotonic()-started)), diagnostics=diagnostics,
+            **({'url_allowed': url_allowed} if url_allowed is not None else {}))
+        chain.extend(LAST_FETCH_CHAIN.get() or list(dict.fromkeys([url, final_url])))
+        if len(chain) > 3:
+            raise PublicHTTPError('redirect_rejected')
+        markup = data.decode('utf-8-sig', errors='replace')
+        redirect = ''
+        if mime != 'text/plain':
+            head = PageLinks(final_url)
+            head.feed(markup)
+            redirect = head.refresh
+            if not redirect:
+                # Only a literal assignment in a standalone script, never JS evaluation.
+                for script in re.findall(r'<script\b[^>]*>(.*?)</script\s*>', markup, re.I|re.S):
+                    script = re.sub(r'(?m)^\s*//[^\n]*', '', script).strip()
+                    match = re.fullmatch(r'(?:window\.)?location(?:\.href)?\s*=\s*([\"\'])([^\n\r\"\'\\]+)\1\s*;?', script)
+                    if match:
+                        redirect = match[2]
+                        break
+        if not redirect:
+            break
+        url = urljoin(final_url, html.unescape(redirect))
+    else:
+        raise PublicHTTPError('redirect_rejected')
     text = data.decode('utf-8-sig', errors='replace')
     title, links, publication = '', [], None
     if mime != 'text/plain':
@@ -74,11 +120,11 @@ def read_page(url, *, diagnostics=None, url_allowed=None):
         extractor = PageLinks(final_url)
         extractor.feed(text)
         publication = extractor.publication
-        links = sorted(extractor.links, key=lambda row: not bool(re.search(r'须知|开放|参观|公告|预约|visitor|visit|notice', row['text'], re.I)))[:40]
+        links = sorted(extractor.links, key=lambda row: not bool(re.search(r'官方网站|官网|须知|开放|参观|公告|预约|official|visitor|visit|notice', row['text'], re.I)))[:40]
         issue = public_text_issue(title)
         if issue:
             raise PublicHTTPError(issue)
-        parser = PolicyTextParser()
+        parser = HTMLTextParser()
         parser.feed(text)
         text = parser.text()
         # The parser includes <title>; it must not make a navigation-only body
@@ -93,6 +139,7 @@ def read_page(url, *, diagnostics=None, url_allowed=None):
     original_chars = len(text)
     text = text[:30_000]
     return {'url': final_url, 'text': text, 'content_hash': hashlib.sha256(data).hexdigest(),
+            'redirect_chain':chain,
             'retrieved_at': LAST_FETCH_AT.get() or datetime.now(timezone.utc).isoformat(), 'status': 'read',
             'title': title, 'links': links, 'original_chars': original_chars, 'truncated': original_chars > len(text),
             'published_at': publication['raw_value'] if publication else None, 'publication_evidence': publication}

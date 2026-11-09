@@ -4,7 +4,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 from dotenv import dotenv_values
 from fastapi.testclient import TestClient
@@ -14,9 +15,154 @@ from core.web_settings import WebSettings
 from infrastructure.env_settings_store import EnvSettingsStore, SettingsConflict
 from infrastructure.memory_store import MemoryStore
 from infrastructure.public_http import PublicHTTPError
+from test_model_config import configuration
+
+
+def probe_client():
+    def create(**kwargs):
+        content='OK';tools=None
+        if kwargs.get('response_format'):content='{"ok":true}'
+        if kwargs.get('tools'):tools=[SimpleNamespace(function=SimpleNamespace(name='probe_echo',arguments='{"ok":true}'))]
+        if any(p.get('type')=='image_url' for m in kwargs.get('messages',[]) for p in m.get('content',[]) if isinstance(p,dict)):content='white'
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content,tool_calls=tools),finish_reason='stop')],
+            usage=SimpleNamespace(prompt_tokens=20,completion_tokens=2))
+    return SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=Mock(side_effect=create))),close=Mock())
+
+
+class ModelSettingsTests(unittest.TestCase):
+    def test_saved_price_restart_new_call_and_conversation_report_share_the_frozen_rate(self):
+        from core.model_config import parse_config
+        from core.model_budget import MODEL_EVENT,model_call_context
+        from infrastructure.model_gateway import ModelGateway,conversation_usage_report,usage_report
+        config=configuration();config['roles']={'regular':'first-model'}
+        saved=self.save_models(config)
+        self.assertTrue(saved['model_config']['pending_restart'])
+        restarted=EnvSettingsStore(self.root,inherited={})
+        self.assertFalse(restarted.status()['model_config']['pending_restart'])
+        store=MemoryStore(self.root/'restart-price.db')
+        token=MODEL_EVENT.set('web:group:price-flow:one')
+        try:
+            with patch.dict(os.environ,{'AI_DAILY_COST_LIMIT':'0','AI_MONTHLY_COST_LIMIT':'0'}):
+                first=ModelGateway(store,configuration=parse_config(dotenv_values(self.path)['LLM_CONFIG_JSON']),
+                    client_factory=lambda **kw:probe_client())
+                with model_call_context('trip_plan'):first.create(messages=[])
+                config['profiles'][0]['pricing']={'input':7,'cached':None,'output':11,'currency':'USD'}
+                changed=self.save_models(config)
+                self.assertTrue(changed['model_config']['pending_restart'])
+                second=ModelGateway(store,configuration=parse_config(dotenv_values(self.path)['LLM_CONFIG_JSON']),
+                    client_factory=lambda **kw:probe_client())
+                with model_call_context('trip_plan'):second.create(messages=[])
+                active=EnvSettingsStore(self.root,inherited={}).status()['model_config']
+                self.assertTrue(active['runtime_pricing'][0]['complete'])
+                self.assertEqual(active['runtime_pricing'][0]['pricing']['input'],7)
+                with patch.dict(os.environ,{'LLM_CONFIG_JSON':dotenv_values(self.path)['LLM_CONFIG_JSON']}):
+                    settings_report=usage_report(store)
+                    conversation=conversation_usage_report(store,'price-flow','owner')
+        finally:MODEL_EVENT.reset(token)
+        self.assertAlmostEqual(settings_report['totals']['estimated_cost'],.000024+.000162)
+        self.assertEqual(conversation['totals']['estimated_cost'],settings_report['totals']['estimated_cost'])
+        with store._connect() as db:
+            rows=db.execute('SELECT input_price_per_m,estimated_cost FROM model_calls ORDER BY started_at').fetchall()
+        self.assertEqual([r['input_price_per_m'] for r in rows],[1,7])
+        self.assertEqual([r['estimated_cost'] for r in rows],[.000024,.000162])
+
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name)/'project';self.root.mkdir();self.path=self.root/'.env'
+        self.path.write_text('LLM_MODEL_ID=original\nLLM_BASE_URL=https://old.example/v1\nLLM_API_KEY=original-secret\nLLM_INTENT_MODEL_ID=intent\nLLM_SUMMARY_MODEL_ID=summary\n',encoding='utf-8')
+        self.store=EnvSettingsStore(self.root,inherited={})
+
+    def save_models(self,value,changes=None):
+        with patch('infrastructure.env_settings_store.public_address'):
+            return self.store.save(self.store.status()['version'],changes or {},model_config=value)
+
+    def test_legacy_projection_keeps_overrides_without_writing(self):
+        before=self.path.read_bytes();state=self.store.status()['model_config']
+        self.assertTrue(state['legacy']);self.assertEqual(len(state['profiles']),3)
+        self.assertNotEqual(state['purpose_overrides']['intent_parse'],state['purpose_overrides']['conversation_summary'])
+        self.assertEqual(self.path.read_bytes(),before);self.assertNotIn('original-secret',json.dumps(state))
+
+    def test_structured_save_redacts_then_retains_replaces_and_clears_each_key(self):
+        state=self.save_models(configuration());self.assertFalse(state['model_config']['legacy'])
+        self.assertEqual(state['fields']['LLM_CONFIG_JSON']['value'],'')
+        self.assertFalse(state['fields']['LLM_API_KEY']['editable'])
+        self.assertNotIn('-secret',json.dumps(state))
+        value=state['model_config'];value={k:value[k] for k in configuration()}
+        value['connections'][0]['api_key']=''
+        value['connections'][1]['api_key']='replacement'
+        value['connections'][2]['api_key']=None
+        self.save_models(value)
+        stored=json.loads(dotenv_values(self.path)['LLM_CONFIG_JSON'])['connections']
+        self.assertEqual([c['api_key'] for c in stored],['first-secret','replacement',''])
+        self.assertEqual(dotenv_values(self.path)['LLM_API_KEY'],'original-secret')
+
+    def test_rebinding_or_invalid_reference_is_atomic(self):
+        self.save_models(configuration());before=self.path.read_bytes()
+        value=configuration();value['connections'][0].update(base_url='https://new.example/v1',api_key='')
+        with self.assertRaisesRegex(ValueError,'新地址'):self.save_models(value,{'AI_BUDGET_TIER':'economy'})
+        self.assertEqual(self.path.read_bytes(),before)
+        value=configuration();value['connections'].pop()
+        with self.assertRaises(ValueError):self.save_models(value)
+        self.assertEqual(self.path.read_bytes(),before)
+
+    def test_legacy_fields_are_read_only_after_migration_and_explicit_clear_never_reactivates_them(self):
+        self.save_models(configuration())
+        with self.assertRaises(ValueError):self.store.save(self.store.status()['version'],{'LLM_API_KEY':'other'})
+        state=self.save_models(None)
+        self.assertFalse(state['model_config']['configured']);self.assertFalse(state['model_config']['legacy'])
+        self.assertEqual(dotenv_values(self.path)['LLM_API_KEY'],'original-secret')
+
+    def test_whole_block_inherited_source_is_not_merged_with_project_credentials(self):
+        value=configuration();controlled=EnvSettingsStore(self.root,inherited={'LLM_CONFIG_JSON':json.dumps(value)})
+        state=controlled.status()['model_config'];self.assertEqual(state['source'],'environment')
+        self.assertEqual(len(state['connections']),3)
+        self.assertNotIn('legacy',{c['id'] for c in state['connections']})
+        with patch('infrastructure.env_settings_store.public_address'):
+            controlled.save(controlled.status()['version'],{},model_config=value)
+        self.assertEqual(controlled.status()['model_config']['source'],'project')
+
+    def test_invalid_present_block_disables_models_and_can_be_replaced_without_old_key_fallback(self):
+        self.path.write_text(self.path.read_text()+"LLM_CONFIG_JSON='{broken'\n",encoding='utf-8')
+        self.assertFalse(self.store.status()['model_config']['valid'])
+        value=configuration()
+        for row in value['connections']:row.pop('api_key')
+        state=self.save_models(value)
+        self.assertFalse(state['model_config']['configured'])
+        self.assertTrue(all(not c['key_configured'] for c in state['model_config']['connections']))
+
+    def test_canonical_block_size_is_checked_before_atomic_save(self):
+        value={'schema_version':1,'connections':[{'id':'c'+str(i),'name':'n'*80,
+            'base_url':'https://example.com/v1','api_key':'k'*4096} for i in range(12)],
+            'profiles':[{'id':'p'+str(i),'connection_id':'c'+str(i%12),'model_id':'m'*200} for i in range(36)],
+            'roles':{'regular':'p0'}}
+        self.assertLess(len(json.dumps(value).encode()),65536)
+        before=self.path.read_bytes()
+        with self.assertRaises(ValueError):self.save_models(value)
+        self.assertEqual(self.path.read_bytes(),before)
 
 
 class ServiceSettingsTests(unittest.TestCase):
+    def test_rail_config_is_write_only_retains_and_clears_as_one_block(self):
+        raw=json.dumps({'enabled':True,'transport':'sse','endpoint':'https://rail.example/private/sse','bearer_token':'rail-secret'})
+        with patch('infrastructure.env_settings_store.public_address'):
+            result=self.save({'RAIL_MCP_CONFIG':raw})
+        self.assertEqual(result['fields']['RAIL_MCP_CONFIG']['value'],'')
+        self.assertTrue(result['rail_mcp']['enabled'])
+        self.assertNotIn('rail-secret',json.dumps(result))
+        self.assertNotIn('/private',json.dumps(result))
+        self.save({'RAIL_MCP_CONFIG':''})
+        self.assertEqual(dotenv_values(self.path)['RAIL_MCP_CONFIG'],raw)
+        self.save({'RAIL_MCP_CONFIG':None})
+        self.assertFalse(self.store.status()['rail_mcp']['enabled'])
+
+    def test_legacy_rail_probe_entry_remains_available(self):
+        import asyncio
+        from unittest.mock import AsyncMock
+        probe=AsyncMock(return_value={'status':'ok','detail':'contract only'})
+        with patch('infrastructure.service_probes.probe_rail_config',probe):
+            self.assertEqual(self.store.test('rail')['status'],'ok')
+        probe.assert_awaited_once()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -214,33 +360,33 @@ class ServiceSettingsTests(unittest.TestCase):
         self.save({'LLM_MODEL_ID':'shared-model', 'LLM_INTENT_MODEL_ID':'shared-model',
                    'LLM_SUMMARY_MODEL_ID':'shared-model', 'SEARCH_API_KEY':'search-secret'})
         store = MemoryStore(self.root/'probe.db')
-        response = json.dumps({'choices':[{'message':{'content':'OK'}}],
-            'usage':{'prompt_tokens':20,'completion_tokens':2,'prompt_tokens_details':{'cached_tokens':0}}}).encode()
-        with patch('infrastructure.service_probes.request_public', return_value=(response,'','application/json')) as model, \
+        client=probe_client();model=client.chat.completions.create
+        with patch('infrastructure.service_probes.create_model_client', return_value=client), \
                 patch('infrastructure.service_probes.SearchClient.search',return_value=[]) as search, \
                 patch('infrastructure.service_probes.AmapClient._get',return_value={'lives':[{'city':'北京'}]}) as amap:
             report = self.store.test_all(store)
-        self.assertEqual(report['summary'], {'ok':4,'failed':0,'skipped':0})
-        self.assertEqual(model.call_count,2)  # One text request and one image-input request.
-        contents = [call.kwargs['payload']['messages'][0]['content'] for call in model.call_args_list]
+        self.assertEqual(report['summary'], {'ok':6,'failed':0,'skipped':2})
+        self.assertEqual(model.call_count,4)  # Text, JSON, tool and image contracts are independent.
+        contents = [call.kwargs['messages'][0]['content'] for call in model.call_args_list]
         self.assertEqual(sum(any(part['type']=='image_url' for part in content) for content in contents),1)
         search.assert_called_once()
         amap.assert_called_once_with('/v3/weather/weatherInfo',{'city':'110100','extensions':'base'})
-        self.assertIn('意图解析', report['results'][0]['label'])
+        self.assertEqual({r['capability'] for r in report['results'] if r['service']=='model'},{'text','json','tools','vision'})
         with store._connect() as db:
             rows = db.execute('SELECT purpose,prompt_tokens,completion_tokens FROM model_calls').fetchall()
-        self.assertEqual(len(rows),2)
+        self.assertEqual(len(rows),4)
         self.assertTrue(all(row['purpose']=='service_probe' and row['prompt_tokens']==20 for row in rows))
         for secret in ('old-model-fixture','old-map-fixture','search-secret'):
             self.assertNotIn(secret,json.dumps(report))
 
     def test_all_services_isolates_failures_and_does_not_return_provider_errors(self):
         self.save({'LLM_MODEL_ID':'test-model','SEARCH_API_KEY':'search-secret'})
-        with patch('infrastructure.service_probes.request_public',side_effect=PublicHTTPError('unauthorized')), \
+        client=probe_client();client.chat.completions.create.side_effect=PublicHTTPError('unauthorized')
+        with patch('infrastructure.service_probes.create_model_client',return_value=client), \
                 patch('infrastructure.service_probes.SearchClient.search',side_effect=RuntimeError('secret-provider-error')), \
                 patch('infrastructure.service_probes.AmapClient._get',return_value={'lives':[{}]}):
             report = self.store.test_all(MemoryStore(self.root/'probe.db'))
-        self.assertEqual(report['summary'],{'ok':1,'failed':3,'skipped':0})
+        self.assertEqual(report['summary'],{'ok':1,'failed':5,'skipped':2})
         self.assertIn('认证失败',report['results'][0]['detail'])
         self.assertNotIn('secret-provider-error',json.dumps(report))
 
@@ -249,18 +395,18 @@ class ServiceSettingsTests(unittest.TestCase):
                'LLM_SUMMARY_MODEL_ID':'saved-summary','LLM_RESEARCH_MODEL_ID':'saved-research',
                'LLM_VISION_MODEL_ID':'saved-vision'}
         self.save({**names,'SEARCH_API_KEY':'search-secret'})
-        response=json.dumps({'choices':[{'message':{'content':'OK'}}],
-                             'usage':{'prompt_tokens':20,'completion_tokens':2}}).encode()
+        self.save({'LLM_INPUT_PRICE_PER_M':'2','LLM_OUTPUT_PRICE_PER_M':'10'})
+        client=probe_client();model=client.chat.completions.create
         store=MemoryStore(self.root/'probe.db')
         with patch.dict(os.environ,{'LLM_INTENT_MODEL_ID':'wrong-runtime-model',
                 'LLM_INPUT_PRICE_PER_M':'2','LLM_OUTPUT_PRICE_PER_M':'10','LLM_MODEL_PRICES':'[]',
                 'AI_DAILY_COST_LIMIT':'0','AI_MONTHLY_COST_LIMIT':'0'}), \
-                patch('infrastructure.service_probes.request_public',return_value=(response,'','application/json')) as model, \
+                patch('infrastructure.service_probes.create_model_client',return_value=client), \
                 patch('infrastructure.service_probes.SearchClient.search',return_value=[]), \
                 patch('infrastructure.service_probes.AmapClient._get',return_value={'lives':[{}]}):
             report=self.store.test_all(store)
-        self.assertEqual(report['summary'],{'ok':7,'failed':0,'skipped':0})
-        self.assertEqual({call.kwargs['payload']['model'] for call in model.call_args_list},set(names.values()))
+        self.assertEqual(report['summary'],{'ok':9,'failed':0,'skipped':2})
+        self.assertEqual({call.kwargs['model'] for call in model.call_args_list},set(names.values()))
         with store._connect() as db:
             costs={row['model_id']:row['estimated_cost'] for row in db.execute('SELECT model_id,estimated_cost FROM model_calls')}
         self.assertIsNotNone(costs['saved-default'])
@@ -268,7 +414,7 @@ class ServiceSettingsTests(unittest.TestCase):
 
     def test_all_services_skips_unconfigured_targets_without_network(self):
         self.save({'LLM_API_KEY':None,'AMAP_API_KEY':None})
-        with patch('infrastructure.service_probes.request_public') as model, \
+        with patch('infrastructure.service_probes.create_model_client') as model, \
                 patch('infrastructure.service_probes.SearchClient.search') as search, \
                 patch('infrastructure.service_probes.AmapClient._get') as amap:
             report = self.store.test_all(MemoryStore(self.root/'probe.db'))
@@ -295,3 +441,66 @@ class ServiceSettingsTests(unittest.TestCase):
                     json={'service':'all'}).status_code,409)
             finally:
                 self.store._probe_lock.release()
+
+    def test_all_services_includes_enabled_rail_and_wendao_once(self):
+        from unittest.mock import AsyncMock
+        with patch('infrastructure.env_settings_store.public_address'):
+            self.save({'RAIL_MCP_CONFIG':json.dumps({'enabled':True,'endpoint':'https://rail.example/mcp'}),
+                'WENDAO_ENABLED':'true','WENDAO_API_KEY':'wendao-fixture','LLM_MODEL_ID':'shared'})
+        client=probe_client();rail=AsyncMock(return_value={'status':'ok','detail':'铁路合同通过；未查车票。'})
+        with patch('infrastructure.service_probes.create_model_client',return_value=client),\
+             patch('infrastructure.service_probes.probe_rail_config',rail),\
+             patch('infrastructure.service_probes.WendaoClient.query',return_value={'status':'completed'}) as wendao,\
+             patch('infrastructure.service_probes.AmapClient._get',return_value={'lives':[{}]}):
+            report=self.store.test_all(MemoryStore(self.root/'all.db'))
+        self.assertEqual({r['service'] for r in report['results']},{'model','search','amap','rail','wendao'})
+        self.assertEqual(next(r for r in report['results'] if r['service']=='rail')['status'],'ok')
+        self.assertEqual(next(r for r in report['results'] if r['service']=='wendao')['status'],'ok')
+        rail.assert_awaited_once();wendao.assert_called_once()
+        self.assertEqual(wendao.call_args.kwargs['timeout'],20)
+        self.assertIn('一句话',wendao.call_args.args[2])
+
+    def test_disabled_services_do_not_submit_and_failures_are_independent(self):
+        from unittest.mock import AsyncMock
+        self.save({'WENDAO_API_KEY':'saved-but-disabled'})
+        with patch('infrastructure.service_probes.probe_rail_config',new_callable=AsyncMock) as rail,\
+             patch('infrastructure.service_probes.WendaoClient.query') as wendao,\
+             patch('infrastructure.service_probes.AmapClient._get',return_value={'lives':[{}]}):
+            report=self.store.test_all(MemoryStore(self.root/'disabled.db'))
+        rail.assert_not_awaited();wendao.assert_not_called()
+        self.assertTrue(all(r['status']=='skipped' for r in report['results'] if r['service'] in {'rail','wendao'}))
+
+    def test_invalid_model_and_rail_configuration_do_not_block_wendao(self):
+        self.path.write_text(self.path.read_text()+"\nLLM_CONFIG_JSON='{invalid'\nRAIL_MCP_CONFIG='{invalid'\nWENDAO_ENABLED=true\nWENDAO_API_KEY=fixture\n",encoding='utf-8')
+        with patch('infrastructure.service_probes.WendaoClient.query',return_value={'status':'completed'}) as wendao,\
+             patch('infrastructure.service_probes.AmapClient._get',return_value={'lives':[{}]}):
+            report=self.store.test_all(MemoryStore(self.root/'invalid.db'))
+        rows={r['service']:r for r in report['results']}
+        self.assertEqual(rows['model']['status'],'failed');self.assertEqual(rows['rail']['status'],'failed')
+        self.assertEqual(rows['wendao']['status'],'ok');wendao.assert_called_once()
+
+    def test_rail_and_wendao_errors_never_leak_credentials_or_retry(self):
+        from unittest.mock import AsyncMock
+        with patch('infrastructure.env_settings_store.public_address'):
+            self.save({'RAIL_MCP_CONFIG':json.dumps({'enabled':True,'endpoint':'https://rail.example/private'}),
+                'WENDAO_ENABLED':'true','WENDAO_API_KEY':'private-token'})
+        rail=AsyncMock(side_effect=RuntimeError('private-token https://rail.example/private'))
+        with patch('infrastructure.service_probes.probe_rail_config',rail),\
+             patch('infrastructure.service_probes.WendaoClient.query',return_value={'status':'result_unknown','error_code':'read_timeout'}) as wendao,\
+             patch('infrastructure.service_probes.AmapClient._get',return_value={'lives':[{}]}):
+            report=self.store.test_all(MemoryStore(self.root/'failed.db'))
+        rows={r['service']:r for r in report['results']}
+        self.assertEqual(rows['amap']['status'],'ok');self.assertEqual(rows['rail']['status'],'failed')
+        self.assertIn('结果未知',rows['wendao']['detail']);self.assertNotIn('private-token',json.dumps(report))
+        self.assertNotIn('https://rail.example/private',json.dumps(report));wendao.assert_called_once()
+
+    def test_wendao_probe_reuses_the_real_single_submission_contract(self):
+        from infrastructure.wendao_client import WendaoClient
+        self.save({'WENDAO_ENABLED':'true','WENDAO_API_KEY':'probe-fixture-token','LLM_API_KEY':None,'AMAP_API_KEY':None})
+        transport=Mock(return_value=(b'{"result":{"content":"ok"}}','','application/json'))
+        store=MemoryStore(self.root/'wendao-probe.db')
+        with patch('infrastructure.service_probes.WendaoClient',side_effect=lambda token,enabled:WendaoClient(token,enabled,transport=transport)):
+            report=self.store.test_all(store)
+        self.assertEqual(next(r for r in report['results'] if r['service']=='wendao')['status'],'ok')
+        transport.assert_called_once();self.assertEqual(transport.call_args.kwargs['max_attempts'],1)
+        with store._connect() as db:self.assertEqual(db.execute('SELECT count(*) FROM wendao_calls').fetchone()[0],1)

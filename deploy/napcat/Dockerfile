@@ -19,5 +19,6 @@ COPY skills ./skills
 COPY data/official_sources.json ./data/official_sources.json
 COPY data/attraction_aliases.json ./data/attraction_aliases.json
 COPY prompts ./prompts
+COPY tests ./tests
 
 CMD ["uvicorn", "adapters.onebot_app:create_runtime_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

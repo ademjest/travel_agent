@@ -11,8 +11,10 @@ CoroutineFactory = Callable[[], Awaitable[None]]
 
 
 class BackgroundSupervisor:
-    def __init__(self, restart_delay_seconds: float = 1.0):
+    def __init__(self, restart_delay_seconds: float = 1.0, *, resources=()):
         self.restart_delay_seconds = restart_delay_seconds
+        self._resources = tuple(resources)
+        self._resources_started = False
         self._tasks: dict[str, asyncio.Task] = {}
         self._factories: dict[str, CoroutineFactory] = {}
         self._restart_counts: dict[str, int] = {}
@@ -20,6 +22,10 @@ class BackgroundSupervisor:
         self._last_failures: dict[str, str] = {}
 
     def start(self, name: str, factory: CoroutineFactory) -> asyncio.Task:
+        if not self._resources_started:
+            for resource in self._resources:
+                resource.start()
+            self._resources_started = True
         current = self._tasks.get(name)
         if current is not None and not current.done():
             return current
@@ -63,3 +69,6 @@ class BackgroundSupervisor:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        for resource in self._resources:
+            await resource.close()
+        self._resources_started = False

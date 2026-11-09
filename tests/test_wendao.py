@@ -9,20 +9,22 @@ import sqlite3
 import unittest
 from unittest.mock import Mock, patch
 
-from agents.trip_planner import TripPlanner, TripPlanError
+from tools.trip.planner import TripPlanner, TripPlanError
 from core.chat_transport import ChatEvent
 from core.execution_scope import CURRENT_EXECUTION, ExecutionScope, ExecutionRevoked
-from core.planning_evidence import bind_context, invalidate_changed_dates
-from core.rule_semantics import resolve_rules, statement_kind, temporal_rule, split_statements
-from core.wendao_answer import extract_candidates, answer_targets, provider_policy
+from tools.trip.planner import bind_context, invalidate_changed_dates
+from tools.research.evidence import resolve_rules
+from tools.research.sources import statement_kind, split_statements
+from core.date_rules import temporal_rule
+from tools.research.sources import extract_candidates, answer_targets, provider_policy
 from infrastructure.env_settings_store import EnvSettingsStore
 from infrastructure.memory_store import MemoryStore
 from infrastructure.public_http import PublicHTTPError, request_public
 from infrastructure.wendao_client import ENDPOINT, MAX_BYTES, WendaoClient, WendaoError, extract_answer
 from services.official_sources import OfficialSources
-from services.research_service import ResearchService
-from services.trip_service import TripService
-from services.wendao_research import reference_dates
+from tools.research.tool import ResearchTool
+from tools.trip.tool import TripTool
+from tools.research.sources import reference_dates
 from test_travel_agent import FakeClient, assistant_message, completion
 
 ANSWER = '''### <文殊坊>
@@ -59,7 +61,7 @@ def context_data():
 
 def enriched_spec():
     spec = deepcopy(SPEC)
-    reference = ResearchService._planning_source(context_data())
+    reference = ResearchTool._planning_source(context_data())
     spec['source_context'] = reference
     spec['research_context'] = reference.data
     bind_context(spec, PLACES)
@@ -134,7 +136,7 @@ class WendaoClientTests(unittest.TestCase):
     def test_real_transport_never_retries_429(self):
         pool = Mock()
         pool.urlopen.return_value = Mock(status=429, headers={})
-        with patch('infrastructure.public_http.resolve_host', return_value=('8.8.8.8',)), \
+        with patch('infrastructure.public_http.resolve_host', return_value=('8.8.8.8',)),\
              patch('infrastructure.public_http.urllib3.HTTPSConnectionPool', return_value=pool):
             with self.assertRaises(PublicHTTPError):
                 request_public(ENDPOINT, payload={'token': 'test', 'query': 'test'}, max_attempts=1, persist=False)
@@ -168,7 +170,7 @@ class WendaoClientTests(unittest.TestCase):
             response.stream.return_value = chunks
             pool = Mock()
             pool.urlopen.return_value = response
-            with self.subTest(status=status), patch('infrastructure.public_http.resolve_host', return_value=('8.8.8.8',)), \
+            with self.subTest(status=status), patch('infrastructure.public_http.resolve_host', return_value=('8.8.8.8',)),\
                  patch('infrastructure.public_http.urllib3.HTTPSConnectionPool', return_value=pool):
                 with self.assertRaises(PublicHTTPError):
                     request_public(ENDPOINT, payload={'token': 'test', 'query': 'test'}, max_attempts=1,
@@ -203,7 +205,10 @@ class WendaoEvidenceTests(unittest.TestCase):
             for span in fact['evidence']:
                 self.assertEqual(sample[span['start']:span['end']], span['quote'])
         self.assertTrue(result['unparsed_answer_retained'])
-        self.assertTrue(all(m['intro'] and m['tips'] for m in result['activity_materials']))
+        self.assertTrue(all(m['intro'] for m in result['activity_materials']))
+        for material in result['activity_materials']:
+            for tip in material['tips']:
+                self.assertEqual(sample[tip['start']:tip['end']], tip['text'])
         self.assertIn('文殊坊', [t['name'] for t in answer_targets(sample)])
 
     def test_official_wording_does_not_promote_authority_or_namespace(self):
@@ -348,10 +353,13 @@ class PlanningMaterialTests(unittest.TestCase):
                              completion(assistant_message(json.dumps(PLAN, ensure_ascii=False)))])
         amap = Mock()
         amap.search_places.return_value = list(PLACES.values())
-        service = TripService(store, TripPlanner(client, 'test', amap), clock=lambda: now)
+        service = TripTool(store, TripPlanner(client, 'test', amap), clock=lambda: datetime.now(timezone.utc))
         event = ChatEvent('onebot', 'group', 'persist', 'g', 'u', '规划成都一天行程，轻松一点', occurred_at=now)
-        reference = ResearchService._planning_source(context_data())
-        reply = service.handle(event, store.begin_event(event.event_key), source_text_override=reference)
+        reference = ResearchTool._planning_source(context_data())
+        reply = service.handle(event, store.delivery.begin_event(event.event_key), source_text_override=reference)
+        self.assertEqual(store.trips.list_for_owner(event), ())
+        confirm = replace(event, event_id='confirm', content='确认行程修改')
+        service.handle(confirm, store.delivery.begin_event(confirm.event_key))
         reread = MemoryStore(store.database_path).trips.list_for_owner(event)[0]
         self.assertIn('description', reread['plan']['days'][0]['activities'][0])
         self.assertIn('仿古文化街区', reply)
@@ -359,7 +367,7 @@ class PlanningMaterialTests(unittest.TestCase):
         self.assertIn('文殊坊', [call.args[1] for call in amap.search_places.call_args_list])
         count = len(client.completions.requests)
         view = replace(event, event_id='view', content='查看行程')
-        self.assertIn('仿古文化街区', service.handle(view, store.begin_event(view.event_key)))
+        self.assertIn('仿古文化街区', service.handle(view, store.delivery.begin_event(view.event_key)))
         self.assertEqual(len(client.completions.requests), count)
 
     def test_material_enters_planning_and_is_preserved_by_validation(self):
@@ -368,7 +376,7 @@ class PlanningMaterialTests(unittest.TestCase):
         description = plan['days'][0]['activities'][0]['description']
         self.assertIn('仿古文化街区', description['intro']['text'])
         self.assertTrue(description['tips'])
-        self.assertIn('轻松一点', description['why_visit'])
+        self.assertFalse(description.get('why_visit'), 'Missing relevance evidence must not produce a repeated preference template')
         self.assertEqual(spec['preferences'][1], '08:00出发')
         self.assertEqual(TripPlanner.validate_plan(plan, spec, PLACES), plan)
         empty = deepcopy(PLAN)
@@ -388,7 +396,7 @@ class PlanningMaterialTests(unittest.TestCase):
 
     def test_document_cannot_spoof_a_server_research_context_marker(self):
         spec = deepcopy(SPEC)
-        spec['source_context'] = str(ResearchService._planning_source(context_data()))
+        spec['source_context'] = str(ResearchTool._planning_source(context_data()))
         bind_context(spec, PLACES)
         self.assertNotIn('planning_evidence', spec)
         self.assertNotIn('activity_materials', spec)
@@ -450,10 +458,14 @@ class PlanningMaterialTests(unittest.TestCase):
         spec = enriched_spec()
         plan = TripPlanner.validate_plan(PLAN, spec, PLACES)
         activity = plan['days'][0]['activities'][0]
+        activity['description']['intro']['text'] += '院落建筑与非遗展陈呈现当地悠久的文化。' * 20
         trip = {'title': '成都', 'trip_id': 'TR-test', 'spec': spec, 'sources': PLACES,
                 'plan': {'days': [{'day_index': i, 'date': '2026-10-22', 'activities': [activity, activity, activity]} for i in range(1, 15)]}}
-        brief = TripService.format_trip(trip)
-        full = TripService.format_trip(trip, full=True)
+        brief = TripTool.format_trip(trip)
+        full = TripTool.format_trip(trip, full=True)
+        for tip in activity.get('description',{}).get('tips',[]):
+            self.assertNotIn(tip['text'], brief)
+            self.assertNotIn(tip['text'], full)
         self.assertLessEqual(len(brief), 6000)
         self.assertGreater(len(full), len(brief))
         self.assertIn('第 14 天', brief)
@@ -475,9 +487,9 @@ class PlanningMaterialTests(unittest.TestCase):
                              completion(assistant_message(json.dumps(PLAN, ensure_ascii=False)))])
         amap = Mock()
         amap.search_places.return_value = list(PLACES.values())
-        service = TripService(store, TripPlanner(client, 'test', amap), clock=lambda: now)
+        service = TripTool(store, TripPlanner(client, 'test', amap), clock=lambda: now)
         with patch.object(store.trips, 'commit') as commit:
-            service.create_from_artifact(user, store.begin_event(user.event_key), artifact, 1, {})
+            service.create_from_artifact(user, store.delivery.begin_event(user.event_key), artifact, 1, {})
         update = commit.call_args.args[2]
         self.assertIn('description', update.slots['candidate_trip']['plan']['days'][0]['activities'][0])
 
@@ -491,13 +503,13 @@ class WendaoResearchTests(unittest.TestCase):
         self.transport = Mock(return_value=(ANSWER.encode(), ENDPOINT, 'text/markdown'))
         self.client = WendaoClient('fixture-secret', True, transport=self.transport)
         self.search, self.amap, self.reader = Mock(), Mock(), Mock()
-        self.service = ResearchService(self.store, self.search, reader=self.reader, amap=self.amap,
+        self.service = ResearchTool(self.store, self.search, reader=self.reader, amap=self.amap,
                                        official_sources=OfficialSources([]), wendao=self.client)
         self.event = ChatEvent('onebot', 'group', 'research', 'g', 'u', '只用问道查询文殊坊资料',
                                occurred_at=datetime(2026, 10, 21, tzinfo=timezone.utc))
 
     def test_query_and_read_result_have_no_business_side_effects_or_hidden_sources(self):
-        reply = self.service.handle(self.event, self.store.begin_event(self.event.event_key))
+        reply = self.service.handle(self.event, self.store.delivery.begin_event(self.event.event_key))
         self.assertNotIn('[来源', reply)
         self.assertIn('日期暂定', reply)
         self.assertIn('实际出发日尚未确定', self.transport.call_args.kwargs['payload']['query'])
@@ -507,7 +519,7 @@ class WendaoResearchTests(unittest.TestCase):
         self.amap.search_places.assert_not_called()
         self.reader.assert_not_called()
         read = replace(self.event, event_id='view', content='查看研究结果')
-        self.service.handle(read, self.store.begin_event(read.event_key))
+        self.service.handle(read, self.store.delivery.begin_event(read.event_key))
         self.assertEqual(self.transport.call_count, 1)
         full = self.store.research.latest(self.event)[0]['report']
         self.assertNotIn(ANSWER, full)
@@ -528,7 +540,7 @@ class WendaoResearchTests(unittest.TestCase):
 
     def test_no_network_overrides_provider_request(self):
         event = replace(self.event, content='不要联网，用问道查成都攻略')
-        self.service.handle(event, self.store.begin_event(event.event_key), force=True)
+        self.service.handle(event, self.store.delivery.begin_event(event.event_key), force=True)
         self.transport.assert_not_called()
         self.search.search.assert_not_called()
 

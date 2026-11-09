@@ -1,11 +1,9 @@
 """Service-owned context and result contracts; model output cannot authorize a write."""
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-import re
 
-from core.tasks import TaskUpdate, read_task_continuation
+from core.tasks import TaskUpdate
 from core.tool_result import ToolResult
-from core.intent_ir import IntentIR, IntentOperation, READ_OPERATION_FIELDS
+from core.intent_ir import IntentIR, IntentOperation, READ_OPERATION_FIELDS, RAIL_ENUMS, DERIVED_READ_FIELDS
 
 
 @dataclass(frozen=True)
@@ -16,14 +14,6 @@ class TaskContext:
     slots: dict = field(default_factory=dict)
     input_text: str = ''
 
-    @classmethod
-    def for_read(cls, event, tasks):
-        task, message = read_task_continuation(event.content, tasks)
-        timestamp = (event.occurred_at or datetime.now(timezone.utc)).isoformat()
-        reference = task.slots.get('reference_time', timestamp) if task else timestamp
-        if task and re.search(r'今天|明天|后天', event.content):
-            reference = timestamp
-        return cls(task, message, reference, dict(task.slots) if task else {}, event.content)
 
     def read_value(self, field, proposed):
         current=self.slots.get(field,'')
@@ -37,6 +27,9 @@ class TaskContext:
 class TravelReadRequest:
     queries: tuple[IntentOperation, ...]
     context: TaskContext
+    source: str = 'semantic'
+    explain: bool = False
+    missing_fields: tuple[tuple[str, ...], ...] = ()
 
     @classmethod
     def from_ir(cls, ir, context):
@@ -45,28 +38,70 @@ class TravelReadRequest:
                 or any(span not in context.message for span in ir.source_spans)):
             return None
         queries=[]
-        for operation in ir.operations:
+        missing=[]
+        for name in ir.missing_fields:
+            # Hotel missing fields are derived by the typed tool, not model labels.
+            if len(ir.operations)==1 and ir.operations[0].domain=='hotel':continue
+            owners=[op for op in ir.operations if name in READ_OPERATION_FIELDS.get(op.domain,())]
+            if not owners and any(op.domain=='hotel' for op in ir.operations):
+                from core.hotel_contract import LABELS
+                if name in {*LABELS,'city'} or name.startswith(('stay.','discovery.')):
+                    owners=[op for op in ir.operations if op.domain=='hotel']
+            if not owners or len(owners)>1 and any(name not in DERIVED_READ_FIELDS.get(op.domain,()) for op in owners):
+                return None
+        for index,operation in enumerate(ir.operations):
             fields=READ_OPERATION_FIELDS.get(operation.domain)
             if (fields is None or operation.operation != ('search' if operation.domain=='places' else 'query')
                     or operation.values.keys()-fields):
                 return None
+            if operation.domain=='hotel':
+                from core.hotel_contract import validate_request
+                # Validate evidence once, after the executor binds owned task/message context.
+                queries.append(IntentOperation('hotel','query',validate_request(operation.values)));missing.append(())
+                continue
+            inherited=context.slots
+            source_index=index
+            if operation.domain=='rail' and context.slots.get('queries'):
+                baselines=context.slots['queries']
+                scores=[sum(bool(operation.values.get(k)) and operation.values[k]==base.get(k) for k in ('origin','destination')) for base in baselines]
+                best=max(scores)
+                if not best or scores.count(best)!=1:
+                    return None
+                source_index=scores.index(best)
+                inherited={**context.slots,**baselines[source_index]}
+            pending_rows=context.slots.get('missing_fields',())
+            pending=context.task.missing_slots if context.task else pending_rows[source_index] if source_index<len(pending_rows) else ()
+            derived=DERIVED_READ_FIELDS.get(operation.domain,())
+            needed=tuple(dict.fromkeys([name for name in ir.missing_fields if name in fields and name not in derived]+
+                [name for name in pending if name in fields and name not in derived and not operation.values.get(name)]))
             values={}
             for field in fields:
-                value=context.read_value(field,operation.values.get(field,context.slots.get(field,'')))
+                if field in needed:
+                    continue
+                if (operation.domain=='rail' and field.endswith('_scope') and field not in operation.values
+                        and operation.values.get(field[:-6]) and operation.values[field[:-6]]!=inherited.get(field[:-6])):
+                    continue
+                if (field in derived and not (isinstance(operation.values.get(field),str) and operation.values[field]
+                        and operation.values[field] in context.input_text) and any(
+                        operation.values.get(key) and inherited.get(key) and operation.values[key].strip()!=inherited[key].strip()
+                        for key in ('origin','destination'))):
+                    continue
+                value=context.read_value(field,operation.values.get(field,inherited.get(field,'')))
+                if field in derived and isinstance(value,str) and value not in context.message and value!=inherited.get(field):
+                    continue
                 if (not isinstance(value,str) or len(value)>150
-                        or (value and value not in context.message and value!=context.slots.get(field))):
+                        or (value and value not in context.message and value!=inherited.get(field)
+                            and not (operation.domain=='rail' and field in RAIL_ENUMS and value in RAIL_ENUMS[field]))):
                     return None
                 if value:
                     values[field]=value
             queries.append(IntentOperation(operation.domain,operation.operation,values))
-        queries=[query for query in queries if not (query.domain=='route'
+            missing.append(needed)
+        selected=[(query,needed) for query,needed in zip(queries,missing) if not (query.domain=='route'
             and query.values.get('origin') and query.values.get('destination')
             and any(other.domain=='traffic' and other.values==query.values for other in queries))]
-        # The existing loop tracks required tools by domain, not by location.
-        # Same-domain multi-location comparisons keep the full original-text path.
-        if len({query.domain for query in queries})!=len(queries):
-            return None
-        return cls(tuple(queries),context)
+        return cls(tuple(query for query,_ in selected),context,
+                   missing_fields=tuple(needed for _,needed in selected))
 
     @property
     def known_fields(self):
@@ -86,3 +121,19 @@ class ExecutionOutcome:
         if self.task_update is not None and claim is not None and hasattr(store, 'tasks'):
             store.tasks.prepare_result(event, claim, self.task_update, self.reply)
         return self.reply
+
+
+@dataclass(frozen=True)
+class TravelDecision:
+    intent: str
+    intents: tuple[str, ...]
+    require_live_data: bool
+    allowed_tools: tuple[str, ...]
+    required_tool_groups: tuple[tuple[str, ...], ...]
+    needs_clarification: bool
+    response_detail: str
+    action_resources: tuple[tuple[str, str], ...] = ()
+    clarification_reply: str = ""
+
+
+CONVERSATION_POLICY = TravelDecision("general", ("general",), False, ('query_hotel_prices',), (), False, "normal")

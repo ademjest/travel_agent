@@ -1,3 +1,4 @@
+from tools.reservation.tool import ReservationTool
 import asyncio
 import asyncio
 import tempfile
@@ -8,13 +9,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from app.bot_application import TravelBotApplication
+from agents.travel_agent import AgentResult
 from core.chat_transport import ChatAttachment, ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.document_service import DocumentIngestResult
+from tools.materials import DocumentIngestResult
 from services.outbox_worker import OutboxWorker
-from services.reservation_draft_creator import ReservationDraftCreator
-from services.upload_binding import PrivateUploadResult
-from tools.reservation_tools import AgentToolRouter
+
+from adapters.upload_binding import PrivateUploadResult
+from tools.registry import AgentToolRouter
 
 
 class FakeTransport:
@@ -31,6 +33,8 @@ class FakeRenderer:
 
 
 class FakeTravelService:
+    manages_read_retries = False
+
     def __init__(self):
         self.calls = []
 
@@ -38,14 +42,23 @@ class FakeTravelService:
         self.calls.append(content)
         return f"fixed:{content}"
 
+    def execute_scoped_result(self, name, arguments, context):
+        return self.execute_result(name, arguments)
+
+    def execute_result(self, name, arguments):
+        from core.tool_result import ToolResult
+        content='查询天气 '+arguments['location']
+        self.calls.append(content)
+        return ToolResult('completed',name,data=f'fixed:{content}\n天气：晴')
+
 
 class FakeTravelAgent:
     def __init__(self):
         self.calls = []
 
-    def run(self, content, context):
+    def run(self, content, context, knowledge_context="", tool_context=None, *, read_request=None, decision_override=None):
         self.calls.append((content, context))
-        return SimpleNamespace(reply=f"agent:{content}", traces=())
+        return AgentResult(reply=f"agent:{content}", traces=())
 
 
 class FakeDocumentService:
@@ -101,9 +114,9 @@ class FakeReservationImageService:
         return SimpleNamespace(image=image, extraction=extraction)
 
 
-class FakeReservationService:
+class FakeReservationService(ReservationTool):
     def __init__(self, store):
-        self.store = store
+        super().__init__(store)
         self.created = []
         self.commands = []
         self.active_workflows = set()
@@ -164,14 +177,8 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.upload_service = FakeUploadBindingService()
         self.reservation_image_service = FakeReservationImageService()
         self.reservation_service = FakeReservationService(self.store)
-        self.tool_router = AgentToolRouter(
-            self.travel_service,
-            self.reservation_service,
-            ReservationDraftCreator(
-                self.reservation_image_service,
-                self.reservation_service,
-            ),
-        )
+        self.reservation_service.image_service = self.reservation_image_service
+        self.tool_router = AgentToolRouter(self.travel_service, self.reservation_service)
         self.application = TravelBotApplication(
             store=self.store,
             travel_service=self.travel_service,
@@ -207,11 +214,8 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(self.travel_service.calls, ["查询天气 西宁"])
         self.assertEqual(len(self.transport.messages), 1)
-        self.assertEqual(
-            self.transport.messages[0].payload["content"],
-            "fixed:查询天气 西宁",
-        )
-        self.assertEqual(self.store.get_event_status(event.event_key), "completed")
+        self.assertIn("fixed:查询天气 西宁\n天气：晴",self.transport.messages[0].payload["content"])
+        self.assertEqual(self.store.delivery.get_event_status(event.event_key), "completed")
 
     async def test_unknown_group_message_uses_llm_agent(self):
         event = self.group_event("message-llm", "帮我评估明天的行程")
@@ -233,7 +237,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("8000", str(self.transport.messages[0].payload))
 
     async def test_multi_target_research_brief_survives_real_outbox_without_cutting(self):
-        from core.attraction_projection import attraction_report
+        from tools.research.evidence import attraction_report
         from test_attraction_projection import sample_data
         data = sample_data()
         for fact in data['facts']:
@@ -249,7 +253,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('须携带有效证件原件，未预约不得入馆。', sent)
 
     async def test_document_context_is_passed_to_agent(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-a",
             "member-a",
             "plan.txt",
@@ -277,7 +281,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
         await self.application.handle(event)
 
         self.assertEqual(self.travel_service.calls, [])
-        self.assertIsNone(self.store.get_event_status(event.event_key))
+        self.assertIsNone(self.store.delivery.get_event_status(event.event_key))
         self.assertEqual(self.transport.messages, [])
 
     async def test_duplicate_event_is_not_processed_twice(self):
@@ -291,18 +295,18 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_long_running_event_renews_processing_lease(self):
         class SlowTravelService(FakeTravelService):
-            def handle(inner_self, content):
+            def execute_result(inner_self, name, arguments):
                 time.sleep(0.05)
-                return super().handle(content)
+                return super().execute_result(name, arguments)
 
         renewals = []
-        original_renew = self.store.renew_event
+        original_renew = self.store.delivery.renew_event
 
         def record_renewal(*args, **kwargs):
             renewals.append(args)
             return original_renew(*args, **kwargs)
 
-        self.store.renew_event = record_renewal
+        self.store.delivery.renew_event = record_renewal
         application = TravelBotApplication(
             store=self.store,
             travel_service=SlowTravelService(),
@@ -325,7 +329,7 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
 
         await self.application.handle(event)
 
-        messages = self.store.get_recent_chat_messages(
+        messages = self.store.conversations.get_recent_chat_messages(
             "qq_official",
             "group-a",
         )
@@ -431,14 +435,8 @@ class TravelBotApplicationTests(unittest.IsolatedAsyncioTestCase):
                 return super().process_attachment(**kwargs)
 
         image_service = SlowReservationImageService()
-        tool_router = AgentToolRouter(
-            self.travel_service,
-            self.reservation_service,
-            ReservationDraftCreator(
-                image_service,
-                self.reservation_service,
-            ),
-        )
+        self.reservation_service.image_service = image_service
+        tool_router = AgentToolRouter(self.travel_service, self.reservation_service)
         worker = OutboxWorker("onebot", self.store, self.transport)
         application = TravelBotApplication(
             store=self.store,

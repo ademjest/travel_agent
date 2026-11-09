@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from infrastructure.memory_store import MemoryStore
-from services.reservation_service import ReservationExtractionItem
+from tools.reservation.dates import ReservationExtractionItem
 
 
 class ReservationStoreTests(unittest.TestCase):
@@ -19,7 +19,7 @@ class ReservationStoreTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def create_refreshable_plan(self):
-        image, unused = self.store.create_reservation_image(
+        image, unused = self.store.reservations.create_reservation_image(
             storage_scope_id="group-a",
             platform="qq_official",
             group_id="group-a",
@@ -41,7 +41,7 @@ class ReservationStoreTests(unittest.TestCase):
             source_text="青海湖提前一天预约",
             confidence=0.99,
         )
-        return self.store.create_reservation_draft(
+        return self.store.reservations.create_reservation_draft(
             image_id=image.image_id,
             platform="qq_official",
             group_id="group-a",
@@ -86,7 +86,7 @@ class ReservationStoreTests(unittest.TestCase):
                 self.assertIn("refresh_revision", columns)
 
     def test_image_deduplication_is_scoped_to_group_storage(self):
-        first, first_is_new = self.store.create_reservation_image(
+        first, first_is_new = self.store.reservations.create_reservation_image(
             storage_scope_id="group-a",
             platform="qq_official",
             group_id="group-a",
@@ -97,7 +97,7 @@ class ReservationStoreTests(unittest.TestCase):
             byte_size=10,
             model_id="vision-model",
         )
-        duplicate, duplicate_is_new = self.store.create_reservation_image(
+        duplicate, duplicate_is_new = self.store.reservations.create_reservation_image(
             storage_scope_id="group-a",
             platform="qq_official",
             group_id="group-a",
@@ -108,7 +108,7 @@ class ReservationStoreTests(unittest.TestCase):
             byte_size=10,
             model_id="vision-model",
         )
-        isolated, isolated_is_new = self.store.create_reservation_image(
+        isolated, isolated_is_new = self.store.reservations.create_reservation_image(
             storage_scope_id="onebot:group-b",
             platform="onebot",
             group_id="group-b",
@@ -127,7 +127,7 @@ class ReservationStoreTests(unittest.TestCase):
 
     def test_reservation_workflow_is_scoped_expires_and_can_be_cleared(self):
         now = datetime(2026, 7, 24, 8, 0, tzinfo=timezone.utc)
-        self.store.start_reservation_workflow(
+        self.store.reservations.start_reservation_workflow(
             "qq_official",
             "group-a",
             "member-a",
@@ -135,31 +135,31 @@ class ReservationStoreTests(unittest.TestCase):
             duration=timedelta(minutes=30),
         )
 
-        self.assertTrue(self.store.reservation_workflow_is_active(
+        self.assertTrue(self.store.reservations.reservation_workflow_is_active(
             "qq_official", "group-a", "member-a", now=now
         ))
-        self.assertFalse(self.store.reservation_workflow_is_active(
+        self.assertFalse(self.store.reservations.reservation_workflow_is_active(
             "qq_official", "group-a", "member-b", now=now
         ))
-        self.assertFalse(self.store.reservation_workflow_is_active(
+        self.assertFalse(self.store.reservations.reservation_workflow_is_active(
             "qq_official",
             "group-a",
             "member-a",
             now=now + timedelta(minutes=31),
         ))
 
-        self.store.start_reservation_workflow(
+        self.store.reservations.start_reservation_workflow(
             "qq_official", "group-a", "member-a", now=now
         )
-        self.assertTrue(self.store.clear_reservation_workflow(
+        self.assertTrue(self.store.reservations.clear_reservation_workflow(
             "qq_official", "group-a", "member-a"
         ))
-        self.assertFalse(self.store.reservation_workflow_is_active(
+        self.assertFalse(self.store.reservations.reservation_workflow_is_active(
             "qq_official", "group-a", "member-a", now=now
         ))
 
     def test_draft_persists_date_candidates_and_custom_times(self):
-        image, unused = self.store.create_reservation_image(
+        image, unused = self.store.reservations.create_reservation_image(
             storage_scope_id="group-a",
             platform="qq_official",
             group_id="group-a",
@@ -170,7 +170,7 @@ class ReservationStoreTests(unittest.TestCase):
             byte_size=20,
             model_id="vision-model",
         )
-        plan = self.store.create_reservation_draft(
+        plan = self.store.reservations.create_reservation_draft(
             image_id=image.image_id,
             platform="qq_official",
             group_id="group-a",
@@ -209,7 +209,7 @@ class ReservationStoreTests(unittest.TestCase):
             ),
             now=datetime(2026, 7, 22, 2, 0, tzinfo=timezone.utc),
         )
-        loaded = self.store.get_reservation_plan(
+        loaded = self.store.reservations.get_reservation_plan(
             "qq_official",
             "group-a",
             plan.plan_code,
@@ -224,7 +224,7 @@ class ReservationStoreTests(unittest.TestCase):
         )
 
     def test_plan_lookup_cannot_cross_group_boundary(self):
-        image, unused = self.store.create_reservation_image(
+        image, unused = self.store.reservations.create_reservation_image(
             storage_scope_id="group-a",
             platform="qq_official",
             group_id="group-a",
@@ -235,7 +235,7 @@ class ReservationStoreTests(unittest.TestCase):
             byte_size=30,
             model_id="vision-model",
         )
-        plan = self.store.create_reservation_draft(
+        plan = self.store.reservations.create_reservation_draft(
             image_id=image.image_id,
             platform="qq_official",
             group_id="group-a",
@@ -243,7 +243,7 @@ class ReservationStoreTests(unittest.TestCase):
             items=(),
         )
         self.assertIsNone(
-            self.store.get_reservation_plan(
+            self.store.reservations.get_reservation_plan(
                 "qq_official",
                 "group-b",
                 plan.plan_code,
@@ -252,11 +252,11 @@ class ReservationStoreTests(unittest.TestCase):
 
     def test_refresh_draft_items_updates_only_owned_unresolved_items(self):
         plan = self.create_refreshable_plan()
-        revision = self.store.claim_reservation_refresh(
+        revision = self.store.reservations.claim_reservation_refresh(
             "qq_official", "group-a", "member-a", plan.plan_code
         )
 
-        changed = self.store.refresh_reservation_draft_items(
+        changed = self.store.reservations.refresh_reservation_draft_items(
             platform="qq_official",
             group_id="group-a",
             creator_id="member-a",
@@ -272,14 +272,14 @@ class ReservationStoreTests(unittest.TestCase):
         )
 
         self.assertEqual(changed, 1)
-        loaded = self.store.get_reservation_plan(
+        loaded = self.store.reservations.get_reservation_plan(
             "qq_official", "group-a", plan.plan_code
         )
         self.assertEqual(loaded.items[0].visit_date, date(2026, 8, 17))
         self.assertEqual(loaded.items[0].booking_date, date(2026, 8, 16))
         self.assertEqual(loaded.items[0].status, "ready")
 
-        wrong_owner = self.store.refresh_reservation_draft_items(
+        wrong_owner = self.store.reservations.refresh_reservation_draft_items(
             "qq_official",
             "group-a",
             "member-b",
@@ -297,7 +297,7 @@ class ReservationStoreTests(unittest.TestCase):
 
     def test_refresh_draft_items_does_not_overwrite_ready_item(self):
         plan = self.create_refreshable_plan()
-        self.store.update_reservation_draft_item_date(
+        self.store.reservations.update_reservation_draft_item_date(
             "qq_official",
             "group-a",
             "member-a",
@@ -306,11 +306,11 @@ class ReservationStoreTests(unittest.TestCase):
             date(2026, 8, 20),
             date(2026, 8, 19),
         )
-        revision = self.store.claim_reservation_refresh(
+        revision = self.store.reservations.claim_reservation_refresh(
             "qq_official", "group-a", "member-a", plan.plan_code
         )
 
-        changed = self.store.refresh_reservation_draft_items(
+        changed = self.store.reservations.refresh_reservation_draft_items(
             "qq_official",
             "group-a",
             "member-a",
@@ -326,7 +326,7 @@ class ReservationStoreTests(unittest.TestCase):
         )
 
         self.assertEqual(changed, 0)
-        loaded = self.store.get_reservation_plan(
+        loaded = self.store.reservations.get_reservation_plan(
             "qq_official", "group-a", plan.plan_code
         )
         self.assertEqual(loaded.items[0].visit_date, date(2026, 8, 20))

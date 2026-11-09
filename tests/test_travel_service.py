@@ -8,11 +8,7 @@ from infrastructure.amap_client import (
     RouteSummary,
     TrafficSegment,
 )
-from services.travel_service import (
-    TravelService,
-    _format_duration,
-    _format_traffic,
-)
+from tools.travel_query import TravelQueryTool, _format_duration, _format_traffic
 
 
 class TravelServiceTests(unittest.TestCase):
@@ -26,7 +22,7 @@ class TravelServiceTests(unittest.TestCase):
             llm_base_url="",
             llm_model_id="",
         )
-        self.service = TravelService(self.settings)
+        self.service = TravelQueryTool(self.settings)
 
     def test_status_reports_missing_amap_key(self):
         reply = self.service.handle("状态")

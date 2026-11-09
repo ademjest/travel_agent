@@ -1,0 +1,31 @@
+{
+  "origin": "saved_provider_response",
+  "pois": [
+    {
+      "id": "BV10053672",
+      "name": "南京南站(地铁站)",
+      "location": "118.796786,31.970968",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "adname": "雨花台区",
+      "adcode": "320114",
+      "address": "1号线;3号线;6号线;S1号线/机场线;S3号线/宁和线",
+      "parent": [],
+      "type": "交通设施服务;地铁站;地铁站",
+      "typecode": "150500"
+    },
+    {
+      "id": "BX09908166",
+      "name": "南京南站地铁站1号口",
+      "location": "118.796614,31.970161",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "adname": "雨花台区",
+      "adcode": "320114",
+      "address": "3号线",
+      "parent": "BV10053672",
+      "type": "交通设施服务;地铁站;出入口",
+      "typecode": "150501"
+    }
+  ]
+}

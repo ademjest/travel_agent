@@ -36,9 +36,10 @@ class RuntimeLoggingTests(unittest.TestCase):
                 cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, encoding='utf-8', timeout=20)
             self.assertEqual(result.returncode, 0, result.stderr)
             content = (Path(directory) / 'travel-web.log').read_text(encoding='utf-8')
-            for message in ('中文业务日志', 'server-started', 'request-access'):
+            for message in ('中文业务日志', 'server-started'):
                 self.assertIn(message, content)
                 self.assertIn(message, result.stderr)
+            self.assertNotIn('request-access',result.stderr)
 
     def test_qq_sdk_writes_to_shared_directory_and_keeps_rotation_settings(self):
         import run_bot

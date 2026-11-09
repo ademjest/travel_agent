@@ -99,27 +99,27 @@ class DeploymentConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = MemoryStore(Path(directory) / "memory.db")
             now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
-            store.save_chat_message(
+            store.conversations.save_chat_message(
                 "old", "onebot", "group", "member", "old", "", "user",
                 "旧消息", now=now - timedelta(days=31),
             )
-            store.save_chat_message(
+            store.conversations.save_chat_message(
                 "new", "onebot", "group", "member", "new", "", "user",
                 "新消息", now=now - timedelta(days=1),
             )
-            store.add_document(
+            store.documents.add_document(
                 "group", "member", "plan.txt", "plan-hash",
                 "住宿茶卡镇", ["住宿茶卡镇"],
             )
 
-            deleted = store.delete_chat_messages_before(
+            deleted = store.conversations.delete_chat_messages_before(
                 now - timedelta(days=30)
             )
 
             self.assertEqual(deleted, 1)
-            messages = store.get_recent_chat_messages("onebot", "group")
+            messages = store.conversations.get_recent_chat_messages("onebot", "group")
             self.assertEqual([message.content for message in messages], ["新消息"])
             self.assertIn(
                 "茶卡镇",
-                store.build_document_context("group", "住宿"),
+                store.documents.build_document_context("group", "住宿"),
             )

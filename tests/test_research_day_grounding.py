@@ -5,10 +5,10 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 
-from agents.research_search_planner import ResearchSearchPlanner
+from tools.research.tool import ResearchSearchPlanner
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.research_service import ResearchService
+from tools.research.tool import ResearchTool
 from test_research_plan_repair import TEXT, target, scope_value
 from test_travel_agent import FakeClient
 from test_trips import model_response
@@ -76,7 +76,7 @@ class ResearchDayGroundingTests(unittest.TestCase):
                 result = self.extract([target('故宫',1)],content)
                 row = result['targets'][0]
                 self.assertIsNone(row['day_index'])
-                self.assertEqual(ResearchService._target_date(row,{'visit_start_date':'2026-10-22'}),'')
+                self.assertEqual(ResearchTool._target_date(row,{'visit_start_date':'2026-10-22'}),'')
                 self.assertEqual(result['day_unresolved_count'],1)
 
     def test_invented_name_or_quote_is_still_rejected(self):
@@ -99,7 +99,7 @@ class ResearchDayGroundingTests(unittest.TestCase):
         client = FakeClient([model_response(scope_value(rows)),model_response({'coverage':[]})])
         search = Mock(configured=True)
         search.search.return_value=[]
-        service = ResearchService(store,search,client,'test',reader=Mock())
+        service = ResearchTool(store,search,client,'test',reader=Mock())
         event = ChatEvent('web','group','day-grounding','conversation','owner',TEXT,
                           occurred_at=datetime(2026,10,19,2,tzinfo=timezone.utc))
         reply = service.handle_intent(event,None,request={**self.request,'plan':plan})

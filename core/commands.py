@@ -12,6 +12,7 @@ HELP_TEXT = """🧭 彼岸旅行助手
 - 天气预报 青海湖：查询未来天气
 - 查询路线 西宁 -> 青海湖：规划驾车路线
 - 查询路况 青海湖 -> 茶卡盐湖：查看实时拥堵路段
+- 明天武汉到南京怎么坐车：只读铁路查询（需启用铁路与模型，日期不确定时会追问）
 - 上传文档：获取私聊上传绑定码
 - 明天上午十点提醒我抢高铁票：设置个人提醒
 - 查看我的提醒 / 查看任务：查看提醒和近期任务
@@ -38,6 +39,12 @@ ONEBOT_HELP_TEXT = """🧭 彼岸旅行助手（OneBot/NapCat）
 - 查看我的提醒 / 把刚才那条改成九点半 / 取消那条提醒
 - 查看任务 / 取消当前任务：管理正在补充信息的任务
 提醒到期会在本群 @ 创建者。预约开约时间需要核实规则，不能凭空推算。
+
+【铁路车次（需启用 Remote 与模型）】
+- 明天武汉到南京怎么坐车
+- 10月30日武汉站到南京南，上午出发，只坐高铁
+- 改成后天 / 出发地改成汉口站
+只读查询，不创建行程或购票；具体车站、乘车日、余票与未知票价按查询结果展示。
 
 【开约规则与旅行地点】
 - 查询湖北省博物馆预约规则
@@ -172,7 +179,6 @@ def _parse_route_command(command: str, prefix: str, name: str) -> Command:
 
 
 def parse_command(content: str) -> Command:
-    from core.rule_intent import unsafe_command_tail
     if unsafe_command_tail(content):
         return Command(name='unknown')
     command = normalize_command(content)
@@ -187,7 +193,7 @@ def parse_command(content: str) -> Command:
     if command in {"上传文档", "文档上传", "导入文档"}:
         return Command(name="upload_document")
 
-    if command in {"制定预约", "开始制定预约"}:
+    if command in {"制定预约", "开始制定预约", "按这张攻略帮我制定预约", "根据图片制定预约"}:
         return Command(name="reservation_start")
 
     if command in {"退出制定预约", "取消制定预约"}:
@@ -304,3 +310,90 @@ def build_reply(content: str) -> str:
     if command.name == "status":
         return "Bot 已在线。发送“帮助”查看当前可用指令。"
     return "暂未识别该指令。发送“帮助”查看当前可用指令。"
+
+
+def location_answer(content: str) -> str:
+    text = re.sub(r"^(?:在|我在|查|查询|查一下)", "", content.strip())
+    text = text.rstrip("。！？?! ")
+    if (not re.fullmatch(r"[\u4e00-\u9fffA-Za-z0-9· ]{2,30}", text)
+            or not re.search(r'[\u4e00-\u9fffA-Za-z]',text)):
+        return ""
+    if re.search(r"推荐|帮我|规划|安排|查询|吃饭|一起|明天|后天|提醒|取消|不用|不知道|谢谢|好的|聊天|文件|稍后|晚点|天气|怎么|什么", text):
+        return ""
+    return text
+
+
+
+def route_correction(content):
+    if re.search(r'行程|提醒|预约|取消',content):
+        return {}
+    pattern=r'(起点|出发地|终点|目的地)(?:不是[^，,；;。]+[，,]\s*(?:而)?是|(?:应该|应当|其实)?是|改为|改成|换成|更正为|应为)\s*([^，,；;。！？?!\n]+)'
+    changes={}
+    for match in re.finditer(pattern,content):
+        value=match[2].strip()
+        address=re.match(r'[，,]\s*(?:具体(?:地址)?(?:是|为|在)?|地址(?:是|为|在)?|位于)\s*[:：]?\s*([^，,；;。！？?!\n]+)',content[match.end():])
+        if address and re.search(r'[路街巷].*?\d+号',address[1]):
+            value=content[match.start(2):match.end()+address.end()].strip()
+        if 1<=len(value)<=150:
+            changes['origin' if match[1] in {'起点','出发地'} else 'destination']=value
+    return changes
+
+
+
+def missing_weather_location(text: str) -> bool:
+    return bool(re.fullmatch(
+        r"(?:请问|请|帮我|帮忙|查询|查一下|看看|我想知道|现在|当前|实时|今天|明天|后天|"
+        r"未来几天|天气预报|天气|气温|怎么样|如何|怎样|多少|呢|吗|的|[？?。\s])+", text))
+
+
+
+def is_weather_clarification(text: str) -> bool:
+    return bool(
+        re.fullmatch(
+            r"(?:请(?:问|告诉我|提供)?|告诉我|或|当前|重新|你|您|想|要|需要|查询|查|的|是|天气|预报|"
+            r"一下|我|帮你|帮您|哪个|哪里|城市|地区|地点|位置|具体|呢|吗|[，,？?。\s])+",
+            text,
+        )
+        and any(word in text for word in ("哪个", "哪里", "请提供", "告诉我"))
+    )
+
+
+
+def command_location(value):
+    # Free-text slots must not swallow a second action, temporal qualifier or quotation.
+    return bool(re.fullmatch(r'[\u4e00-\u9fffA-Za-z0-9· ]{2,45}', value)
+        and not re.search(r'查询|天气|路线|提醒|预约|取消|不要|不查|如果|然后|还有|同时|顺便|并且|以及|和|或者|还是|明天|后天|今天|小时|今晚|现在|怎么|什么|解释|意思|改成|改为|推荐|帮我|规划|安排|以后|那[里个]|这[里个]', value))
+
+
+def unsafe_command_tail(text):
+    """Legacy prefix commands may only bypass semantics for one bounded command."""
+    if not re.match(r'/?(?:查询天气|天气预报|查询路线|查询路况)', text.strip()):
+        return False
+    value=text.strip().lstrip('/').rstrip('。')
+    if re.search(r'[，,；;。\n]|顺便|同时|并且|然后|提醒|取消|如果|不要|解释|意思',value):
+        return True
+    match=re.fullmatch(r'(?:查询天气|天气预报)\s*(.*)',value)
+    if match:
+        return bool(match[1].strip()) and not command_location(match[1].strip())
+    match=re.fullmatch(r'(?:查询路线|查询路况)\s*(.*?)\s*(?:→|->|到|至)\s*(.*)',value)
+    return bool(match and any(v.strip() and not command_location(v.strip()) for v in match.groups()))
+
+
+def scheduled_query_control(text):
+    return bool(re.fullmatch(r'查看定时查询(?:\s+[1-9]\d{0,2})?|取消定时查询\s+Q-[a-f0-9]{12}', text.strip()))
+
+
+def watch_control(text):
+    return text.strip() == '查看规则监测' or bool(re.fullmatch(r'停止规则监测\s+W-[a-f0-9]{12}', text.strip()))
+
+
+def request_priority(text, has_assets=False):
+    text = text.strip()
+    return int(not has_assets and (scheduled_query_control(text) or watch_control(text)
+        or text in {'查看任务进度', '查看任务', '取消正在处理的请求', '取消当前任务'}
+        or bool(re.fullmatch(r'取消请求\s+\d+', text))))
+
+
+def social_message(text):
+    return bool(re.fullmatch(r'(?:你好|您好|嗨|hello|hi|谢谢|多谢|好的|好|收到)[！!。 ]*',text.strip(),re.I))
+

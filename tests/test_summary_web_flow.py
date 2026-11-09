@@ -11,15 +11,15 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from adapters.web_app import create_web_app
-from agents.context_builder import render_untrusted_context
+from app.conversation_context import render_untrusted_context
 from core.chat_transport import ChatEvent
 from core.model_budget import MODEL_CALL
 from core.settings import Settings
-from core.summary_contract import load_summary_prompt
+from core.summary_validation import load_summary_prompt
 from core.web_settings import WebSettings
 from infrastructure.env_settings_store import EnvSettingsStore
 from infrastructure.web_repository import OWNER
-from scripts.evaluate_summary_quality import OFFLINE_ENV, load_cases
+from evaluation.cases.evaluate_summary_quality import OFFLINE_ENV, load_cases
 from scripts.export_execution_timeline import export_timeline
 from scripts.inspect_conversation_summary import inspect
 
@@ -65,17 +65,17 @@ class WebSummaryClient:
 
 class SummaryWebFlowTests(unittest.TestCase):
     def test_live_resume_preserves_failed_attempt_and_budget(self):
-        from scripts.smoke_summary_live import Budget
-        from scripts.smoke_summary_web import main
+        from evaluation.support import Budget
+        from evaluation.cases.smoke_summary_web import main
         env = {**OFFLINE_ENV, 'LLM_API_KEY': 'offline',
                'LLM_BASE_URL': 'https://offline.invalid/v1', 'LLM_MODEL_ID': 'offline-model'}
         with tempfile.TemporaryDirectory() as folder, patch.dict('os.environ', env), \
                 patch('dotenv.load_dotenv', return_value=False), \
-                patch('scripts.smoke_summary_web.web_flow') as flow:
+                patch('evaluation.cases.smoke_summary_web.web_flow') as flow:
             output = Path(folder) / 'audit.json'
             args = SimpleNamespace(output=output, max_calls=12, max_tokens=100000, resume_web=False)
             # Avoid Q04 generation while constructing the initial audit configuration.
-            with patch('scripts.smoke_summary_web.ConversationSummaryService') as service:
+            with patch('evaluation.cases.smoke_summary_web.ConversationSummaryService') as service:
                 service.return_value.ensure.return_value = None
                 main(args)
             original = json.loads(output.read_text(encoding='utf-8'))
@@ -93,7 +93,7 @@ class SummaryWebFlowTests(unittest.TestCase):
             self.assertEqual(flow.call_count, count)
 
     def test_live_acceptance_driver_uses_isolated_seeded_history_and_real_web_path(self):
-        from scripts.smoke_summary_web import web_flow
+        from evaluation.cases.smoke_summary_web import web_flow
         corpus = load_cases(Path(__file__).resolve().parents[1] / 'evals/summary_quality_cases_v2.json')
         stages = next(case['stages'] for case in corpus['cases'] if case['id'] == 'Q02')
         sdk = WebSummaryClient(stages)

@@ -1,6 +1,6 @@
 from datetime import date
 import unittest
-from core.source_applicability import source_applicability
+from tools.research.evidence import source_applicability
 
 
 class SourceApplicabilityTests(unittest.TestCase):
@@ -9,7 +9,7 @@ class SourceApplicabilityTests(unittest.TestCase):
         import tempfile
         from core.chat_transport import ChatEvent
         from infrastructure.memory_store import MemoryStore
-        from services.research_service import ResearchService
+        from tools.research.tool import ResearchTool
         import json
         with tempfile.TemporaryDirectory() as folder:
             store=MemoryStore(Path(folder)/'test.db')
@@ -19,17 +19,17 @@ class SourceApplicabilityTests(unittest.TestCase):
                   'sources':[{'id':1,'url':'https://example.test','status':'read','applicability':{'date_status':'unknown'}}]}
             store.research.save(event,'completed',data)
             record=store.research.for_artifact(event,event.event_key)
-            payload=json.loads(ResearchService._planning_source(record).split('\n',1)[1])
+            payload=json.loads(ResearchTool._planning_source(record).split('\n',1)[1])
             self.assertEqual(payload['items'][0]['evidence'],item['evidence'])
             self.assertEqual(payload['sources'][0]['applicability']['date_status'],'unknown')
-            from services.trip_service import TripService
+            from tools.trip.tool import TripTool
             from unittest.mock import Mock
             planner=Mock()
             planner.extract.side_effect=RuntimeError('capture-only')
             artifact={'status':'active','destination':'武汉','kind':'research_backed','source_event_id':event.event_key,
                       'content':'旧报告自由文本','artifact_id':'fixture','version':1}
             with self.assertRaisesRegex(RuntimeError,'capture-only'):
-                TripService(store,planner).create_from_artifact(event,None,artifact,1,{})
+                TripTool(store,planner).create_from_artifact(event,None,artifact,1,{})
             actual=planner.extract.call_args.args[3]
             self.assertIn('"evidence"',actual)
             self.assertIn('"applicability"',actual)

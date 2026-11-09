@@ -1,3 +1,4 @@
+from test_travel_agent import execution_policy
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -9,7 +10,7 @@ from core.context_contract import complete_json, task_projection, response_json
 from core.model_budget import ModelBudgetExceeded
 from infrastructure.memory_store import MemoryStore
 from infrastructure.model_gateway import ModelGateway
-from scripts.evaluate_token_memory import build_report, ReadOnlyStore
+from evaluation.cases.evaluate_token_memory import build_report, ReadOnlyStore
 
 
 class ExecutionContractsTests(unittest.TestCase):
@@ -51,12 +52,12 @@ class ExecutionContractsTests(unittest.TestCase):
             if calls:
                 raise TimeoutError()
             return response
-        def execute(name,args):
+        def execute(name,args, context):
             calls.append(name)
             return ToolResult('completed',name,resource_id=args['plan_code'],effect_status='committed',data='已取消第一个预约')
         client=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
         agent=TravelAgent(Settings('','',frozenset(),'','fake','https://example.test','fake'),execute,client)
-        result=agent.run('取消预约 R-20300101-001 和 R-20300101-002')
+        result=agent.run('取消预约 R-20300101-001 和 R-20300101-002', decision_override=execution_policy(('reservation',), ('list_reservation_plans', 'cancel_reservation_plan'), required=(('cancel_reservation_plan',),), resources=(('cancel_reservation_plan', 'R-20300101-001'), ('cancel_reservation_plan', 'R-20300101-002'))))
         self.assertEqual(result.status,'partial')
         self.assertIn('已取消第一个预约',result.reply)
         self.assertEqual(len(result.receipts),1)
@@ -68,15 +69,17 @@ class ExecutionContractsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             store=MemoryStore(Path(folder)/'history.db')
             event=ChatEvent('web','group','event','c','u','引用最开始的方案')
-            store.save_turn('web:c','u','web:group:c:old','规划武汉2天','方案：第1天公园，第2天博物馆')
+            store.conversations.save_turn('web:c','u','web:group:c:old','规划武汉2天','方案：第1天公园，第2天博物馆')
             repo=store.planning
+            from tools.trip.tool import PlanningArtifacts
+            owner=PlanningArtifacts(repo)
             with patch.object(repo,'capture',wraps=repo.capture) as capture:
-                repo.ensure_history(event)
-                repo.ensure_history(event)
+                owner.ensure_history(event)
+                owner.ensure_history(event)
                 self.assertEqual(capture.call_count,1)
                 first=repo.list_for_owner(event)[0]
-                store.save_turn('web:c','u','web:group:c:new','规划武汉3天','方案：第1天公园，第2天博物馆，第3天街区')
-                repo.ensure_history(event)
+                store.conversations.save_turn('web:c','u','web:group:c:new','规划武汉3天','方案：第1天公园，第2天博物馆，第3天街区')
+                owner.ensure_history(event)
                 self.assertEqual(capture.call_count,2)
                 self.assertEqual(repo.list_for_owner(event)[0]['ordinal'],first['ordinal'])
 

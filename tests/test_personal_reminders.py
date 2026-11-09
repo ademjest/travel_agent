@@ -5,8 +5,8 @@ import unittest
 
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.personal_reminder_service import PersonalReminderService
-from services.reminder_time import is_time_answer, parse_reminder_time
+from tools.reminders.tool import RemindersTool
+from core.time_input import is_time_answer, parse_reminder_time
 from services.reminder_scheduler import ReminderScheduler
 from services.outbox_worker import OutboxWorker
 from adapters.onebot_app import OneBotReplyRenderer
@@ -18,13 +18,13 @@ class PersonalReminderTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.temp.cleanup)
         self.store = MemoryStore(Path(self.temp.name) / 'reminders.db')
         self.now = datetime(2030, 9, 9, 2, tzinfo=timezone.utc)
-        self.service = PersonalReminderService(self.store, clock=lambda: self.now)
+        self.service = RemindersTool(self.store, clock=lambda: self.now)
         self.scheduler = ReminderScheduler('onebot', self.store, OneBotReplyRenderer(), lambda group: True)
 
     def handle(self, text, event_id='create'):
         event = ChatEvent('onebot', 'group', event_id, 'group', 'owner', text)
-        claim = self.store.begin_event(event.event_key)
-        return self.service.handle(event, claim)
+        claim = self.store.delivery.begin_event(event.event_key)
+        return self.service.handle_personal(event, claim)
 
     def test_time_answer_accepts_trailing_particles_but_not_other_intents(self):
         for text in ('10点吧', '上午吧', '就上午十点吧。', '晚上八点半呀！', '10:00呢？'):
@@ -107,7 +107,7 @@ class PersonalReminderTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await worker.dispatch_due_once(due), 0)
         self.assertEqual(await worker.dispatch_due_once(due + timedelta(seconds=6)), 1)
         self.assertEqual(store.reminders.list_for_owner('onebot', 'group', 'owner')[0]['delivery_status'], 'sent')
-        self.assertEqual(store.get_recent_turns('onebot:group', 'owner'), ())
+        self.assertEqual(store.conversations.get_recent_turns('onebot:group', 'owner'), ())
 
     async def test_stale_reminders_are_removed_and_disallowed_reminders_are_blocked(self):
         self.handle('明天上午十点提醒我抢票')
@@ -122,8 +122,8 @@ class PersonalReminderTests(unittest.IsolatedAsyncioTestCase):
         self.handle('明天上午十点提醒我抢票')
         due = self.now + timedelta(days=1)
         await self.scheduler.scan_once(due)
-        row = self.store.list_due_outbox('onebot', due)[0]
-        self.assertIsNotNone(self.store.claim_outbox(row.outbox_id, due))
+        row = self.store.delivery.list_due_outbox('onebot', due)[0]
+        self.assertIsNotNone(self.store.delivery.claim_outbox(row.outbox_id, due))
         with self.assertRaisesRegex(ValueError, '正在投递'):
             self.handle('把刚才那条改成九点半', 'edit')
         self.assertEqual(self.store.reminders.list_for_owner('onebot', 'group', 'owner')[0]['version'], 1)

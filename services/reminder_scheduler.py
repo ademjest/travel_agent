@@ -4,8 +4,9 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Callable, Protocol
 
-from infrastructure.memory_store import DueReservationReminder, MemoryStore
-from services.reservation_service import BEIJING_TZ
+from infrastructure.reservation_repository import DueReservationReminder
+from infrastructure.memory_store import MemoryStore
+from core.time_input import BEIJING as BEIJING_TZ
 
 
 class ReminderRenderer(Protocol):
@@ -48,7 +49,7 @@ class ReminderScheduler:
                 self.store.reminders.enqueue, row, payload, text, current,
                 allowed=self.group_allowed(row['group_id'])))
         rows = await asyncio.to_thread(
-            self.store.list_due_reservation_reminders,
+            self.store.reservations.list_due_reservation_reminders,
             self.platform,
             current,
         )
@@ -57,7 +58,7 @@ class ReminderScheduler:
         for row in rows:
             if row.visit_date < local_today:
                 await asyncio.to_thread(
-                    self.store.mark_reservation_reminder_terminal,
+                    self.store.reservations.mark_reservation_reminder_terminal,
                     row.reminder_id,
                     "expired",
                     "",
@@ -66,7 +67,7 @@ class ReminderScheduler:
                 continue
             if not self.group_allowed(row.group_id):
                 await asyncio.to_thread(
-                    self.store.mark_reservation_reminder_terminal,
+                    self.store.reservations.mark_reservation_reminder_terminal,
                     row.reminder_id,
                     "blocked",
                     "group is not allowlisted",
@@ -79,7 +80,7 @@ class ReminderScheduler:
                 text,
             )
             outbox_id = await asyncio.to_thread(
-                self.store.queue_reservation_reminder,
+                self.store.reservations.queue_reservation_reminder,
                 row.reminder_id,
                 payload,
                 text,

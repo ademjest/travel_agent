@@ -25,7 +25,8 @@ export async function api<T>(
       headers,
       credentials: "same-origin",
     });
-  } catch {
+  } catch (reason) {
+    if (options.signal?.aborted || (reason instanceof Error && reason.name === "AbortError")) throw reason;
     throw new ApiError(
       0,
       "暂时连接不到本地服务。请确认网页服务仍在运行，连接恢复后会自动同步。",
@@ -105,6 +106,41 @@ export interface Message {
   uploads: Upload[];
   job_id: number | null;
   job_status: string | null;
+  reference?: { kind: "rail" | "message"; label: string };
+  rail_results?: RailResultReference[];
+  trip_presentation?: TripPresentation;
+  plan_comparison?: boolean;
+  hotel_actions?: HotelAction[];
+  hotel_presentation?: {text:string};
+}
+export interface HotelAction {
+  kind: "select" | "accept_dates" | "reject_dates" | "view_original";
+  label: string; task_id?: string; task_version?: number; query_index?: number;
+  candidate_set_id?: string; candidate_set_version?: number; candidate_id?: string; selectable?: boolean;
+  proposal_id?: string; proposal_version?: number; source_event_id?: string; revision?: string; reference_text?: string;
+}
+export interface HotelOriginal {
+  text: string; cursor: number; next_cursor: number | null; total_chars: number;
+  source_event_id: string; revision: string; historical: boolean; queried_at: string;
+}
+export interface RailResultReference { id: string; origin: string; destination: string }
+export interface RailTrain {
+  train_code: string; origin_station: string; destination_station: string;
+  departure_at: string; arrival_at: string; duration_minutes: number;
+  seats: { name: string | null; price_cny: number | null; availability: string }[];
+  quoted_seat?: IntercityLeg["selected_seat"];
+}
+export interface RailResultPage {
+  id: string;
+  request: { origin: string; destination: string; travel_date: string; departure_window: number[];
+    train_preference: string; origin_scope: string; destination_scope: string; seat_class?: string; seat_requirement?: string };
+  status: string; queried_at: string; total_count: number; matched_count: number; time_span: string[];
+  page: number; page_count: number; page_size: number; period: string;
+  items: { train_code: string; departure_date: string; options: RailTrain[] }[];
+  filters: { id: string; label: string }[];
+  query_actions: { period: string; label: string }[];
+  incomplete: boolean; legacy_partial: boolean;
+  candidate_limit?: number | null;
 }
 export interface MessagePage {
   items: Message[];
@@ -116,6 +152,7 @@ export interface Job {
   status: string;
   created_at: string;
   updated_at: string;
+  progress?: { stage: string; created_at: string; description: string };
 }
 export interface ExecutionReport {
   retrieval_status?: import("./RuntimeStatusPanel").RetrievalStatus;
@@ -129,6 +166,9 @@ export interface ExecutionReport {
   replayed: boolean;
 }
 export interface Confirmation {
+  draft_state?:DraftState|null;
+  state?: "ready" | "expired" | "stale";
+  reference_message_id?: string | null;
   diff?: TripDiff | null;
   id: string;
   version: number;
@@ -138,7 +178,17 @@ export interface Confirmation {
   unavailable_reason?: string;
   expires_at: string;
 }
+export interface DraftState {
+  id:string;version:number;state:"ready"|"expired"|"stale"|"saved"|"discarded"|"superseded"|"unavailable";
+  base_version:number;latest:{id:string;version:number};can_revalidate:boolean;can_discard:boolean;
+  operation?:{action:"revalidate"|"discard";status:string;job_id:number;message?:string}|null;
+}
+export type DraftAction="revalidate"|"discard";
 export interface Trip {
+  editing_message_id?: string | null;
+  comparison_message_id?: string | null;
+  preview?: Trip;
+  is_preview?: boolean;
   trip_id: string;
   version: number;
   facts?: FactRow[];
@@ -152,13 +202,34 @@ export interface Trip {
     date_reference_day?: string;
     date_preference_text?: string;
     day_count?: number;
+    requested_day_count?: number;
+    duration_adjustment?: string;
+    planning_window?: {start: string; end: string; start_text: string; end_text: string};
     preferences?: string[];
   };
   plan: {
+    hotel_quotes?: {
+      result_status?:string;result_note?:string;reference_text?:string;
+      request_id?:string;retrieved_at?:string;note?:string;requested_poi_ids?:string[];raw_text?:string;
+      coverage?:{asked:number;returned:number;bound:number;comparable:number};
+      stay?:{check_in?:string;check_out?:string;rooms?:number;adults?:number;children_ages?:number[]};
+      offers:{offer_id:string;amap_poi_id:string;hotel_name:string;room_name:string;currency:string;price_basis?:string;
+        nightly_prices:{date:string;amount:string}[];reported_total?:string|null;calculated_total?:string|null;
+        taxes_and_fees_status:string;applicability_status:string;source_url?:string|null;status?:string;issues?:string[];
+        breakfast?:string|null;cancellation?:string|null;eligibility?:string|null;
+        average_price?:string;from_price?:string;budget_difference?:string|null;numeric_comparison?:string;comparison_basis?:string}[];
+    };
+    hotel_ids?:string[];
+    hotel_recommendations?:{poi_id:string;status?:string;price_status?:string}[];
+    hotel_review_note?:string;
+    dining_options?:{day_index:number;meal:string;candidates:{poi_id:string}[]}[];
+    intercity?: IntercityPlan;
     days: {
+      kind?: "transport" | "rest" | "visit";
       day_index: number;
       date?: string;
       activities: {
+        subactivities?: { poi_id: string }[];
         name?: string;
         poi_id?: string;
         period?: string;
@@ -173,6 +244,33 @@ export interface Trip {
     }[];
   };
   sources: Record<string, { name?: string; address?: string }>;
+}
+export interface IntercityLeg {
+  status: string; provider?: string; queried_at?: string; selected?: RailTrain; candidates?: RailTrain[];
+  selected_seat?: {name: string | null; seat_class?: string | null; price_cny: number | null; availability: string; currency?: string} | null;
+  candidate_truncated?: boolean;
+  missing_fields?: string[]; request?: {mode?: string; mode_source?: string; travel_date?: string; seat_class?: string; seat_requirement?: string};
+}
+export interface TripPresentation {
+  lifecycle?:DraftState;
+  trip: Trip; prefix: string; suffix: string; is_preview: boolean;
+  sections: ({kind: "text"; text: string} | {kind: "transport"; direction: "outbound" | "inbound"})[];
+}
+export interface PlanComparison {
+  message_id: string; final_trip: Trip | null; final_note: string; previous_message_id: string | null;
+  final_text: string; final_presentation?: TripPresentation | null;
+  decision: {status?: string; choice?: string; reason?: string; repaired?: boolean};
+  branches: Record<string, {status: string; created_at: string; plan?: Trip["plan"]; places?: Trip["sources"];
+    choice?: string; reason?: string; error_code?:string; error_summary?:string; error_type?:string; validation_path?:string; failure_stage?:string; days_grounded?: boolean; schedule_text?: string;
+    data?: {report?: string; sources?: {provider?: string; text?: string}[]}}>;
+}
+export interface IntercityPlan {
+  issues?: {code: string; direction?: string; day_index?: number | null; path?: string; message: string}[];
+  day_count_basis?: string; basis_source?: string;
+  completeness: string; outbound?: IntercityLeg; inbound?: IntercityLeg; limitations?: string[];
+  hotel_nights?: number; ticket_cost?: {total_cny: number | null; unknown_segments: number};
+  station_transfers?: Record<string,{status: string; duration_minutes?: number}>;
+  availability_windows?: Record<string,{earliest: string; latest: string; allowed_periods: string[]}>;
 }
 export interface FactRow { field: string; label: string; value: string; source: string }
 export interface TripDiff {
@@ -216,6 +314,7 @@ export interface PolicyWatch {
   ends_at: string;
 }
 export interface ConversationUsageTotals {
+  cost_supplemented?:number; unknown_pricing?:number; unknown_identity?:number;
   calls: number;
   prompt_tokens: number;
   cached_input_tokens: number;
@@ -231,9 +330,13 @@ export interface ConversationUsageTotals {
   cost_breakdown: { currency: string; amount: number }[];
 }
 export interface ConversationUsageReport {
+  supplier_usage?:{wendao_submissions:number|null;cost:null;usage:null;note:string};
+  rounds?:{event_key:string;started_at:string;user_message?:string;totals:Omit<ConversationUsageTotals,"total_tokens"|"running_calls">;
+    calls:{call_id:string;purpose:string;model_id:string;prompt_tokens:number|null;completion_tokens:number|null;
+      elapsed_seconds:number|null;cost:number|null;currency:string;origin:string;unknown:string;pricing_version?:string}[]}[];
   conversation_id: string;
   totals: ConversationUsageTotals;
-  purposes: (Omit<ConversationUsageTotals, "total_tokens" | "running_calls"> & { purpose: string; model_id: string })[];
+  purposes: (Omit<ConversationUsageTotals, "total_tokens" | "running_calls"> & { purpose: string; model_id: string; connection_id?: string; profile_id?: string; connection_name?:string; profile_name?:string })[];
   currency: string;
   cost_note: string;
   scope_note: string;
@@ -310,3 +413,8 @@ export const dateText = (value: string) =>
     minute: "2-digit",
     hour12: false,
   });
+export interface RailMCPStatus {
+  alias: string; enabled?: boolean; configured?: boolean; expired?: boolean;
+  transport?: "sse" | "streamable_http"; timeout_seconds?: number; expires_at?: string; state?: string;
+  runtime?: RailMCPStatus;
+}

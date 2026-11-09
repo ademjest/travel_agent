@@ -28,8 +28,8 @@ class RetrievalTests(unittest.TestCase):
     def test_semantic_namespace_deletion_and_scope(self):
         with tempfile.TemporaryDirectory() as folder:
             store=MemoryStore(Path(folder)/'v.db')
-            store.add_document('a','u','a.md','hash-a','博物馆',['博物馆'])
-            store.add_document('b','u','b.md','hash-b','博物馆',['博物馆'])
+            store.documents.add_document('a','u','a.md','hash-a','博物馆',['博物馆'])
+            store.documents.add_document('b','u','b.md','hash-b','博物馆',['博物馆'])
             def embed(texts):
                 return [[1.,0.] for _ in texts]
             index=SemanticIndex(store,embed,'toy',2)
@@ -45,7 +45,7 @@ class RetrievalTests(unittest.TestCase):
     def test_embedding_dimension_error_is_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             store=MemoryStore(Path(folder)/'v.db')
-            store.add_document('a','u','a.md','hash-a','正文',['正文'])
+            store.documents.add_document('a','u','a.md','hash-a','正文',['正文'])
             index=SemanticIndex(store,lambda texts:[[1.,0.] for _ in texts],'toy',2)
             index.update('a')
             index.embedder=lambda texts:[[1.] for _ in texts]

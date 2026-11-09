@@ -35,7 +35,7 @@ beforeEach(() => {
   ], summary: { ok: 1, failed: 1, skipped: 1 }, restart_required: true };
   vi.stubGlobal("fetch", vi.fn(async (url: string, options: RequestInit = {}) => {
     sent.push({ url, body: options.body ? JSON.parse(String(options.body)) : undefined });
-    const body = url.endsWith("/preferences") ? { version: 0, enabled: true, suggestions: true, values: {}, scope: "local" }
+    const body = url.endsWith("/preferences") ? { version: 0, enabled: true, suggestions: true, values: {}, scope: "local", fields: { labels: {}, choices: {}, interests: [], budget: {} } }
       : url.endsWith("/settings/model-usage") ? usageResponse
       : url.endsWith("/settings/services/test") ? serviceTestResponse
       : serviceResponse;
@@ -43,6 +43,21 @@ beforeEach(() => {
   }));
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+it("keeps the railway block private and includes its contract test in the all-services report", async () => {
+  Object.assign(serviceResponse.fields, {
+    RAIL_MCP_CONFIG: { configured: true, source: "project", editable: true, value: "", pending_restart: false },
+  });
+  serviceTestResponse = { results:[{label:"铁路 12306",model_id:"",service:"rail",status:"ok",detail:"仅初始化和发现，未查票",elapsed_ms:1},{label:"携程问道",model_id:"",service:"wendao",status:"skipped",detail:"未启用",elapsed_ms:0}],summary:{ok:1,failed:0,skipped:1} };
+  render(<SettingsPanel section="services" />);
+  const config = await screen.findByLabelText(/铁路 Remote 配置/);
+  expect((config as HTMLInputElement).type).toBe("password");
+  expect((config as HTMLInputElement).value).toBe("");
+  expect(screen.queryByRole("button",{name:"测试铁路连接与工具合同"})).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "一键测试全部服务" }));
+  await screen.findByText("仅初始化和发现，未查票");
+  expect(sent.find(row => row.url.endsWith("/settings/services/test"))?.body).toEqual({ service: "all" });
+});
 
 it("keeps the optional Wendao token write only and requires an explicit enable setting", async () => {
   Object.assign(serviceResponse.fields, {
@@ -171,7 +186,7 @@ it("shows recalculated cost subtotal instead of replacing it with partial unknow
   };
   render(<SettingsPanel section="services" />);
   expect((await screen.findAllByText(/0\.012345 USD/)).length).toBeGreaterThan(0);
-  expect(screen.getAllByText(/含 1 次按当前费率回算/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/含 1 次按已保存费率快照回算/).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/1 次无法估算/).length).toBeGreaterThan(0);
   expect(screen.queryByText("部分未知")).toBeNull();
 });
@@ -267,7 +282,7 @@ it("keeps the report hidden if closed while a service test is pending", async ()
   let finish!: (value: Response) => void;
   vi.mocked(fetch).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
   fireEvent.click(screen.getByText("一键测试全部服务"));
-  expect(screen.getByText(/正在测试已保存的模型/)).toBeTruthy();
+  expect(screen.getByText(/正在测试已保存的服务/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "关闭服务测试结果" }));
   await act(async () => { finish({ ok: true, json: async () => serviceTestResponse } as Response); });
   expect(screen.queryByRole("region", { name: "服务测试结果" })).toBeNull();

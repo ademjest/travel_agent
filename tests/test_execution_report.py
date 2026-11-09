@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch,Mock
 
 from fastapi.testclient import TestClient
 from adapters.web_app import create_web_app
@@ -31,19 +31,38 @@ class ExecutionReportTests(unittest.TestCase):
         self.app.state.repository.store.diagnostics.record(stage, {'event_key': self.job['event_key'], **details})
 
     def test_empty_records_do_not_claim_a_cause(self):
-        report = self.client.get(self.path).json()
+        report = web_report(self.app.state.repository.store.database_path,
+                            {**self.job, 'event_key': 'legacy-unrecorded'})
         self.assertEqual(report['timeline'], [])
         self.assertIn('无法确认', report['note'])
+
+    def test_unexpected_business_failure_is_visible_after_error_reply_is_delivered(self):
+        def broken(*args):raise KeyError('private-secret-should-never-be-logged')
+        router=Mock();router.route.side_effect=broken
+        self.app.state.runtime.application.semantic_task_service=router
+        asyncio.run(self.app.state.worker.run_once())
+        report=self.client.get(self.path).json()
+        self.assertEqual(report['job_status'],'completed')
+        self.assertEqual(report['state'],'请求已结束，业务处理失败')
+        failed=next(r for r in report['timeline'] if r['details'].get('status')=='business_failed')
+        self.assertTrue(failed['warning'])
+        self.assertEqual(failed['details']['error_type'],'KeyError')
+        self.assertIn('test_execution_report.py:',failed['details']['error_location'])
+        self.assertIn('位置',report['report_text'])
+        self.assertNotIn('private-secret',report['report_text'])
+        self.assertTrue(any(r['details'].get('status')=='sent' for r in report['timeline']))
 
     def test_recovery_requires_the_same_identified_operation(self):
         self.record('tool',status='failed',operation_key='first',error_code='rate_limit')
         self.record('tool',status='completed',operation_key='second')
         store=self.app.state.repository.store
         report=web_report(store.database_path,{**self.job,'status':'completed'})
-        self.assertFalse(report['timeline'][0]['recovered'])
+        failed = next(row for row in report['timeline'] if row['details'].get('operation_key') == 'first')
+        self.assertFalse(failed['recovered'])
         self.record('tool',status='completed',operation_key='first')
         report=web_report(store.database_path,{**self.job,'status':'completed'})
-        self.assertTrue(report['timeline'][0]['recovered'])
+        failed = next(row for row in report['timeline'] if row['details'].get('operation_key') == 'first')
+        self.assertTrue(failed['recovered'])
         self.assertIn('已恢复',report['state'])
 
     def test_runtime_and_index_status_do_not_load_or_embed(self):
@@ -63,7 +82,7 @@ class ExecutionReportTests(unittest.TestCase):
 
     def test_summary_threshold_is_normal_but_fallback_is_visible(self):
         self.record('summary', status='threshold_not_met')
-        normal = self.client.get(self.path).json()['timeline'][0]
+        normal = self.client.get(self.path).json()['timeline'][-1]
         self.assertFalse(normal['warning'])
         self.record('summary', status='validation_failed', previous_reused=True,
                     validation={'code': 'value_scope', 'path': 'items[0].text'})
@@ -77,7 +96,8 @@ class ExecutionReportTests(unittest.TestCase):
         report = web_report(self.app.state.repository.store.database_path, job)
         self.assertIn('降级', report['state'])
         self.assertIn('限流', report['report_text'])
-        self.assertIn('3', report['timeline'][0]['description'])
+        failed = next(row for row in report['timeline'] if row['stage'] == 'tool')
+        self.assertIn('3', failed['description'])
 
     def test_scope_and_session_are_checked(self):
         other = self.app.state.repository.create_conversation()['id']

@@ -10,7 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.attraction_projection import attraction_report, grouped_facts, planning_facts
+from tools.research.evidence import attraction_report, grouped_facts, planning_facts
 
 
 def replay(database):

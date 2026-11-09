@@ -6,17 +6,17 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from core.attraction_facts import bind_poi, page_facts, provider_facts, reconcile_facts, validate_api_fact
+from tools.research.evidence import bind_poi, page_facts, provider_facts, reconcile_facts, validate_api_fact
 from core.chat_transport import ChatEvent
 from core.execution_scope import ExecutionRevoked
-from core.research_evidence import official_page_evidence, validate_research_items
-from core.source_applicability import rule_applicability
+from tools.research.evidence import official_page_evidence, validate_research_items
+from tools.research.evidence import rule_applicability
 from infrastructure.amap_client import normalize_poi_detail
 from infrastructure.memory_store import MemoryStore
 from infrastructure.public_http import request_public, PublicHTTPError
 from infrastructure.web_reader import PageLinks
 from services.official_sources import OfficialSources, scoped_url
-from services.research_service import ResearchService
+from tools.research.tool import ResearchTool
 
 
 def entry(name='测试博物馆', **changes):
@@ -168,7 +168,7 @@ class OfficialContractTests(unittest.TestCase):
         response = Mock(status=302, headers={'Location': 'https://evil.example/visitor/policy'})
         pool = Mock()
         pool.urlopen.return_value = response
-        with patch('infrastructure.public_http.resolve_host', return_value=('8.8.8.8',)), \
+        with patch('infrastructure.public_http.resolve_host', return_value=('8.8.8.8',)),\
              patch('infrastructure.public_http.urllib3.HTTPSConnectionPool', return_value=pool):
             with self.assertRaises(PublicHTTPError):
                 request_public('https://museum.example/visitor/policy', redirects=2,
@@ -200,7 +200,7 @@ class AttractionPipelineTests(unittest.TestCase):
         detail = normalize_poi_detail({'id': 'B00001', 'name': '测试博物馆', 'cityname': '武汉市', 'typecode': '140100',
             'business': {'opentime_week': '周二至周日09:00-17:00', 'cost': '50'}}, '/v5/place/text', '2026-10-19T09:00:00+00:00')
         self.amap = SimpleNamespace(search_poi_details=Mock(return_value=[detail]), get_poi_detail=Mock(return_value=detail))
-        self.service = ResearchService(self.store, self.search, reader=self.reader, amap=self.amap, official_sources=self.registry)
+        self.service = ResearchTool(self.store, self.search, reader=self.reader, amap=self.amap, official_sources=self.registry)
         self.service.search_planner.plan_targets = Mock(return_value=self.scope)
 
     def run_facts(self):

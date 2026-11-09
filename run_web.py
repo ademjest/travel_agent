@@ -9,13 +9,13 @@ from adapters.web_app import create_web_app
 from core.settings import SettingsError
 from core.web_settings import WebSettings
 from core.data_paths import log_directory
+from core.logging_config import configure_logging
 
 
 def main():
     logs = log_directory()
     logs.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s',
-        handlers=[logging.FileHandler(logs / 'travel-web.log', encoding='utf-8'), logging.StreamHandler()], force=True)
+    configure_logging(logs)
     try:
         settings = WebSettings.from_env()
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

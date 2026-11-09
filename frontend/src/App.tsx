@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import { useConversation } from "./useConversation";
+import { useMessageSubmission } from "./useMessageSubmission";
+import { useConversationDeletion } from "./useConversationDeletion";
+import type { Modal } from "./ConversationDialogs";
+import { ConfirmationCards, DeletionDialog, DeletionNotices } from "./ConversationDialogs";
+import { TripView } from "./TripView";
+import { RailResultCard } from "./RailResultCard";
+import { HotelMessageActions } from "./HotelMessageActions";
+import { TripMessage } from "./TripMessage";
+import { PlanComparisonPanel } from "./PlanComparisonPanel";
+import { Markdown } from "./Markdown";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowRight,
@@ -33,30 +43,15 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import { normalizeMathDelimiters } from "./mathMarkdown";
 import { SettingsPanel } from "./SettingsPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import { ConversationUsage } from "./ConversationUsage";
-import { ErrorBoundary } from "./ErrorBoundary";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
-import { TripStatePanel, TripChangeDiff } from "./TripStatePanel";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
-import { api, ApiError, bootstrap, dateText, emptyContext, label } from "./api";
+import { api, dateText, label } from "./api";
 import type {
-  Bootstrap,
-  Context,
   Conversation,
-  Message,
-  MessagePage,
-  Notice,
   Status,
-  Upload,
-  DeletionJob,
-  DeletionSummary,
 } from "./api";
 
 const suggestions = [
@@ -86,416 +81,42 @@ const suggestions = [
     text: "明天提醒我预约博物馆。",
   },
 ];
-type DraftFile = {
-  key: string;
-  file: File;
-  upload?: Upload;
-  error?: string;
-  busy: boolean;
-};
 
-export function normalizeMarkdownText(text: string) {
-  return normalizeMathDelimiters(text)
-    .replace(/^\*\*([^*\n]+)\*\*[ \t]*$/gm, "## $1")
-    .replace(
-      /^(第\s*\d+\s*天(?:\s*·\s*[^\n]+|（日期待定）))[ \t]*$/gm,
-      "\n### $1\n",
-    )
-    .replace(
-      /^(住宿候选|餐饮候选)(?:（([^\n）]*)）)?[：:][ \t]*$/gm,
-      (_match, title: string, note?: string) =>
-        `\n### ${title}${note ? `（${note}）` : ""}\n`,
-    )
-    .replace(
-      /^(旅行行程|行程创建预览（尚未保存）|行程修改预览（尚未保存）)(：[^\n]+)$/gm,
-      "## $1$2",
-    );
-}
-
-export function internalEvidenceLink(href?: string) {
-  if (!href) return false;
-  try {
-    const url = new URL(href, window.location.href);
-    return url.origin === window.location.origin && url.pathname === window.location.pathname &&
-      /^#source-(?:[a-f0-9]{12}-)?\d+-target-\d+-(opening_hours|ticket_price|reservation_rules)$/.test(url.hash);
-  } catch { return false; }
-}
-
-export function Markdown({ text }: { text: unknown }) {
-  if (typeof text !== "string")
-    return <p role="alert">这条内容暂时无法显示，请刷新或重新生成。</p>;
-  const display = normalizeMarkdownText(text).replace(
-    /^地点依据：/gm,
-    "\n地点依据：",
-  );
-  return (
-    <div className="markdown">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[[rehypeKatex, { trust: false, strict: "ignore", maxExpand: 1000, maxSize: 20 }]]}
-        skipHtml
-        components={{
-          a: ({ href, children }) => internalEvidenceLink(href) ? (
-            null
-          ) : (
-            <a href={href} target="_blank" rel="noreferrer noopener">
-              {children}
-            </a>
-          ),
-          img: ({ alt }) => (
-            <span className="muted">[图片链接：{alt || "请查看原始资料"}]</span>
-          ),
-          table: ({ children }) => (
-            <div className="table-scroll">
-              <table>{children}</table>
-            </div>
-          ),
-        }}
-      >
-        {display}
-      </ReactMarkdown>
-    </div>
-  );
-}
 
 export default function App() {
-  const [config, setConfig] = useState<Bootstrap | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [active, setActive] = useState("");
-  const activeRef = useRef("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [context, setContext] = useState<Context>(emptyContext);
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [noticeToast, setNoticeToast] = useState<Notice | null>(null);
-  const [draft, setDraft] = useState("");
-  const [files, setFiles] = useState<DraftFile[]>([]);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
-  const [online, setOnline] = useState(true);
-  const [ready, setReady] = useState(false);
   const [sidebar, setSidebar] = useState(false);
   const [details, setDetails] = useState(() => window.innerWidth >= 1280);
   const [width, setWidth] = useState(window.innerWidth);
   const [tab, setTab] = useState("trip");
-  const [modal, setModal] = useState<
-    "notifications" | "space" | "services" | "preferences" | "delete" | "diagnostics" | null
-  >(null);
+  const [modal, setModal] = useState<Modal>(null);
   const [diagnosticJob, setDiagnosticJob] = useState<{ conversationId: string; jobId: number } | null>(null);
+  const [comparisonMessage, setComparisonMessage] = useState<{conversationId:string;messageId:string} | null>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const conversation = useConversation(setSidebar);
+  const { config, conversations, setConversations, active, messages, context, notices, noticeToast, setNoticeToast, draft, setDraft, quotedMessage, setQuotedMessage, files, setFiles, error, setError, online, ready, renaming, setRenaming, titleDraft, setTitleDraft, hasMore, newMessages, setNewMessages, feed, nearBottom, report, choose, refresh, loadOlder } = conversation;
+  const { sending, send, addFiles, keyDown, cancel, confirm,actDraft,draftSending } = useMessageSubmission(conversation, input);
+  const { deleteTarget, deleteSummary, deleteError, deleteSending, deletionJobs, openDelete, confirmDelete, retryDeletion, dismissDeletion } = useConversationDeletion(conversation, modal, setModal);
   useEffect(() => {
     if (diagnosticJob && diagnosticJob.conversationId !== active) {
       setDiagnosticJob(null);
       setModal((value) => value === "diagnostics" ? null : value);
     }
   }, [active, diagnosticJob]);
-  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
-  const deleteTargetRef = useRef("");
-  const [deleteSummary, setDeleteSummary] = useState<DeletionSummary | null>(
-    null,
-  );
-  const [deleteError, setDeleteError] = useState("");
-  const [deleteSending, setDeleteSending] = useState(false);
-  const [deletionJobs, setDeletionJobs] = useState<DeletionJob[]>([]);
-  const deletionJobsRef = useRef<DeletionJob[]>([]);
-  const deletedIds = useRef(new Set<string>());
-  const deletionChannel = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    if (comparisonMessage && comparisonMessage.conversationId !== active) {
+      setComparisonMessage(null);
+      setModal(value => value === "comparison" ? null : value);
+    }
+  }, [active, comparisonMessage]);
   const [status, setStatus] = useState<Status | null>(null);
-  const [renaming, setRenaming] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
-  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [newMessages, setNewMessages] = useState(false);
   const [copied, setCopied] = useState("");
   const [tick, setTick] = useState(Date.now());
-  const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const feed = useRef<HTMLDivElement>(null);
-  const nearBottom = useRef(true);
-  const request = useRef<{ signature: string; id: string } | null>(null);
-  const lastMessage = useRef("");
-  const seenNoticeIds = useRef(new Set<number>());
   const dialog = useRef<HTMLDialogElement>(null);
-  const historyLoaded = useRef(false);
-
-  const report = (reason: unknown) => {
-    if (reason instanceof ApiError && reason.status === 410) return;
-    setError(reason instanceof Error ? reason.message : "操作未完成，请重试。");
-  };
-  const receiveNotices = useCallback((items: Notice[]) => {
-    const visible = items.filter((item) => !deletedIds.current.has(item.conversation_id));
-    const fresh = visible.find(item => !item.read_at && !seenNoticeIds.current.has(item.id));
-    if (fresh) setNoticeToast(fresh);
-    visible.forEach(item => seenNoticeIds.current.add(item.id));
-    setNotices(visible);
-  }, []);
-  const forgetConversation = useCallback((identity: string) => {
-    if (typeof identity !== "string" || !identity) return;
-    if (deleteTargetRef.current === identity) {
-      deleteTargetRef.current = "";
-      setDeleteTarget(null);
-      setDeleteSummary(null);
-      setModal(null);
-    }
-    deletedIds.current.add(identity);
-    localStorage.removeItem(`travel-draft:${identity}`);
-    if (localStorage.getItem("travel-active") === identity)
-      localStorage.removeItem("travel-active");
-    setConversations((old) => old.filter((item) => item.id !== identity));
-    setNotices((old) =>
-      old.filter((item) => item.conversation_id !== identity),
-    );
-    if (activeRef.current === identity) {
-      activeRef.current = "";
-      setActive("");
-      setMessages([]);
-      setContext(emptyContext);
-      setFiles([]);
-      setDraft("");
-      setRenaming(false);
-      setHasMore(false);
-      setNewMessages(false);
-      setError("");
-      request.current = null;
-      lastMessage.current = "";
-      historyLoaded.current = false;
-    }
-  }, []);
-  const choose = useCallback((identity: string) => {
-    if (deletedIds.current.has(identity)) return;
-    activeRef.current = identity;
-    setActive(identity);
-    setMessages([]);
-    setContext(emptyContext);
-    setFiles([]);
-    setDraft(localStorage.getItem(`travel-draft:${identity}`) || "");
-    setSidebar(false);
-    setError("");
-    setHasMore(false);
-    setRenaming(false);
-    nearBottom.current = true;
-    lastMessage.current = "";
-    historyLoaded.current = false;
-    localStorage.setItem("travel-active", identity);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const configValue = await bootstrap();
-        const list = await api<Conversation[]>("/conversations");
-        if (cancelled) return;
-        setConfig(configValue);
-        setConversations(
-          list.filter((item) => !deletedIds.current.has(item.id)),
-        );
-        setReady(true);
-        const saved = localStorage.getItem("travel-active");
-        if (saved && list.some((c) => c.id === saved)) choose(saved);
-      } catch (reason) {
-        if (!cancelled) report(reason);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [choose]);
-
-  const refresh = useCallback(async (identity: string) => {
-    const [page, ctx, list, notifications] = await Promise.all([
-      api<MessagePage>(`/conversations/${identity}/messages`),
-      api<Context>(`/conversations/${identity}/context`),
-      api<Conversation[]>("/conversations"),
-      api<Notice[]>("/notifications"),
-    ]);
-    if (identity !== activeRef.current || deletedIds.current.has(identity))
-      return;
-    setMessages((old) =>
-      historyLoaded.current
-        ? [
-            ...old.filter((m) => !page.items.some((n) => n.id === m.id)),
-            ...page.items,
-          ].sort(
-            (a, b) =>
-              a.created_at.localeCompare(b.created_at) ||
-              a.id.localeCompare(b.id),
-          )
-        : page.items,
-    );
-    setContext(ctx);
-    setConversations(list.filter((item) => !deletedIds.current.has(item.id)));
-    receiveNotices(notifications);
-    setOnline(true);
-    setError((old) => (old.startsWith("暂时连接不到本地服务") ? "" : old));
-    if (!historyLoaded.current) {
-      setHasMore(page.has_more);
-      setHistoryCursor(page.before);
-    }
-    const lastId = page.items.at(-1)?.id || "";
-    if (lastId !== lastMessage.current) {
-      if (nearBottom.current)
-        requestAnimationFrame(() => {
-          if (feed.current) feed.current.scrollTop = feed.current.scrollHeight;
-        });
-      else setNewMessages(true);
-      lastMessage.current = lastId;
-    }
-    return ctx.jobs.length > 0;
-  }, [receiveNotices]);
-
-  useEffect(() => {
-    if (!active || !ready) return;
-    let cancelled = false,
-      timer: ReturnType<typeof setTimeout>,
-      failures = 0;
-    let inFlight = false;
-    const update = async () => {
-      if (cancelled || inFlight) return;
-      inFlight = true;
-      clearTimeout(timer);
-      let processing = false;
-      try {
-        processing = !!(await refresh(active));
-        failures = 0;
-      } catch (reason) {
-        if (
-          !cancelled &&
-          activeRef.current === active &&
-          !deletedIds.current.has(active)
-        ) {
-          setOnline(false);
-          report(reason);
-          failures++;
-        }
-      } finally {
-        inFlight = false;
-        if (!cancelled)
-          timer = setTimeout(
-            update,
-            document.hidden || !processing
-              ? 15000
-              : Math.min(1500 * 2 ** failures, 15000),
-          );
-      }
-    };
-    void update();
-    const focus = () => {
-      if (!document.hidden) void update();
-    };
-    document.addEventListener("visibilitychange", focus);
-    window.addEventListener("focus", focus);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", focus);
-      window.removeEventListener("focus", focus);
-    };
-  }, [active, ready, refresh, context.jobs.length > 0]);
-
-  useEffect(() => {
-    const local = (event: Event) =>
-      forgetConversation((event as CustomEvent<string>).detail);
-    const storage = (event: StorageEvent) => {
-      if (event.key === "travel-deleted" && event.newValue) {
-        try {
-          forgetConversation(JSON.parse(event.newValue).id);
-        } catch {
-          /* Ignore unrelated malformed storage events. */
-        }
-      }
-    };
-    window.addEventListener("travel:conversation-deleted", local);
-    window.addEventListener("storage", storage);
-    if (typeof BroadcastChannel !== "undefined") {
-      const channel = new BroadcastChannel("travel-conversations");
-      channel.onmessage = (event) => {
-        if (event.data?.type === "deleted" && typeof event.data.id === "string")
-          forgetConversation(event.data.id);
-      };
-      deletionChannel.current = channel;
-    }
-    return () => {
-      window.removeEventListener("travel:conversation-deleted", local);
-      window.removeEventListener("storage", storage);
-      deletionChannel.current?.close();
-      deletionChannel.current = null;
-    };
-  }, [forgetConversation]);
-
-  useEffect(() => {
-    if (!ready) return;
-    let disposed = false,
-      timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      let pending = false;
-      try {
-        const listed = await api<DeletionJob[]>("/conversation-deletions");
-        const finished = await Promise.all(
-          deletionJobsRef.current
-            .filter(
-              (job) =>
-                job.state !== "completed" &&
-                !listed.some(
-                  (item) => item.conversation_id === job.conversation_id,
-                ),
-            )
-            .map((job) =>
-              api<DeletionJob>(
-                `/conversation-deletions/${job.conversation_id}`,
-              ),
-            ),
-        );
-        if (disposed) return;
-        for (const job of listed) forgetConversation(job.conversation_id);
-        const changes = new globalThis.Map<string, DeletionJob>(
-          [...deletionJobsRef.current, ...listed, ...finished].map((job) => [
-            job.conversation_id,
-            job,
-          ]),
-        );
-        deletionJobsRef.current = [...changes.values()];
-        setDeletionJobs(deletionJobsRef.current);
-        pending = deletionJobsRef.current.some((job) =>
-          ["pending", "cleaning"].includes(job.state),
-        );
-      } catch (reason) {
-        if (!disposed) report(reason);
-      }
-      if (!disposed) timer = setTimeout(poll, pending ? 1500 : 15000);
-    };
-    void poll();
-    return () => {
-      disposed = true;
-      clearTimeout(timer);
-    };
-  }, [
-    ready,
-    forgetConversation,
-    deletionJobs.some((job) => ["pending", "cleaning"].includes(job.state)),
-  ]);
-
-  useEffect(() => {
-    if (!ready || active) return;
-    const update = () =>
-      api<Notice[]>("/notifications")
-        .then(receiveNotices)
-        .catch(report);
-    void update();
-    const timer = setInterval(update, 15000);
-    return () => clearInterval(timer);
-  }, [ready, active, receiveNotices]);
-  useEffect(() => {
-    if (active && !deletedIds.current.has(active))
-      localStorage.setItem(`travel-draft:${active}`, draft);
-  }, [active, draft]);
   useEffect(() => {
     const timer = setInterval(() => setTick(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  useEffect(() => {
-    if (!noticeToast) return;
-    const timer = setTimeout(() => setNoticeToast(null), 10000);
-    return () => clearTimeout(timer);
-  }, [noticeToast]);
   useEffect(() => {
     if (input.current) {
       input.current.style.height = "auto";
@@ -505,85 +126,7 @@ export default function App() {
   useEffect(() => {
     if (modal) dialog.current?.showModal();
     else dialog.current?.close();
-    if (modal !== "delete") deleteTargetRef.current = "";
   }, [modal]);
-
-  async function openDelete(conversation: Conversation) {
-    deleteTargetRef.current = conversation.id;
-    setDeleteTarget(conversation);
-    setDeleteSummary(null);
-    setDeleteError("");
-    setModal("delete");
-    try {
-      const summary = await api<DeletionSummary>(
-        `/conversations/${conversation.id}/deletion-summary`,
-      );
-      if (deleteTargetRef.current === conversation.id)
-        setDeleteSummary(summary);
-    } catch (reason) {
-      if (deleteTargetRef.current === conversation.id)
-        setDeleteError((reason as Error).message);
-    }
-  }
-  function acceptDeletion(job: DeletionJob) {
-    forgetConversation(job.conversation_id);
-    deletionChannel.current?.postMessage({
-      type: "deleted",
-      id: job.conversation_id,
-    });
-    localStorage.setItem(
-      "travel-deleted",
-      JSON.stringify({ id: job.conversation_id, time: Date.now() }),
-    );
-    deletionJobsRef.current = [
-      ...deletionJobsRef.current.filter(
-        (item) => item.conversation_id !== job.conversation_id,
-      ),
-      job,
-    ];
-    setDeletionJobs(deletionJobsRef.current);
-    setModal(null);
-  }
-  async function confirmDelete() {
-    if (!deleteTarget || !deleteSummary || deleteSending) return;
-    const identity = deleteTarget.id;
-    setDeleteSending(true);
-    setDeleteError("");
-    try {
-      acceptDeletion(
-        await api<DeletionJob>(`/conversations/${identity}`, {
-          method: "DELETE",
-        }),
-      );
-    } catch (reason) {
-      try {
-        acceptDeletion(
-          await api<DeletionJob>(`/conversation-deletions/${identity}`),
-        );
-      } catch {
-        setDeleteError((reason as Error).message);
-      }
-    } finally {
-      setDeleteSending(false);
-    }
-  }
-  async function retryDeletion(identity: string) {
-    try {
-      acceptDeletion(
-        await api<DeletionJob>(`/conversation-deletions/${identity}/retry`, {
-          method: "POST",
-        }),
-      );
-    } catch (reason) {
-      report(reason);
-    }
-  }
-  function dismissDeletion(identity: string) {
-    deletionJobsRef.current = deletionJobsRef.current.filter(
-      (job) => job.conversation_id !== identity,
-    );
-    setDeletionJobs(deletionJobsRef.current);
-  }
   useEffect(() => {
     const resize = () => setWidth(window.innerWidth);
     window.addEventListener("resize", resize);
@@ -629,16 +172,6 @@ export default function App() {
       previous?.focus();
     };
   }, [sidebar, details, width, modal]);
-
-  async function ensureConversation() {
-    if (activeRef.current) return activeRef.current;
-    const created = await api<Conversation>("/conversations", {
-      method: "POST",
-    });
-    setConversations((old) => [created, ...old]);
-    choose(created.id);
-    return created.id;
-  }
   async function newConversation() {
     if (!ready || sending) return;
     try {
@@ -652,176 +185,20 @@ export default function App() {
       report(reason);
     }
   }
-  async function send(event?: FormEvent) {
-    event?.preventDefault();
-    if (
-      !ready ||
-      sending ||
-      files.some((f) => f.busy || f.error) ||
-      (!draft.trim() && !files.length)
-    )
-      return;
-    const text = draft.trim(),
-      selectedFiles = [...files];
-    setSending(true);
-    setError("");
-    let sendingConversation = activeRef.current;
-    try {
-      const identity = await ensureConversation();
-      sendingConversation = identity;
-      const body = {
-        content: text,
-        upload_ids: selectedFiles.flatMap((f) =>
-          f.upload ? [f.upload.id] : [],
-        ),
-      };
-      const signature = JSON.stringify({ identity, ...body });
-      if (request.current?.signature !== signature)
-        request.current = { signature, id: crypto.randomUUID() };
-      await api(`/conversations/${identity}/messages`, {
-        method: "POST",
-        body: JSON.stringify({
-          ...body,
-          client_request_id: request.current.id,
-        }),
-      });
-      if (activeRef.current === identity) {
-        setDraft("");
-        setFiles([]);
-        nearBottom.current = true;
-      }
-      request.current = null;
-      await refresh(identity);
-    } catch (reason) {
-      if (!deletedIds.current.has(sendingConversation)) {
-        setDraft(text);
-        report(reason);
-      }
-    } finally {
-      setSending(false);
-      input.current?.focus();
-    }
-  }
-  async function addFiles(incoming: File[]) {
-    if (!incoming.length || !ready) return;
-    if (files.length + incoming.length > 8) {
-      setError("每条消息最多添加 8 个附件。");
-      return;
-    }
-    if (incoming.some((f) => f.size > 5 * 1024 * 1024)) {
-      setError("每个附件不能超过 5 MB。");
-      return;
-    }
-    try {
-      const previousDraft = draft;
-      const identity = await ensureConversation();
-      setDraft(previousDraft);
-      const additions = incoming.map((file) => ({
-        file,
-        key: crypto.randomUUID(),
-        busy: true,
-      }));
-      setFiles((old) => [...old, ...additions]);
-      setError("");
-      for (const addition of additions) {
-        const data = new FormData();
-        data.set("conversation_id", identity);
-        data.set("file", addition.file);
-        try {
-          const upload = await api<Upload>("/uploads", {
-            method: "POST",
-            body: data,
-          });
-          if (activeRef.current === identity)
-            setFiles((old) =>
-              old.map((f) =>
-                f.key === addition.key ? { ...f, busy: false, upload } : f,
-              ),
-            );
-        } catch (reason) {
-          if (activeRef.current === identity)
-            setFiles((old) =>
-              old.map((f) =>
-                f.key === addition.key
-                  ? { ...f, busy: false, error: (reason as Error).message }
-                  : f,
-              ),
-            );
-        }
-      }
-    } catch (reason) {
-      report(reason);
-    }
-  }
-  function keyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing &&
-      event.keyCode !== 229
-    ) {
-      event.preventDefault();
-      void send();
-    }
-  }
-  async function cancel(job: number) {
-    try {
-      await api(`/tasks/${job}/cancel`, { method: "POST" });
-      await refresh(activeRef.current);
-    } catch (reason) {
-      report(reason);
-    }
-  }
-  async function confirm(id: string, version: number) {
-    try {
-      setSending(true);
-      await api(`/conversations/${active}/confirmations/${id}`, {
-        method: "POST",
-        body: JSON.stringify({
-          version,
-          client_request_id: `confirm-${id}-${version}`,
-        }),
-      });
-      await refresh(active);
-    } catch (reason) {
-      report(reason);
-    } finally {
-      setSending(false);
-    }
-  }
   function fill(text: string) {
     setDraft(text);
     input.current?.focus();
     if (window.innerWidth < 1024) setDetails(false);
   }
+  function quoteMessage(id:string,label?:string) {
+    const message=messages.find(item=>item.id===id);
+    setQuotedMessage({id,label:label || (message ? `${message.role==="user" ? "你" : "助手"} · ${dateText(message.created_at)} · ${message.content.slice(0,100)}` : "历史消息")});
+    input.current?.focus();
+  }
   async function openStatus() {
     setModal("space");
     try {
       setStatus(await api<Status>("/status"));
-    } catch (reason) {
-      report(reason);
-    }
-  }
-  async function loadOlder() {
-    const identity = activeRef.current;
-    try {
-      const page = await api<MessagePage>(
-        `/conversations/${active}/messages?before=${encodeURIComponent(historyCursor || "")}`,
-      );
-      if (identity !== activeRef.current || deletedIds.current.has(identity))
-        return;
-      const height = feed.current?.scrollHeight || 0;
-      historyLoaded.current = true;
-      setMessages((old) => [
-        ...page.items,
-        ...old.filter((m) => !page.items.some((n) => n.id === m.id)),
-      ]);
-      setHasMore(page.has_more);
-      setHistoryCursor(page.before);
-      requestAnimationFrame(() => {
-        if (feed.current)
-          feed.current.scrollTop += feed.current.scrollHeight - height;
-      });
     } catch (reason) {
       report(reason);
     }
@@ -1141,11 +518,16 @@ export default function App() {
                           ))}
                         </div>
                       )}
-                      {message.kind === "progress" ? (
+                      {message.trip_presentation ? <TripMessage presentation={message.trip_presentation} onFill={fill} onQuote={()=>quoteMessage(message.id)}/> : message.rail_results?.length ? message.rail_results.map(result => (
+                        <RailResultCard key={result.id} conversationId={active} result={result} disabled={sending || busy}
+                          onQueryQueued={() => refresh(active)} />
+                      )) : message.kind === "progress" ? (
                         <p className="muted">{message.content}</p>
                       ) : (
-                        <Markdown text={message.content} />
+                        <Markdown text={message.hotel_presentation?.text || message.content} />
                       )}
+                      {message.hotel_actions?.length ? <HotelMessageActions conversationId={active} actions={message.hotel_actions}
+                        disabled={sending || busy} onQueued={()=>void refresh(active)}/> : null}
                     </div>
                     {message.job_status &&
                       ["failed", "cancelled", "retry"].includes(
@@ -1164,11 +546,11 @@ export default function App() {
                       message.kind !== "progress" && (
                         <button
                           className="copy-button"
-                          aria-label="复制回复"
+                          aria-label={message.rail_results?.length ? "复制文本摘要" : "复制回复"}
                           onClick={async () => {
                             try {
                               await navigator.clipboard.writeText(
-                                message.content,
+                                message.hotel_presentation?.text || message.content,
                               );
                               setCopied(message.id);
                             } catch {
@@ -1181,9 +563,13 @@ export default function App() {
                           ) : (
                             <Copy size={13} />
                           )}
-                          {copied === message.id ? "已复制" : "复制"}
+                          {copied === message.id ? "已复制" : message.rail_results?.length ? "复制摘要" : "复制"}
                         </button>
                       )}
+                    <button className="copy-button" disabled={sending} onClick={()=>quoteMessage(message.id)}>引用</button>
+                    {message.plan_comparison && <button className="copy-button" onClick={() => {
+                      setComparisonMessage({conversationId:active,messageId:message.id});setModal("comparison");
+                    }}>查看本轮两版草案</button>}
                     {message.role === "user" && message.job_id != null && (
                       <button className="copy-button" onClick={() => {
                         setDiagnosticJob({ conversationId: active, jobId: message.job_id! });
@@ -1193,94 +579,18 @@ export default function App() {
                   </div>
                 </article>
               ))}
-              {context.confirmations.map((c) => (
-                <ErrorBoundary key={`${active}-${c.id}-${c.version}`} fallback={
-                  <section className="confirmation" role="alert">
-                    <p>这项预览暂时无法显示，请重新生成后核对。</p>
-                    <button onClick={() => fill(c.command === "确认行程修改" ? "重新生成行程预览" : "重新查询预约规则")}>重新生成预览</button>
-                  </section>
-                }>
-                <section className="confirmation" key={`${c.id}-${c.version}`}>
-                  <div className="confirmation-heading">
-                    <Info size={18} />
-                    <strong>有一项变更需要你确认</strong>
-                  </div>
-                  {c.diff && <TripChangeDiff diff={c.diff} />}
-                  {typeof c.preview === "string" && c.preview.trim() ? (c.diff ? <details><summary>展开完整预览</summary><Markdown text={c.preview} /></details> : <Markdown text={c.preview} />) :
-                    <p role="alert">完整预览暂时不可用。原行程未修改，请重新生成后核对。</p>}
-                  {c.can_confirm === false && typeof c.unavailable_reason === "string" &&
-                    <p role="alert">{c.unavailable_reason}</p>}
-                  <div className="confirmation-actions">
-                    <button
-                      className="primary-button"
-                      disabled={sending || busy || c.can_confirm === false || typeof c.preview !== "string" || !c.preview.trim()}
-                      onClick={() => confirm(c.id, c.version)}
-                    >
-                      确认这次变更
-                    </button>
-                    <button onClick={() => fill("取消当前任务")}>
-                      暂不执行
-                    </button>
-                    {(c.can_confirm === false || typeof c.preview !== "string" || !c.preview.trim()) &&
-                      <button onClick={() => fill(c.command === "确认行程修改" ? "重新生成行程预览" : "重新查询预约规则")}>重新生成预览</button>}
-                    <small>以当前预览版本为准</small>
-                  </div>
-                </section>
-                </ErrorBoundary>
-              ))}
+              <ConfirmationCards confirmations={context.confirmations} active={active} sending={sending}
+                  busy={busy} fill={fill} confirm={confirm} onDraftAction={actDraft} draftSending={draftSending} onQuote={quoteMessage} renderedPreviews={messages.filter(m=>m.trip_presentation).map(m=>m.content)} />
             </div>
           )}
         </div>
 
         <div className="composer-area">
-          {deletionJobs.length > 0 && (
-            <div className="deletion-notices" aria-live="polite">
-              {deletionJobs.map((job) => (
-                <div
-                  className={`deletion-notice ${job.state}`}
-                  key={job.conversation_id}
-                >
-                  {job.state === "completed" ? (
-                    <Check size={16} />
-                  ) : job.state === "failed" ? (
-                    <Info size={16} />
-                  ) : (
-                    <LoaderCircle size={16} className="spin" />
-                  )}
-                  <span>
-                    {job.title && <small>{job.title}</small>}
-                    <strong>
-                      {job.state === "completed"
-                        ? "会话及关联数据已删除"
-                        : job.state === "failed"
-                          ? "会话已停用，清理尚未完成"
-                          : "会话已停用，正在清理关联数据"}
-                    </strong>
-                    <small>
-                      {job.error ||
-                        (job.state === "completed"
-                          ? "不会再执行该会话的任务与提醒。"
-                          : "删除已受理，关闭网页不会中断清理。")}
-                    </small>
-                  </span>
-                  {job.state === "failed" && (
-                    <button onClick={() => retryDeletion(job.conversation_id)}>
-                      重试清理
-                    </button>
-                  )}
-                  {job.state === "completed" && (
-                    <button
-                      className="icon-button tiny"
-                      aria-label="关闭删除完成提示"
-                      onClick={() => dismissDeletion(job.conversation_id)}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          {quotedMessage && <div className="query-reference" role="status">
+            <span><strong>引用消息</strong>{quotedMessage.label}</span>
+            <button type="button" aria-label="取消引用" disabled={sending} onClick={() => setQuotedMessage(null)}><X size={16} /></button>
+          </div>}
+          <DeletionNotices jobs={deletionJobs} retry={retryDeletion} dismiss={dismissDeletion} />
           {newMessages && (
             <button
               className="new-messages"
@@ -1300,6 +610,7 @@ export default function App() {
               <LoaderCircle size={15} className="spin" />
               <span>
                 {label[context.jobs[0].status]}
+                {context.jobs[0].progress && <small> · {context.jobs[0].progress.description}</small>}
                 <small>
                   {" "}
                   ·{" "}
@@ -1492,102 +803,22 @@ export default function App() {
           ))}
         </div>
         <div className="detail-content">
-          {tab === "trip" &&
-            (context.trips.length ? (
-              context.trips.map((trip) => (
-                <section className="trip-card" key={trip.trip_id}>
-                  <div className="trip-title">
-                    <MapPin size={16} />
-                    <h2>{trip.spec.destination}</h2>
-                    <span>{trip.spec.day_count} 天</span>
-                  </div>
-                  <p className="muted">
-                    {trip.spec.start_date || "日期待定"}{trip.spec.date_is_tentative ? "（暂定参考）" : ""} · 版本 {trip.version}
-                  </p>
-                  <TripStatePanel facts={trip.facts || []} draft={trip.draft_facts} onEdit={async (field,value)=>{
-                    await api(`/conversations/${active}/trips/${trip.trip_id}/fields`, {method:'POST',body:JSON.stringify({
-                      field,value,version:trip.version,draft_id:trip.draft_id || null,draft_version:trip.draft_version || null,
-                      client_request_id:crypto.randomUUID()})});
-                    await refresh(active);
-                  }} />
-                  {trip.spec.preferences?.filter(p => !(trip.facts || []).some(f => f.value.includes(p))).length ? (
-                    <div className="tags">
-                      {trip.spec.preferences.filter(p => !(trip.facts || []).some(f => f.value.includes(p))).map((p) => (
-                        <span key={p}>{p}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="days">
-                    {trip.plan.days.map((day) => (
-                      <div className="day" key={day.day_index}>
-                        <span className="day-marker">
-                          {day.day_index.toString().padStart(2, "0")}
-                        </span>
-                        <div>
-                          <h3>
-                            第 {day.day_index} 天 <small>{day.date}</small>
-                          </h3>
-                          {day.activities.map((a, i) => (
-                              <div key={i}>
-                                <p>
-                              <small>{a.period}</small>
-                              {a.name ||
-                                trip.sources[a.poi_id || ""]?.name ||
-                                "待确认地点"}
-                                </p>
-                                {a.description && <details><summary>介绍与玩法</summary>
-                                  {a.description.intro && <p>{a.description.intro.text}</p>}
-                                  {a.description.why_visit && <p>安排理由：{a.description.why_visit}</p>}
-                                  {a.description.tips?.map((tip, index) => <p key={index}>怎么玩（一般建议）：{tip.text}</p>)}
-                                </details>}
-                              </div>
-                          ))}
-                          <button
-                            onClick={() =>
-                              fill(
-                                `修改行程 ${trip.trip_id} 的第${day.day_index}天：`,
-                              )
-                            }
-                          >
-                            调整这一天 <ArrowRight size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ))
-            ) : (
-              <div className="detail-empty">
-                <div className="route-art">
-                  <MapPin size={26} />
-                  <span />
-                  <Navigation size={24} />
-                </div>
-                <h2>让目的地，成为计划</h2>
-                <p>
-                  和我聊聊你的目的地与期待。
-                  <br />
-                  保存的行程会出现在这里。
-                </p>
-                <button onClick={() => fill(suggestions[0].text)}>
-                  开始规划 <ArrowRight size={14} />
-                </button>
-              </div>
-            ))}
+          {tab === "trip" && <TripView trips={context.trips} onFill={fill} onStart={() => fill(suggestions[0].text)}
+            onQuote={quoteMessage}
+            onCompare={messageId=>{setComparisonMessage({conversationId:active,messageId});setModal("comparison");}}/>}
           {tab === "plan" &&
             (context.planning_artifacts.length ? context.planning_artifacts.map((plan) => (
               <section className="trip-card" key={plan.artifact_id}>
                 <div className="trip-title"><Compass size={16}/><h2>{plan.title}</h2></div>
-                <p className="muted">方案 {plan.ordinal} · {plan.kind === "research_backed" ? "研究方案" : "探索方案"}</p>
+                <p className="muted">{plan.status==="adopted" ? "已采用" : plan.status==="active" ? "备选方案" : "历史版本"} · 方案 {plan.ordinal} · {plan.kind === "research_backed" ? "研究方案" : "探索方案"}</p>
                 <p>{plan.summary}</p>
                 <div className="tags">
                   {plan.duration_options.map(days => <span key={days}>{days} 天</span>)}
                 </div>
                 <div className="plan-actions">
-                  {plan.duration_options.length ? plan.duration_options.map(days =>
+                  {plan.status==="active" && (plan.duration_options.length ? plan.duration_options.map(days =>
                     <button key={days} onClick={() => fill(`采用方案 ${plan.ordinal} 的 ${days} 天安排`)}>采用 {days} 天方案</button>) :
-                    <button onClick={() => fill(`采用方案 ${plan.ordinal}，计划玩`)}>采用这个方案</button>}
+                    <button onClick={() => fill(`采用方案 ${plan.ordinal}，计划玩`)}>采用这个方案</button>)}
                   <button onClick={async () => {
                     if (!window.confirm(`不再保留“${plan.title}”吗？`)) return;
                     try {
@@ -1771,7 +1002,7 @@ export default function App() {
 
       <dialog
         ref={dialog}
-        className={`modal ${modal === "services" || modal === "preferences" ? "settings-modal" : ""}`}
+        className={`modal ${modal === "services" || modal === "preferences" ? "settings-modal" : modal === "comparison" ? "comparison-modal" : ""}`}
         onCancel={(event) => {
           if (deleteSending) event.preventDefault();
           else setModal(null);
@@ -1791,7 +1022,7 @@ export default function App() {
                     ? "服务配置"
                     : modal === "preferences"
                       ? "偏好设置"
-                      : modal === "diagnostics" ? "消息处理过程" : "本地空间状态"}
+                      : modal === "diagnostics" ? "消息处理过程" : modal === "comparison" ? "本轮两版草案" : "本地空间状态"}
             </h2>
             <button
               className="icon-button"
@@ -1803,77 +1034,8 @@ export default function App() {
             </button>
           </header>
           {modal === "delete" && (
-            <div className="delete-dialog">
-              <p>
-                将永久删除 <strong>“{deleteTarget?.title}”</strong>{" "}
-                及其关联数据。
-              </p>
-              <p>
-                聊天记忆、附件、行程和通知会被清理；进行中的任务、未到期提醒、定时查询和规则监测将停止。
-              </p>
-              {deleteSummary ? (
-                <dl className="delete-summary">
-                  {(
-                    [
-                      ["消息", deleteSummary.messages],
-                      ["附件", deleteSummary.attachments],
-                      ["行程", deleteSummary.trips],
-                      ["方案草稿", deleteSummary.planning_artifacts],
-                      ["会话摘要", deleteSummary.conversation_summaries],
-                      ["大型工具结果", deleteSummary.tool_artifacts],
-                      ["进行中任务", deleteSummary.active_tasks],
-                      ["待处理提醒", deleteSummary.reminders],
-                      ["定时查询", deleteSummary.scheduled_queries],
-                      ["规则监测", deleteSummary.policy_watches],
-                    ] as [string, number][]
-                  ).map(([name, count]) => (
-                    <div key={name}>
-                      <dt>{name}</dt>
-                      <dd>{count}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : (
-                !deleteError && (
-                  <p className="delete-loading">
-                    <LoaderCircle className="spin" size={15} />
-                    正在检查关联数据…
-                  </p>
-                )
-              )}
-              <p className="delete-warning">
-                此操作不可恢复。其他会话和 QQ
-                数据不会被删除；其他会话仍在使用的共享文件会保留。
-              </p>
-              {deleteError && (
-                <p className="delete-error" role="alert">
-                  {deleteError}
-                </p>
-              )}
-              <div className="delete-actions">
-                <button
-                  autoFocus
-                  disabled={deleteSending}
-                  onClick={() => setModal(null)}
-                >
-                  取消
-                </button>
-                <button
-                  className="danger-button"
-                  disabled={!deleteSummary || deleteSending}
-                  onClick={confirmDelete}
-                >
-                  {deleteSending ? (
-                    <>
-                      <LoaderCircle size={15} className="spin" />
-                      正在提交…
-                    </>
-                  ) : (
-                    "删除并停止关联任务"
-                  )}
-                </button>
-              </div>
-            </div>
+            <DeletionDialog target={deleteTarget} summary={deleteSummary} error={deleteError}
+              sending={deleteSending} onCancel={() => setModal(null)} onConfirm={confirmDelete} />
           )}
           {modal === "notifications" && (
             <div className="notice-list">
@@ -1965,6 +1127,9 @@ export default function App() {
           )}
           {modal === "diagnostics" && diagnosticJob && diagnosticJob.conversationId === active && (
             <DiagnosticsPanel conversationId={diagnosticJob.conversationId} jobId={diagnosticJob.jobId} />
+          )}
+          {modal === "comparison" && comparisonMessage?.conversationId === active && (
+            <PlanComparisonPanel key={`${active}-${comparisonMessage.messageId}`} conversationId={active} messageId={comparisonMessage.messageId}/>
           )}
         </div>
       </dialog>

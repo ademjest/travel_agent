@@ -1,8 +1,10 @@
+from test_travel_agent import execution_policy, bound_read
+from test_travel_agent import scripted_receipt
 from contextvars import ContextVar
 from threading import Barrier, Lock
 import unittest
 
-from agents.context_builder import AgentContext
+from app.conversation_context import AgentContext
 from agents.travel_agent import TravelAgent
 from core.settings import Settings
 from core.tasks import TaskRecord
@@ -18,11 +20,11 @@ class ParallelAndTimeTests(unittest.TestCase):
         marker = ContextVar('marker', default='missing')
         seen = []
         lock = Lock()
-        def execute(name, arguments):
+        def execute(name, arguments, context):
             barrier.wait(timeout=2)
             with lock:
                 seen.append(marker.get())
-            return name + ':success'
+            return scripted_receipt(name, arguments, name + ':success')
         client = FakeClient([
             completion(assistant_message(tool_calls=[
                 tool_call('weather', 'get_weather_forecast', '{"location":"武汉"}'),
@@ -31,7 +33,7 @@ class ParallelAndTimeTests(unittest.TestCase):
         ])
         token = marker.set('job-context')
         try:
-            result = TravelAgent(self.settings, execute, client=client).run('明天武汉天气和武汉站到湖北省博物馆路况怎么样')
+            result = TravelAgent(self.settings, execute, client=client).run('明天武汉天气和武汉站到湖北省博物馆路况怎么样', decision_override=execution_policy(('traffic', 'forecast'), ('get_route_traffic', 'get_weather_forecast')))
         finally:
             marker.reset(token)
         self.assertEqual(seen, ['job-context', 'job-context'])
@@ -39,7 +41,7 @@ class ParallelAndTimeTests(unittest.TestCase):
 
     def test_write_tools_are_not_dispatched_by_parallel_helper(self):
         called = []
-        agent = TravelAgent(self.settings, lambda name, args: called.append(name), client=FakeClient([]))
+        agent = TravelAgent(self.settings, lambda name, args, context: scripted_receipt(name, args, called.append(name)), client=FakeClient([]))
         result = agent._parallel_reads([
             tool_call('a', 'confirm_reservation_plan', '{"plan_code":"R-20300101-001"}'),
             tool_call('b', 'cancel_reservation_plan', '{"plan_code":"R-20300101-002"}'),
@@ -57,6 +59,8 @@ class ParallelAndTimeTests(unittest.TestCase):
             completion(assistant_message(tool_calls=[tool_call('w', 'get_weather_forecast', '{"location":"武汉"}')])),
             completion(assistant_message(content='天气预报')),
         ])
-        result = TravelAgent(self.settings, lambda name, args: 'data', client=client).run('武汉', context)
+        result = TravelAgent(self.settings, lambda name, args, context: scripted_receipt(name, args, 'data'), client=client).run(
+            '武汉', context, read_request=bound_read('forecast',{'location':'武汉'},task.initial_request+'；查询地点：武汉',
+                task=task,reference_time=task.slots['reference_time']))
         self.assertIn('2030-09-09T23:55:00+08:00', client.completions.requests[0]['messages'][0]['content'])
         self.assertEqual(result.task_update.slots['reference_time'], task.slots['reference_time'])

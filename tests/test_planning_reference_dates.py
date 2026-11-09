@@ -3,9 +3,10 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from agents.trip_planner import TripPlanner, TripPlanError
-from core.trip_diff import facts
-from services.semantic_task_service import SemanticTaskService
+from tools.trip.planner import TripPlanner, TripPlanError
+from tools.trip.constraints import facts
+from core.chat_transport import ChatEvent
+from app.request_router import RequestRouter
 from test_travel_agent import FakeClient
 from test_trips import model_response
 
@@ -75,13 +76,11 @@ class ReferenceDateTests(unittest.TestCase):
         self.assertFalse(result['date_is_tentative'])
 
     def test_semantic_date_followup_uses_unique_reference_without_model(self):
-        store = SimpleNamespace(trips=SimpleNamespace(list_for_owner=Mock(return_value=[{'spec': {'date_is_tentative': True}}])))
+        store = SimpleNamespace(delivery=SimpleNamespace(get_event_tool_result=Mock(return_value=None)), trips=SimpleNamespace(list_for_owner=Mock(return_value=[{'spec': {'date_is_tentative': True}}])))
         compiler, trip_service = Mock(), Mock()
         trip_service.handle.return_value = '日期已更新'
-        service = SemanticTaskService(store, compiler, trip_service=trip_service, mode='execute')
-        service._pending = Mock(return_value=None)
-        service._pending_reminders = Mock(return_value=[])
-        event = SimpleNamespace(content='我确定10月25日出发', trip_edit=None)
+        service = RequestRouter(store, compiler, trip_service=trip_service, mode='execute')
+        event = ChatEvent('web', 'group', 'date-followup', 'scope', 'owner', '我确定10月25日出发')
         self.assertEqual(service.handle(event, None), '日期已更新')
         compiler.try_compile.assert_not_called()
 

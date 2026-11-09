@@ -14,9 +14,9 @@ from run_bot import (
 from app.bot_application import TravelBotApplication
 from core.chat_transport import ChatEvent, DeliveryError, OutgoingMessage
 from infrastructure.memory_store import MemoryStore
-from services.document_service import DocumentIngestResult
+from tools.materials import DocumentIngestResult
 from services.outbox_worker import OutboxWorker
-from services.upload_binding import PrivateUploadResult
+from adapters.upload_binding import PrivateUploadResult
 
 
 class FakeSettings:
@@ -230,6 +230,14 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event.attachments[0].filename, "plan.txt")
         self.assertEqual(event.attachments[0].size, 1234)
 
+    async def test_close_releases_supervised_remote_resources_before_bot_connection(self):
+        supervisor=SimpleNamespace(stop=AsyncMock())
+        self.bot.background_supervisor=supervisor
+        with patch('botpy.Client.close',new_callable=AsyncMock) as close:
+            await self.bot.close()
+        supervisor.stop.assert_awaited_once()
+        close.assert_awaited_once()
+
     async def test_on_ready_logs_build_revision(self):
         self.bot._connection = SimpleNamespace(
             state=SimpleNamespace(robot=SimpleNamespace(name="travel-bot"))
@@ -299,8 +307,8 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.bot._connection = SimpleNamespace(
             state=SimpleNamespace(robot=SimpleNamespace(name="travel-bot"))
         )
-        claim = self.bot.memory_store.begin_event("restored-event")
-        self.bot.memory_store.prepare_event_outbox(
+        claim = self.bot.memory_store.delivery.begin_event("restored-event")
+        self.bot.memory_store.delivery.prepare_event_outbox(
             event_id=claim.event_id,
             claim_token=claim.claim_token,
             platform="qq_official",
@@ -321,7 +329,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(api.private_messages[0]["content"], "restored reply")
         self.assertEqual(
-            self.bot.memory_store.get_event_status("restored-event"),
+            self.bot.memory_store.delivery.get_event_status("restored-event"),
             "completed",
         )
 
@@ -345,7 +353,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("QG-ABC234", api.group_messages[0]["content"])
         self.assertEqual(api.group_messages[0]["msg_type"], 0)
         self.assertEqual(
-            len(self.bot.memory_store.list_outbox_for_event(
+            len(self.bot.memory_store.delivery.list_outbox_for_event(
                 self.group_event_key(message)
             )),
             1,
@@ -388,7 +396,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sent["content"], "unexpected travel reply")
         self.assertNotIn("markdown", sent)
         self.assertNotIn("keyboard", sent)
-        turns = self.bot.memory_store.get_recent_turns(
+        turns = self.bot.memory_store.conversations.get_recent_turns(
             "group-a",
             "member-a",
         )
@@ -409,7 +417,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_group_at_message_create(message)
 
         self.assertEqual(
-            self.bot.memory_store.get_event_status(
+            self.bot.memory_store.delivery.get_event_status(
                 self.group_event_key(message)
             ),
             "processing",
@@ -424,7 +432,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("markdown", sent)
         self.assertIn("keyboard", sent)
         self.assertEqual(
-            self.bot.memory_store.get_event_status(
+            self.bot.memory_store.delivery.get_event_status(
                 self.group_event_key(message)
             ),
             "completed",
@@ -486,7 +494,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.on_c2c_message_create(message)
 
         self.assertEqual(
-            self.bot.memory_store.get_event_status(
+            self.bot.memory_store.delivery.get_event_status(
                 self.private_event_key(message)
             ),
             "processing",
@@ -498,7 +506,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.bot.upload_binding_service.private_calls), 1)
         self.assertEqual(len(api.private_messages), 1)
         self.assertEqual(
-            self.bot.memory_store.get_event_status(
+            self.bot.memory_store.delivery.get_event_status(
                 self.private_event_key(message)
             ),
             "completed",
@@ -517,7 +525,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         original_send = self.bot.outbox_worker.transport.send
 
         async def assert_persisted_before_send(outgoing):
-            rows = self.bot.memory_store.list_outbox_for_event(
+            rows = self.bot.memory_store.delivery.list_outbox_for_event(
                 self.group_event_key(message)
             )
             self.assertEqual(len(rows), 1)
@@ -532,7 +540,7 @@ class BotUploadEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.bot.upload_binding_service.issue_calls), 1)
         self.assertEqual(len(api.group_messages), 1)
         self.assertEqual(
-            self.bot.memory_store.get_event_status(
+            self.bot.memory_store.delivery.get_event_status(
                 self.group_event_key(message)
             ),
             "completed",

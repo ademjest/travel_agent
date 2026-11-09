@@ -8,18 +8,49 @@ import platform
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+SOURCE_DIRS = ('adapters', 'agents', 'app', 'core', 'infrastructure', 'services', 'tools',
+               'evaluation', 'tests', 'scripts', 'skills', '.github', '.githooks', 'deploy',
+               'frontend/src', 'frontend/public', 'prompts', 'docs/guides')
+SOURCE_SUFFIXES = {'.py', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css', '.json',
+                   '.md', '.txt', '.html', '.yml', '.yaml', '.toml', '.sql', '.sh', '.ps1', '.cmd'}
+
+
+def source_paths(root=None, exclude=None):
+    root = (root or ROOT).resolve()
+    candidates = set()
+    for folder in SOURCE_DIRS:
+        for path in (root / folder).rglob('*'):
+            relative = path.relative_to(root)
+            if (not path.is_file() or set(relative.parts) & {'__pycache__', 'node_modules', 'dist', '.git'}
+                    or relative.as_posix().startswith('scripts/archive/')
+                    or (path.name.startswith('.env') and path.name != '.env.example')):
+                continue
+            if (path.suffix in SOURCE_SUFFIXES or path.name == 'Dockerfile'
+                    or folder in {'.githooks', 'frontend/public'}
+                    or relative.as_posix().startswith('tests/fixtures/')):
+                candidates.add(path)
+    candidates.update(path for path in root.iterdir() if path.is_file() and
+                      (path.suffix in {'.py', '.cmd', '.ps1', '.sh'} or
+                       path.name.startswith(('requirements', 'constraints')) and path.suffix == '.txt'))
+    candidates.update(path for path in (root/'frontend').glob('*') if path.is_file() and
+                      path.suffix in {'.ts', '.js', '.mjs', '.cjs', '.json', '.html'})
+    candidates.update(path for path in (root/'evals').glob('*.json') if
+                      '_cases_' in path.name or path.name in {'v3-intent-probes.json', 'v3-live-probe-plan.json'})
+    candidates.update(root/name for name in ('README.md', 'AGENTS.md', 'CLAUDE.md', '.gitignore',
+                      '.dockerignore', '.env.example', 'data/official_sources.json',
+                      'data/attraction_aliases.json') if (root/name).is_file())
+    result = []
+    for path in sorted(candidates, key=lambda p:p.relative_to(root).as_posix()):
+        if not path.resolve().is_relative_to(root):
+            raise ValueError('Source input resolves outside the project: '+str(path.relative_to(root)))
+        if exclude is None or path.resolve() != Path(exclude).resolve():
+            result.append(path)
+    return result
 
 
 def capture(exclude=None):
-    files = []
-    for folder in ('adapters', 'agents', 'app', 'core', 'infrastructure', 'services', 'tools', 'tests', 'scripts', 'frontend/src', 'evals'):
-        for path in sorted((ROOT / folder).rglob('*')):
-            if (path.is_file() and path.resolve()!=exclude and path.suffix in {'.py', '.ts', '.tsx', '.css', '.json'}
-                    and '__pycache__' not in path.parts):
-                files.append({'path': path.relative_to(ROOT).as_posix(), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})
-    for path in sorted([*ROOT.glob('*.py'),*ROOT.glob('requirements*.txt'),ROOT/'frontend/package.json',ROOT/'frontend/package-lock.json']):
-        if path.is_file():
-            files.append({'path':path.relative_to(ROOT).as_posix(),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
+    files = [{'path':path.relative_to(ROOT).as_posix(), 'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+             for path in source_paths(exclude=exclude)]
     def command(*args):
         result = subprocess.run(args, cwd=ROOT, capture_output=True, text=True)
         return result.stdout.strip() if result.returncode == 0 else 'unavailable'
@@ -29,7 +60,8 @@ def capture(exclude=None):
             versions[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
             versions[name] = 'missing'
-    return {'version': 'v3-b0', 'head': command('git', 'rev-parse', 'HEAD'),
+    digest = hashlib.sha256(json.dumps(sorted(files,key=lambda f:f['path']),sort_keys=True).encode()).hexdigest()
+    return {'version': 'release-baseline-v2', 'source_sha256':digest, 'head': command('git', 'rev-parse', 'HEAD'),
             'git_status': command('git', 'status', '--short'), 'python': platform.python_version(),
             'node': command('node', '--version'), 'dependencies': versions, 'source_files': files}
 

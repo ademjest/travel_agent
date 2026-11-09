@@ -1,0 +1,26 @@
+.transport-card { container-type:inline-size; border:1px solid #d7e2d8; border-radius:15px; background:#fff; overflow:hidden; margin:16px 0; color:#233d33; overflow-anchor:none; }
+.transport-card .transport-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; margin:0; background:#edf5ee; border-bottom:1px solid #dce8dd; font-size:13px; }
+.transport-heading > span { display:flex; align-items:center; gap:7px; color:#28563f; }
+.transport-heading time { font-size:12px; color:#4c6555; }
+.transport-inbound .transport-heading { background:#f0f3f8; border-color:#dde3ed; }
+.transport-inbound .transport-heading > span { color:#3e5776; }
+.transport-stations { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:12px; padding:18px 16px 8px; align-items:center; }
+.transport-stations > div { display:grid; gap:5px; min-width:0; }
+.transport-stations > div:last-child { text-align:right; }
+.transport-stations strong { font-size:27px; line-height:1.25; font-variant-numeric:tabular-nums; letter-spacing:-.5px; white-space:nowrap; }
+.transport-stations strong small { font-size:11px; margin-left:4px; letter-spacing:0; }
+.transport-stations span { font-size:14px; overflow-wrap:anywhere; }
+.transport-stations > svg { color:#81928a; }
+.transport-service { display:flex; justify-content:space-between; gap:10px; margin:0 16px; padding:7px 0 12px; color:#52665a; font-size:12px; border-bottom:1px dashed #dce3dc; }
+.transport-service > span:first-child { display:flex; align-items:center; gap:6px; }
+.transport-fare { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:6px 12px; padding:12px 16px; font-size:13px; }
+.transport-fare strong { font-size:23px; color:#285a43; font-weight:650; }
+.transport-fare small { font-size:11px; color:#52665a; }
+.transport-card .transport-warning { margin:8px 16px; color:#805014; font-size:12px; line-height:1.7; }
+.transport-card .transport-note { margin:4px 16px 10px; color:#52665a; font-size:12px; }
+.transport-details { margin:0 16px 12px; font-size:12px; color:#52665a; line-height:1.7; }
+.transport-details summary { cursor:pointer; padding:5px 0; }
+.transport-card .transport-details p { margin:6px 0; font-size:12px; }
+.transport-adjust { margin:0 16px 13px; border:1px solid #cbdccd; color:#2e5741; background:#f8fbf7; padding:6px 12px; border-radius:7px; font-size:12px; cursor:pointer; }
+.transport-adjust:focus-visible, .transport-details summary:focus-visible { outline:2px solid #3a7551; outline-offset:3px; }
+@container (max-width:270px) { .transport-heading { flex-wrap:wrap; padding:10px 12px; gap:5px; } .transport-stations { padding:14px 12px 6px; gap:7px; } .transport-stations strong { font-size:23px; } .transport-stations span { font-size:13px; } .transport-fare { padding:10px 12px; } }
