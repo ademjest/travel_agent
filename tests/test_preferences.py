@@ -5,8 +5,8 @@ import unittest
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
 from infrastructure.preference_repository import PreferenceConflict
-from services.preference_service import PreferenceService
-from services.trip_service import TripService
+from tools.preferences import PreferencesTool
+from tools.trip.tool import TripTool
 
 
 class PreferenceTests(unittest.TestCase):
@@ -15,14 +15,14 @@ class PreferenceTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.store = MemoryStore(Path(self.temp.name)/'test.db')
         self.repo = self.store.preferences
-        self.service = PreferenceService(self.repo)
+        self.service = PreferencesTool(self.repo)
 
     def event(self, text='', scope='a', owner='local-owner', platform='web', key='e'):
         return ChatEvent(platform, 'group', key, scope, owner, text)
 
     def handle(self, text, key):
         event = self.event(text, key=key)
-        return self.service.handle(event, self.store.begin_event(event.event_key))
+        return self.service.handle(event, self.store.delivery.begin_event(event.event_key))
 
     def test_web_same_owner_cross_conversation_and_qq_isolated(self):
         self.handle('记住，以后优先公共交通，轻松节奏', 'save')
@@ -46,7 +46,7 @@ class PreferenceTests(unittest.TestCase):
 
     def test_explicit_save_once_and_current_trip_not_personal_profile(self):
         event = self.event('记住，以后优先公共交通')
-        claim = self.store.begin_event(event.event_key)
+        claim = self.store.delivery.begin_event(event.event_key)
         self.service.handle(event, claim)
         self.service.handle(event, claim)
         self.assertEqual(self.repo.snapshot(event)['version'], 1)
@@ -55,7 +55,7 @@ class PreferenceTests(unittest.TestCase):
 
     def test_structured_trip_default_respects_explicit_request(self):
         self.repo.update(self.event(), 0, {'pace': '轻松', 'transport': '公共交通', 'night': '不安排夜游'})
-        service = TripService(self.store, None)
+        service = TripTool(self.store, None)
         spec = {'preferences': ['紧凑节奏'], 'transport_text': '驾车', 'gentle': False}
         service._apply_preferences(self.event('这次紧凑一点，驾车'), spec)
         self.assertFalse(spec['gentle'])

@@ -4,13 +4,13 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from agents.research_search_planner import ResearchSearchPlanner, SKILL_DIR
+from tools.research.tool import ResearchSearchPlanner, SKILL_DIR
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
 from infrastructure.public_http import PublicHTTPError
 from infrastructure.search_client import SearchClient
 from infrastructure.web_reader import read_page
-from services.research_service import ResearchService
+from tools.research.tool import ResearchTool
 from test_travel_agent import FakeClient, assistant_message, completion
 
 
@@ -112,8 +112,8 @@ class ResearchExecutionTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.store=MemoryStore(Path(temp.name)/'test.db')
         self.search=Mock(configured=True)
-        self.reader=Mock(side_effect=lambda url:{'text':'真实公开文章','status':'read','content_hash':url})
-        self.service=ResearchService(self.store,self.search,reader=self.reader)
+        self.reader=Mock(side_effect=lambda url, **kwargs:{'text':'真实公开文章','status':'read','content_hash':url})
+        self.service=ResearchTool(self.store,self.search,reader=self.reader)
         self.service.search_planner=planner(plan_value())[0]
         self.event=ChatEvent('web','group','query','test','owner','帮我搜索武汉三日游攻略')
 
@@ -122,7 +122,7 @@ class ResearchExecutionTests(unittest.TestCase):
             domain=kwargs.get('include_domains',['tourism.example'])[0]
             return [{'url':f'https://{domain}/wuhan','title':'武汉攻略','snippet':'武汉旅行经验'}]
         self.search.search.side_effect=search
-        reply=self.service.handle(self.event,self.store.begin_event(self.event.event_key))
+        reply=self.service.handle(self.event,self.store.delivery.begin_event(self.event.event_key))
         self.assertIn('优先中文社区',reply)
         self.assertEqual(self.search.search.call_count,3)
         self.assertIn('include_domains',self.search.search.call_args_list[0].kwargs)
@@ -215,7 +215,7 @@ class ResearchExecutionTests(unittest.TestCase):
             if self.search.search.call_count==4: domain='public.example'
             return [{'url':f'https://{domain}/wuhan','title':'武汉攻略','snippet':'公开搜索摘要'}]
         self.search.search.side_effect=search
-        def read(url):
+        def read(url, *, url_allowed=None):
             if 'public.example' not in url: raise PublicHTTPError('forbidden')
             return {'text':'公开可读正文','status':'read','content_hash':'public'}
         self.reader.side_effect=read
@@ -235,7 +235,7 @@ class ResearchExecutionTests(unittest.TestCase):
             domain=kwargs.get('include_domains',['blocked.example'])[0]
             if self.search.search.call_count==4: domain='public.example'
             return [{'url':f'https://{domain}/wuhan','title':'武汉攻略','snippet':'搜索摘要'}]
-        def read(url):
+        def read(url, *, url_allowed=None):
             if 'public.example' not in url: raise PublicHTTPError('forbidden')
             return {'text':'公开正文','status':'read','content_hash':'fallback'}
         self.search.search.side_effect=search

@@ -9,7 +9,7 @@ from core.settings import Settings
 from core.tool_execution import retry_read
 from core.tool_result import ToolResult
 from infrastructure.amap_client import AmapClient, AmapError
-from services.travel_service import TravelService
+from tools.travel_query import TravelQueryTool
 from core.model_budget import MODEL_EVENT
 from core.execution_scope import CURRENT_EXECUTION, ExecutionScope, ExecutionRevoked
 from infrastructure.memory_store import MemoryStore
@@ -55,7 +55,7 @@ class ReadReliabilityTests(unittest.TestCase):
 
     def test_malformed_envelope_is_typed_and_not_retried(self):
         get = Mock(return_value=response(['not an object']))
-        service = TravelService(Settings('', '', frozenset(), '', '', '', ''))
+        service = TravelQueryTool(Settings('', '', frozenset(), '', '', '', ''))
         service.amap = AmapClient('test-key', http_get=get, sleeper=lambda _: self.fail('must not wait'))
         result = service.execute_result('get_current_weather', {'location': '武汉'})
         self.assertEqual((result.status, result.error_code, result.retryable), ('failed', 'invalid_response', False))
@@ -74,7 +74,7 @@ class ReadReliabilityTests(unittest.TestCase):
         self.assertEqual(ToolResult.from_text('read', '工具错误：429，请稍后重试').error_code, 'rate_limit')
 
     def test_missing_weather_fields_are_not_reported_as_success(self):
-        service = TravelService(Settings('', '', frozenset(), '', '', '', ''))
+        service = TravelQueryTool(Settings('', '', frozenset(), '', '', '', ''))
         service.amap = AmapClient('key', http_get=Mock(return_value=response({'status': '1', 'lives': [{'city': '武汉'}]})))
         service.amap.geocode = Mock(return_value=Mock(adcode='420100'))
         result = service.execute_result('get_current_weather', {'location': '武汉'})
@@ -83,7 +83,7 @@ class ReadReliabilityTests(unittest.TestCase):
     def test_http_attempt_limit_survives_client_recreation(self):
         with tempfile.TemporaryDirectory() as folder:
             store = MemoryStore(Path(folder) / 'reads.db')
-            store.begin_event('event')
+            store.delivery.begin_event('event')
             token = MODEL_EVENT.set('event')
             self.addCleanup(MODEL_EVENT.reset, token)
             get = Mock(return_value=response(status=503))
@@ -97,7 +97,7 @@ class ReadReliabilityTests(unittest.TestCase):
     def test_successful_http_checkpoint_is_reused_after_recreation(self):
         with tempfile.TemporaryDirectory() as folder:
             store = MemoryStore(Path(folder) / 'reads.db')
-            store.begin_event('event')
+            store.delivery.begin_event('event')
             token = MODEL_EVENT.set('event')
             self.addCleanup(MODEL_EVENT.reset, token)
             get = Mock(return_value=response({'status': '1', 'value': 'fixed'}))
@@ -134,7 +134,7 @@ class ReadReliabilityTests(unittest.TestCase):
             self.assertEqual(get.call_count, 1)
 
     def test_planner_routes_use_the_same_http_retry_boundary(self):
-        from agents.trip_planner import TripPlanner
+        from tools.trip.planner import TripPlanner
         get = Mock(side_effect=[response(status=503), response({'status': '1', 'route': {'paths': [
             {'distance': '1000', 'cost': {'duration': '600', 'tolls': '0'}}]}})])
         client = AmapClient('key', http_get=get, sleeper=lambda _: None)

@@ -88,7 +88,7 @@ class AccountingTests(unittest.TestCase):
             with self.subTest(field=field):
                 scope='c'+str(index)
                 start=ChatEvent('web','group','first',scope,'owner','继续补充行程')
-                self.store.tasks.prepare_result(start,self.store.begin_event(start.event_key),
+                self.store.tasks.prepare_result(start,self.store.delivery.begin_event(start.event_key),
                     TaskUpdate('itinerary','collecting',start.content,{'budget_run_key':'shared-'+scope},(field,)),'请补充')
                 runtime=build_runtime(Settings('','',frozenset(),'','','',''),platform='web',store=self.store,
                     transport=SimpleNamespace(),reply_renderer=SimpleNamespace(),group_allowed=lambda _:True)

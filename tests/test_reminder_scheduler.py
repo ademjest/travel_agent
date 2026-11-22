@@ -7,10 +7,8 @@ from pathlib import Path
 from infrastructure.memory_store import MemoryStore
 from services.outbox_worker import OutboxWorker
 from services.reminder_scheduler import ReminderScheduler
-from services.reservation_service import (
-    ReservationExtractionItem,
-    ReservationService,
-)
+from tools.reservation.dates import ReservationExtractionItem
+from tools.reservation.tool import ReservationTool
 
 
 class FakeRenderer:
@@ -34,7 +32,7 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.store = MemoryStore(Path(self.temp_dir.name) / "scheduler.db")
-        image, unused = self.store.create_reservation_image(
+        image, unused = self.store.reservations.create_reservation_image(
             storage_scope_id="group-a",
             platform="qq_official",
             group_id="group-a",
@@ -45,8 +43,8 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
             byte_size=10,
             model_id="vision-model",
         )
-        service = ReservationService(self.store)
-        plan = self.store.create_reservation_draft(
+        service = ReservationTool(self.store)
+        plan = self.store.reservations.create_reservation_draft(
             image_id=image.image_id,
             platform="qq_official",
             group_id="group-a",
@@ -96,7 +94,7 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
             now=datetime(2026, 8, 14, 12, 0, tzinfo=timezone.utc)
         )
         self.assertEqual(queued, 1)
-        due = self.store.list_due_outbox(
+        due = self.store.delivery.list_due_outbox(
             "qq_official",
             datetime(2026, 8, 14, 12, 0, tzinfo=timezone.utc),
         )
@@ -114,7 +112,7 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
         await scheduler.scan_once(
             now=datetime(2026, 8, 14, 12, 20, tzinfo=timezone.utc)
         )
-        due = self.store.list_due_outbox(
+        due = self.store.delivery.list_due_outbox(
             "qq_official",
             datetime(2026, 8, 14, 12, 20, tzinfo=timezone.utc),
         )
@@ -133,13 +131,13 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(queued, 0)
         self.assertEqual(
-            self.store.list_due_outbox(
+            self.store.delivery.list_due_outbox(
                 "qq_official",
                 datetime(2026, 8, 17, 1, 0, tzinfo=timezone.utc),
             ),
             (),
         )
-        reminders = self.store.list_all_reservation_reminders()
+        reminders = self.store.reservations.list_all_reservation_reminders()
         self.assertTrue(all(item.status == "expired" for item in reminders))
 
     async def test_removed_group_is_blocked_without_outbox(self):
@@ -156,17 +154,17 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             {
                 item.status
-                for item in self.store.list_all_reservation_reminders()
+                for item in self.store.reservations.list_all_reservation_reminders()
             },
             {"blocked", "pending"},
         )
 
     def test_two_queue_attempts_create_one_event_and_one_outbox(self):
-        reminder = self.store.list_all_reservation_reminders()[0]
+        reminder = self.store.reservations.list_all_reservation_reminders()[0]
         now = reminder.scheduled_at_utc
 
         def queue_once():
-            return self.store.queue_reservation_reminder(
+            return self.store.reservations.queue_reservation_reminder(
                 reminder.reminder_id,
                 {"content": "预约提醒"},
                 "预约提醒",
@@ -176,7 +174,7 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(executor.map(lambda unused: queue_once(), (1, 2)))
         self.assertEqual(results[0], results[1])
-        rows = self.store.list_outbox_for_event(
+        rows = self.store.delivery.list_outbox_for_event(
             f"reservation-reminder:{reminder.reminder_id}"
         )
         self.assertEqual(len(rows), 1)
@@ -194,9 +192,9 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
         worker = OutboxWorker("qq_official", self.store, transport)
         delivered = await worker.dispatch_due_once(now=due_at)
         self.assertEqual(delivered, 1)
-        reminders = self.store.list_all_reservation_reminders()
+        reminders = self.store.reservations.list_all_reservation_reminders()
         self.assertEqual(reminders[0].status, "sent")
-        turns = self.store.get_recent_turns("group-a", "member-a")
+        turns = self.store.conversations.get_recent_turns("group-a", "member-a")
         self.assertEqual(turns[-1].user_content, "自动预约提醒")
 
     async def test_failed_delivery_keeps_queued_reminder_and_error(self):
@@ -215,15 +213,15 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
         )
         delivered = await worker.dispatch_due_once(now=due_at)
         self.assertEqual(delivered, 0)
-        reminder = self.store.list_all_reservation_reminders()[0]
+        reminder = self.store.reservations.list_all_reservation_reminders()[0]
         self.assertEqual(reminder.status, "queued")
         self.assertEqual(reminder.last_error, "RuntimeError")
         self.assertEqual(
-            self.store.list_due_outbox("qq_official", due_at),
+            self.store.delivery.list_due_outbox("qq_official", due_at),
             (),
         )
         self.assertEqual(
-            len(self.store.list_due_outbox(
+            len(self.store.delivery.list_due_outbox(
                 "qq_official",
                 due_at + timedelta(seconds=5),
             )),
@@ -239,8 +237,8 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
             lambda group_id: True,
         )
         await scheduler.scan_once(now=due_at)
-        outbox = self.store.list_due_outbox("qq_official", due_at)[0]
-        token = self.store.claim_outbox(outbox.outbox_id, now=due_at)
+        outbox = self.store.delivery.list_due_outbox("qq_official", due_at)[0]
+        token = self.store.delivery.claim_outbox(outbox.outbox_id, now=due_at)
         result = self.service.cancel_item(
             "qq_official",
             "group-a",
@@ -248,14 +246,14 @@ class ReminderSchedulerTests(unittest.IsolatedAsyncioTestCase):
             self.public_code,
         )
         self.assertTrue(result.sending_warning)
-        self.assertTrue(self.store.mark_outbox_failed(
+        self.assertTrue(self.store.delivery.mark_outbox_failed(
             outbox.outbox_id,
             token,
             "RuntimeError",
             due_at + timedelta(seconds=5),
         ))
         self.assertEqual(
-            self.store.list_due_outbox(
+            self.store.delivery.list_due_outbox(
                 "qq_official",
                 due_at + timedelta(seconds=5),
             ),

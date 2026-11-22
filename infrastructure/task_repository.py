@@ -52,11 +52,13 @@ class TaskRepository:
                     JOIN task_event_results e ON e.event_id=l.event_id
                     JOIN travel_tasks t ON t.task_id=e.task_id
                     WHERE l.platform=? AND l.scope_id=? AND l.message_id=?
-                    AND t.owner_id=? AND t.expires_at > ? AND (t.status IN ('collecting','completed','waiting_external')
+                    AND t.owner_id=? AND t.expires_at > ?
+                    AND (t.task_type!='semantic' OR t.version=e.task_version)
+                    AND (t.status IN ('collecting','completed','waiting_external')
                         OR (? AND t.status='failed' AND t.task_type IN ('route','traffic','walking','transit')))
                 """, (platform, scope_id, reply_to_id, owner_id, timestamp,include_failed_reads)).fetchone()
                 if reference:
-                    return (self._record(reference),)
+                    return (replace(self._record(reference),reference_message_id=reply_to_id),)
             rows = connection.execute("""
                 SELECT * FROM travel_tasks WHERE platform=? AND scope_id=? AND owner_id=?
                 AND expires_at > ? AND (status IN ('collecting', 'completed', 'waiting_external')
@@ -65,10 +67,74 @@ class TaskRepository:
             """, (platform, scope_id, owner_id, timestamp,include_failed_reads)).fetchall()
         return tuple(self._record(row) for row in rows)
 
-    def has_history(self, platform, scope_id, owner_id):
+    def recoverable_hotels(self,platform,scope_id,owner_id):
+        with self.store._connect() as db:
+            rows=db.execute("""SELECT * FROM travel_tasks WHERE platform=? AND scope_id=? AND owner_id=?
+                AND task_type='hotel' AND (status='failed' OR status='collecting' AND expires_at<=?)
+                ORDER BY updated_at DESC LIMIT 10""",(platform,scope_id,owner_id,utc_now().isoformat())).fetchall()
+        return tuple(self._record(row) for row in rows)
+
+    def has_history(self, platform, scope_id, owner_id, *, task_type=None):
         with self.store._connect() as connection:
-            return connection.execute('SELECT 1 FROM travel_tasks WHERE platform=? AND scope_id=? AND owner_id=? LIMIT 1',
-                                      (platform, scope_id, owner_id)).fetchone() is not None
+            return connection.execute('SELECT 1 FROM travel_tasks WHERE platform=? AND scope_id=? AND owner_id=? AND (? IS NULL OR task_type=?) LIMIT 1',
+                                      (platform, scope_id, owner_id,task_type,task_type)).fetchone() is not None
+
+    def rail_references(self, platform, scope_id, owner_id, message_ids):
+        """Recover immutable per-turn conditions, never a task's subsequently edited slots."""
+        from datetime import datetime
+        from core.intent_ir import READ_OPERATION_FIELDS
+        from core.time_input import parse_reminder_time
+        message_ids=tuple(dict.fromkeys(message_ids))
+        if not message_ids:
+            return {}
+        with self.store._connect() as db:
+            links=db.execute(f'''SELECT l.message_id,l.event_id FROM outbound_message_links l
+                JOIN task_event_results e ON e.event_id=l.event_id
+                JOIN travel_tasks t ON t.task_id=e.task_id
+                WHERE l.platform=? AND l.scope_id=? AND l.owner_id=? AND t.owner_id=?
+                AND t.task_type='rail' AND t.status!='cancelled'
+                AND l.message_id IN ({','.join('?' for _ in message_ids)})''',
+                (platform,scope_id,owner_id,owner_id,*message_ids)).fetchall()
+            if not links:
+                return {}
+            events=tuple(dict.fromkeys(row['event_id'] for row in links))
+            rows=db.execute(f'''SELECT * FROM event_tool_results
+                WHERE event_id IN ({','.join('?' for _ in events)})
+                AND tool_name IN ('read_plan','query_train_tickets')''',events).fetchall()
+        receipts={row['operation_key']:row for row in rows}
+        snapshots={}
+        for row in rows:
+            if row['tool_name']!='read_plan':
+                continue
+            try:
+                plan=json.loads(row['result_text'])
+                reference=plan['context']['reference_time']
+                queries=[]; missing=[]
+                for index,operation in enumerate(plan['ir']['operations']):
+                    if operation['domain']!='rail':
+                        break
+                    saved=receipts.get(row['operation_key']+':'+str(index))
+                    result=json.loads(saved['result_text']) if saved else {'missing_fields':plan['ir'].get('missing_fields',[])}
+                    arguments=json.loads(saved['arguments_json']) if saved else {**plan['context'].get('slots',{}),**operation}
+                    values={k:v for k,v in arguments.items() if k in READ_OPERATION_FIELDS['rail']}
+                    actual=(result.get('payload') or {}).get('request',{})
+                    if actual.get('travel_date'):
+                        values['travel_date']=actual['travel_date']
+                    elif values.get('travel_date'):
+                        date=parse_reminder_time(values['travel_date'],datetime.fromisoformat(reference))
+                        if date.day and not date.error:
+                            values['travel_date']=date.day
+                    needed=result.get('missing_fields',[])
+                    for field in needed:
+                        values.pop(field,None)
+                    queries.append(values); missing.append(needed)
+                else:
+                    if queries:
+                        snapshots[row['event_id']]={'queries':queries,'missing_fields':missing,
+                            'reference_time':reference,'reference_event_id':row['event_id']}
+            except (ValueError,KeyError,TypeError):
+                continue
+        return {row['message_id']:snapshots[row['event_id']] for row in links if row['event_id'] in snapshots}
 
     def confirmation_preview(self, event, task):
         preview = task.slots.get('confirmation_preview')
@@ -90,28 +156,6 @@ class TaskRepository:
                 preview = row['content'] if row else None
         return preview if isinstance(preview,str) and preview.strip() else ''
 
-    def command(self, event, claim):
-        text = event.content.strip()
-        if text not in {'查看任务', '查看任务进度', '我的任务', '取消当前任务', '退出当前任务'}:
-            return None
-        tasks = self.recent(event.platform, event.storage_scope_id, event.sender_id, reply_to_id=event.reply_to_id)
-        waiting = [task for task in tasks if task.status in {'collecting', 'waiting_external'}]
-        if text in {'查看任务', '查看任务进度', '我的任务'}:
-            if not tasks:
-                return '当前没有近期任务。已设置的提醒请说“查看我的提醒”。'
-            labels = {'weather': '天气查询', 'forecast': '天气预报', 'reminder': '提醒设置', 'booking_reminder': '开约提醒',
-                      'booking_policy_query': '预约规则查询', 'places': '地点查询', 'transit': '公共交通查询', 'walking': '步行路线',
-                      'route': '驾车路线', 'traffic': '路况查询', 'itinerary': '行程规划', 'scheduled_query': '定时查询', 'policy_watch': '规则监测'}
-            states = {'collecting': '等待补充信息', 'waiting_external': '等待外部信息', 'completed': '已完成'}
-            return '\n'.join(f"{labels.get(task.task_type, task.task_type)}：{states.get(task.status, task.status)}；{task.initial_request[:120]}" for task in tasks)
-        if len(waiting) != 1:
-            return '请回复要结束的那条任务消息后发送“取消当前任务”。已创建的提醒请使用“取消提醒”。'
-        task = waiting[0]
-        update = TaskUpdate(task.task_type, 'cancelled', task.initial_request, task.slots,
-                            task_id=task.task_id, expected_version=task.version)
-        reply = '已结束当前待补充任务。已经创建的提醒仍保留，需要时请单独取消提醒。'
-        self.prepare_result(event, claim, update, reply)
-        return reply
 
     @staticmethod
     def _record(row):
@@ -119,7 +163,33 @@ class TaskRepository:
             json.loads(row['slots_json']), tuple(json.loads(row['missing_slots_json'])),
             row['version'], row['expires_at'], row['last_event_id'])
 
-    def apply(self, connection, event, update: TaskUpdate, now, *, reply=None):
+    def owned(self,event,task_id):
+        with self.store._connect() as db:
+            row=db.execute('SELECT * FROM travel_tasks WHERE task_id=? AND platform=? AND scope_id=? AND owner_id=?',
+                (task_id,event.platform,event.storage_scope_id,event.sender_id)).fetchone()
+        return self._record(row) if row else None
+
+    def for_event(self,event,source_event):
+        with self.store._connect() as db:
+            row=db.execute('''SELECT t.* FROM travel_tasks t JOIN task_event_results e ON e.task_id=t.task_id
+                WHERE e.event_id=? AND t.platform=? AND t.scope_id=? AND t.owner_id=?''',
+                (source_event,event.platform,event.storage_scope_id,event.sender_id)).fetchone()
+        return self._record(row) if row else None
+
+    def message_events(self,event,message_ids):
+        if not message_ids:return {}
+        with self.store._connect() as db:
+            rows=db.execute('SELECT message_id,event_id FROM outbound_message_links WHERE platform=? AND scope_id=? AND owner_id=? AND message_id IN ('+
+                ','.join('?' for _ in message_ids)+')',(event.platform,event.storage_scope_id,event.sender_id,*message_ids)).fetchall()
+        return {r['message_id']:r['event_id'] for r in rows}
+
+    def latest_message_event(self,event):
+        with self.store._connect() as db:
+            row=db.execute('SELECT event_id FROM outbound_message_links WHERE platform=? AND scope_id=? AND owner_id=? ORDER BY rowid DESC LIMIT 1',
+                (event.platform,event.storage_scope_id,event.sender_id)).fetchone()
+        return row['event_id'] if row else ''
+
+    def apply(self, connection, event, update: TaskUpdate, now, *, reply=None,allow_expired_draft=False):
         slots = dict(update.slots)
         slots.setdefault('budget_run_key', MODEL_RUN.get() or hashlib.sha256(event.event_key.encode()).hexdigest())
         update = replace(update,slots=slots)
@@ -141,11 +211,12 @@ class TaskRepository:
                 UPDATE travel_tasks SET task_type=?, status=?, slots_json=?, missing_slots_json=?,
                     initial_request=?, version=version+1, last_event_id=?, updated_at=?, expires_at=?
                 WHERE task_id=? AND platform=? AND scope_id=? AND owner_id=? AND version=?
-                    AND expires_at > ? AND status != 'cancelled'
+                    AND (expires_at > ? OR ?) AND status != 'cancelled'
             """, (update.task_type, update.status, json.dumps(update.slots, ensure_ascii=False),
                   json.dumps(update.missing_slots), update.initial_request, event.event_key,
                   timestamp, expiry, task_id, event.platform, event.storage_scope_id,
-                  event.sender_id, update.expected_version, timestamp))
+                  event.sender_id, update.expected_version, timestamp,
+                  bool(allow_expired_draft and update.task_type=='itinerary' and update.status=='cancelled')))
             if cursor.rowcount != 1:
                 raise TaskConflict('任务已被另一条消息更新或已过期，请查看任务后重试。')
             version = update.expected_version + 1

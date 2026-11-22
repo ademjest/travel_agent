@@ -8,9 +8,9 @@ from unittest.mock import Mock, patch
 
 import httpx
 from openai import OpenAI
-from scripts.smoke_summary_live import Budget,BoundedClient,CountingTransport,SmokeLimit
-from scripts.smoke_summary_live import main
-from scripts.evaluate_summary_quality import OFFLINE_ENV
+from evaluation.support import Budget,BoundedClient,CountingTransport,SmokeLimit
+from evaluation.cases.smoke_summary_live import main
+from evaluation.cases.evaluate_summary_quality import OFFLINE_ENV
 
 
 class SmokeBudgetTests(unittest.TestCase):
@@ -143,8 +143,8 @@ class SmokeBudgetTests(unittest.TestCase):
                 'usage':{'prompt_tokens':10,'completion_tokens':10,'total_tokens':20}},request=request)
         env={**OFFLINE_ENV,'LLM_API_KEY':'offline-not-a-real-key','LLM_BASE_URL':'https://example.invalid/v1','LLM_MODEL_ID':'fake'}
         with patch.dict(os.environ,env),patch('dotenv.load_dotenv',return_value=False),\
-             patch('scripts.smoke_summary_live.RUNS',('Q01',)),\
-             patch('httpx.HTTPTransport',side_effect=lambda **kwargs:httpx.MockTransport(respond)):
+             patch('evaluation.cases.smoke_summary_live.RUNS',('Q01',)),\
+             patch('httpx._client.HTTPTransport',side_effect=lambda **kwargs:httpx.MockTransport(respond)):
             main(SimpleNamespace(output=self.output,max_calls=12,max_tokens=100000))
         result=json.loads(self.output.read_text(encoding='utf-8'))
         self.assertEqual(result['budget']['physical_calls'],5)

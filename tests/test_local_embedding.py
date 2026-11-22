@@ -15,7 +15,7 @@ class LocalEmbeddingTests(unittest.TestCase):
     def test_partial_index_progress_is_a_readonly_snapshot(self):
         with tempfile.TemporaryDirectory() as folder:
             store=MemoryStore(Path(folder)/'test.db')
-            store.add_document('scope','u','many.txt','sha','正文',[f'片段{i}' for i in range(35)])
+            store.documents.add_document('scope','u','many.txt','sha','正文',[f'片段{i}' for i in range(35)])
             index=SemanticIndex(store,lambda texts:[[1.,0.] for _ in texts],'toy',2)
             index.update('scope')
             self.assertEqual(index.snapshot('scope')['index']['state'],'partial')
@@ -52,7 +52,7 @@ class LocalEmbeddingTests(unittest.TestCase):
         calls = []
         with tempfile.TemporaryDirectory() as folder:
             store = MemoryStore(Path(folder) / 'index.db')
-            store.add_document('scope', 'u', 'a.txt', 'sha', '正文', ['正文'])
+            store.documents.add_document('scope', 'u', 'a.txt', 'sha', '正文', ['正文'])
             index = SemanticIndex(store, Encoder(), 'pinned-model', 2)
             index.update('scope')
             self.assertTrue(index.search('scope', '问题'))
@@ -65,10 +65,10 @@ class LocalEmbeddingTests(unittest.TestCase):
                 {'AI_VECTOR_ENABLED': 'true', 'AI_EMBEDDING_MODEL_DIR': ''}):
             store = MemoryStore(Path(folder) / 'index.db')
             configure_local_index(store)
-            store.add_document('scope', 'u', 'a.txt', 'sha', '武汉地铁', ['武汉地铁'])
-            with patch('infrastructure.memory_store.vector_candidates', side_effect=AssertionError('hash must not run')):
+            store.documents.add_document('scope', 'u', 'a.txt', 'sha', '武汉地铁', ['武汉地铁'])
+            with patch('infrastructure.document_repository.vector_candidates', side_effect=AssertionError('hash must not run')):
                 with store._connect() as db:
-                    self.assertTrue(store._select_document_chunks(db, 'scope', '武汉地铁'))
+                    self.assertTrue(store.documents._select_document_chunks(db, 'scope', '武汉地铁'))
             self.assertTrue(store.semantic_index_unavailable)
 
     def test_model_and_tokenizer_revision_are_validated_before_loading(self):
@@ -87,18 +87,18 @@ class LocalEmbeddingTests(unittest.TestCase):
     def test_encoder_failure_preserves_lexical_results(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'AI_VECTOR_ENABLED': 'true'}):
             store = MemoryStore(Path(folder) / 'index.db')
-            store.add_document('scope', 'u', 'a.txt', 'sha', '武汉地铁', ['武汉地铁'])
+            store.documents.add_document('scope', 'u', 'a.txt', 'sha', '武汉地铁', ['武汉地铁'])
             class BrokenIndex:
                 def search(self, *args):
                     raise ImportError('missing optional dependency')
             store.semantic_index = BrokenIndex()
             with store._connect() as db:
-                self.assertTrue(store._select_document_chunks(db, 'scope', '武汉地铁'))
+                self.assertTrue(store.documents._select_document_chunks(db, 'scope', '武汉地铁'))
 
     def test_new_documents_are_not_indexed_inside_search(self):
         with tempfile.TemporaryDirectory() as folder:
             store = MemoryStore(Path(folder) / 'index.db')
-            store.add_document('scope', 'u', 'a.txt', 'sha', '正文', ['正文'])
+            store.documents.add_document('scope', 'u', 'a.txt', 'sha', '正文', ['正文'])
             index = SemanticIndex(store, lambda texts: [[1., 0.] for _ in texts], 'toy', 2)
             self.assertEqual(index.search('scope', '正文'), [])
             self.assertEqual(index.calls, 0)

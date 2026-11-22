@@ -1,3 +1,4 @@
+from test_travel_agent import scripted_receipt
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -13,7 +14,8 @@ from core.chat_transport import ChatEvent
 from core.settings import Settings, OneBotSettings
 from infrastructure.memory_store import MemoryStore
 from services.inbox_worker import InboxWorker
-from services.scheduled_query_service import ScheduledQueryService, scheduled_query_request
+from tools.reminders.tool import RemindersTool, scheduled_query_request
+from core.tool_result import ToolResult
 from agents.travel_agent import TravelAgent
 from test_travel_agent import FakeClient, assistant_message, completion, tool_call
 
@@ -34,10 +36,11 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         self.transport = Transport()
         self.runtime = build_runtime(Settings('', '', frozenset({'100'}), '', '', '', ''), platform='onebot',
             store=self.store, transport=self.transport, reply_renderer=OneBotReplyRenderer(), group_allowed=lambda group: group == '100')
-        self.runtime.travel_service.execute_tool = Mock(return_value='【当前天气】武汉\n发布时间：测试执行时刻')
+        self.runtime.travel_service.execute_result = Mock(return_value=ToolResult('completed','get_current_weather',data='【当前天气】武汉\n发布时间：测试执行时刻'))
         self.client = FakeClient([parsed({'kind': 'weather', 'arguments': {'location': '武汉'}, 'time_text': '明天上午八点'})])
-        self.service = ScheduledQueryService(self.store, self.runtime.travel_service, self.client, 'test', clock=lambda: self.now)
+        self.service = RemindersTool(self.store, self.runtime.travel_service, client=self.client, model='test', clock=lambda: self.now)
         self.runtime.application.scheduled_query_service = self.service
+        self.runtime.application.reminders_tool = self.service
         self.worker = InboxWorker(self.store, OneBotAdapter(OneBotSettings('http://localhost', 'out', 'in', frozenset({'100'})), self.runtime.application, self.store))
 
     def event(self, text='', key='create', owner='owner'):
@@ -45,7 +48,7 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
 
     def create(self):
         event = self.event('明天上午八点告诉我武汉天气')
-        return self.service.handle(event, self.store.begin_event(event.event_key))
+        return self.service.handle(event, self.store.delivery.begin_event(event.event_key), kind='scheduled')
 
     def rows(self):
         return self.store.scheduled_queries.list_for_owner(self.event())
@@ -53,7 +56,7 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
     async def test_data_source_is_called_only_at_due_time_and_once(self):
         reply = self.create()
         self.assertIn('实际查询', reply)
-        self.runtime.travel_service.execute_tool.assert_not_called()
+        self.runtime.travel_service.execute_result.assert_not_called()
         row = self.rows()[0]
         due = datetime.fromisoformat(row['due_at'])
         self.assertEqual(await self.runtime.reminder_scheduler.scan_once(due-timedelta(seconds=1)), 0)
@@ -61,16 +64,16 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.runtime.reminder_scheduler.scan_once(due), 0)
         self.now = due
         await self.worker.run_once(now=due)
-        self.runtime.travel_service.execute_tool.assert_called_once_with('get_current_weather', {'location': '武汉'}, structured=True)
+        self.runtime.travel_service.execute_result.assert_called_once_with('get_current_weather', {'location': '武汉'})
         self.assertEqual(self.rows()[0]['status'], 'sent')
         self.assertIn('定时查询结果', str(self.transport.messages[-1].payload))
-        self.assertEqual(self.store.get_recent_turns('onebot:100', 'owner'), ())
+        self.assertEqual(self.store.conversations.get_recent_turns('onebot:100', 'owner'), ())
         self.assertFalse(await self.worker.run_once(now=due))
 
     async def test_query_executes_via_readonly_registry_not_general_message_routing(self):
         self.client.completions.responses = [parsed({'kind': 'weather', 'arguments': {'location': '武汉帮我规划三天行程'}, 'time_text': '明天上午八点'})]
         event = self.event('明天上午八点告诉我武汉帮我规划三天行程天气')
-        self.service.handle(event, self.store.begin_event(event.event_key))
+        self.service.handle(event, self.store.delivery.begin_event(event.event_key), kind='scheduled')
         self.runtime.application.trip_service.handle = Mock(side_effect=AssertionError('must not route arbitrary messages'))
         due = datetime.fromisoformat(self.rows()[0]['due_at'])
         await self.runtime.reminder_scheduler.scan_once(due)
@@ -85,17 +88,20 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.store.scheduled_queries.cancel(self.event(owner='other'), row['query_id']))
         self.assertTrue(self.store.scheduled_queries.cancel(self.event(), row['query_id']))
         self.assertFalse(await self.worker.run_once(now=due))
-        self.runtime.travel_service.execute_tool.assert_not_called()
+        self.runtime.travel_service.execute_result.assert_not_called()
         self.assertEqual(self.rows()[0]['status'], 'cancelled')
 
     async def test_source_failure_can_retry_without_caching_failure(self):
         self.create()
         due = datetime.fromisoformat(self.rows()[0]['due_at'])
-        self.runtime.travel_service.execute_tool.side_effect = ['工具错误：暂时不可用', '武汉晴']
+        self.runtime.travel_service.execute_result.side_effect = [
+            ToolResult('failed', 'get_current_weather', data='暂时不可用', error_code='timeout',
+                       retryable=True, retry_after_seconds=0),
+            ToolResult('completed', 'get_current_weather', data='武汉晴')]
         await self.runtime.reminder_scheduler.scan_once(due)
         await self.worker.run_once(now=due)
         await self.worker.run_once(now=due+timedelta(seconds=10))
-        self.assertEqual(self.runtime.travel_service.execute_tool.call_count, 2)
+        self.assertEqual(self.runtime.travel_service.execute_result.call_count, 2)
         self.assertEqual(self.rows()[0]['status'], 'sent')
 
     async def test_permanent_source_failure_does_not_retry_the_job(self):
@@ -128,7 +134,7 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         from infrastructure.amap_client import AmapClient
         from test_read_reliability import response
         client = AmapClient('key', http_get=Mock(return_value=response(status=503)), sleeper=lambda _: None)
-        del self.runtime.travel_service.execute_tool
+        del self.runtime.travel_service.execute_result
         client.checkpoint_store = self.store
         self.runtime.travel_service.amap = client
         self.service.tool_executor = self.runtime.tool_router.execute_result
@@ -159,7 +165,7 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         ):
             self.client.completions.responses = [parsed(value)]
             with self.assertRaises(ValueError):
-                self.service._extract('明天上午八点告诉我武汉天气', {})
+                self.service._extract_query('明天上午八点告诉我武汉天气', {})
         self.assertEqual(self.rows(), ())
 
     def test_missing_city_continues_without_rebasing_time(self):
@@ -168,11 +174,11 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
             parsed({'kind': 'weather', 'arguments': {'location': '武汉'}, 'time_text': '明天上午八点'}),
         ]
         event = self.event('明天上午八点告诉我天气', 'first')
-        reply = self.service.handle(event, self.store.begin_event(event.event_key))
+        reply = self.service.handle(event, self.store.delivery.begin_event(event.event_key), kind='scheduled')
         self.assertIn('地点', reply)
         self.now += timedelta(minutes=1)
         event = self.event('武汉', 'city')
-        self.service.handle(event, self.store.begin_event(event.event_key))
+        self.service.handle(event, self.store.delivery.begin_event(event.event_key), kind='scheduled')
         self.assertEqual(self.rows()[0]['due_at'], '2030-09-10T00:00:00+00:00')
 
     async def test_control_requests_are_persisted_and_complete_without_waiting_for_due_job(self):
@@ -219,7 +225,7 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
             completion(assistant_message(content='武汉的天气预报。')),
         ])
         self.runtime.application.travel_agent = TravelAgent(Settings('', '', frozenset(), '', 'fake', 'https://example.test', 'fake'),
-            lambda name, args: calls.append((name, args)) or 'forecast', client=client)
+            lambda name, args, context: scripted_receipt(name, args, calls.append((name, args)) or 'forecast'), client=client)
         await self.worker.submit({'post_type': 'message', 'message_type': 'group', 'group_id': '100', 'user_id': 'owner',
             'self_id': 'bot', 'message_id': 'followup', 'message': [{'type': 'text', 'data': {'text': '那明天呢'}}]})
         await self.worker.run_once()
@@ -228,10 +234,10 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
     def test_period_clarification_does_not_require_model_to_reconstruct_time_text(self):
         self.client.completions.responses = [parsed({'kind': 'weather', 'arguments': {'location': '武汉'}, 'time_text': '明天八点'})]
         event = self.event('明天八点告诉我武汉天气', 'first')
-        reply = self.service.handle(event, self.store.begin_event(event.event_key))
+        reply = self.service.handle(event, self.store.delivery.begin_event(event.event_key), kind='scheduled')
         self.assertIn('上午还是', reply)
         event = self.event('下午', 'period')
-        self.service.handle(event, self.store.begin_event(event.event_key))
+        self.service.handle(event, self.store.delivery.begin_event(event.event_key), kind='scheduled')
         self.assertEqual(self.rows()[0]['due_at'], '2030-09-10T12:00:00+00:00')
         self.assertEqual(len(self.client.completions.requests), 1)
 
@@ -240,12 +246,12 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         due = datetime.fromisoformat(self.rows()[0]['due_at'])
         await self.runtime.reminder_scheduler.scan_once(due)
         job = self.store.inbox.claim(due)
-        claim = self.store.begin_event(job['event_key'])
-        self.store.prepare_event_reply(claim.event_id, claim.claim_token, '【定时查询结果】cached', '[定时查询]')
+        claim = self.store.delivery.begin_event(job['event_key'])
+        self.store.delivery.prepare_event_reply(claim.event_id, claim.claim_token, '【定时查询结果】cached', '[定时查询]')
         self.assertTrue(await self.worker._recover_prepared(job))
-        output = self.store.list_outbox_for_event(job['event_key'])[0]
+        output = self.store.delivery.list_outbox_for_event(job['event_key'])[0]
         self.assertEqual(output.payload['message'][0], {'type': 'at', 'data': {'qq': 'owner'}})
-        self.runtime.travel_service.execute_tool.assert_not_called()
+        self.runtime.travel_service.execute_result.assert_not_called()
 
     async def test_old_due_query_is_not_executed_after_queue_outage(self):
         self.create()
@@ -253,7 +259,7 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         await self.runtime.reminder_scheduler.scan_once(due)
         self.now = due + timedelta(hours=25)
         await self.worker.run_once(now=self.now)
-        self.runtime.travel_service.execute_tool.assert_not_called()
+        self.runtime.travel_service.execute_result.assert_not_called()
         self.assertEqual(self.rows()[0]['status'], 'missed')
 
     async def test_already_prepared_scheduled_output_expires_on_delivery(self):
@@ -261,8 +267,8 @@ class ScheduledQueryTests(unittest.IsolatedAsyncioTestCase):
         due = datetime.fromisoformat(self.rows()[0]['due_at'])
         await self.runtime.reminder_scheduler.scan_once(due)
         job = self.store.inbox.claim(due)
-        claim = self.store.begin_event(job['event_key'])
-        self.store.prepare_event_outbox(job['event_key'], claim.claim_token, 'onebot', 'group', '100', 'owner', '',
+        claim = self.store.delivery.begin_event(job['event_key'])
+        self.store.delivery.prepare_event_outbox(job['event_key'], claim.claim_token, 'onebot', 'group', '100', 'owner', '',
             {'message': 'old weather'}, '[定时查询]', now=due)
         await self.runtime.outbox_worker.dispatch_due_once(due + timedelta(hours=25))
         self.assertEqual(self.rows()[0]['status'], 'missed')

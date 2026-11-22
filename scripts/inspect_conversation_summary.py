@@ -7,8 +7,8 @@ import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from infrastructure.conversation_summary_repository import ConversationSummaryRepository
-from scripts.evaluate_token_memory import ReadOnlyStore
-from core.summary_contract import PROMPT_VERSION, load_summary_prompt
+from evaluation.cases.evaluate_token_memory import ReadOnlyStore
+from core.summary_validation import PROMPT_VERSION, load_summary_prompt
 
 
 def inspect(database,scope,owner,platform='web',include_content=False):

@@ -10,8 +10,8 @@ from core.chat_transport import ChatEvent
 from core.intent_ir import IntentIR, IntentOperation
 from infrastructure.memory_store import MemoryStore
 from infrastructure.model_gateway import ModelGateway
-from services.conversation_summary_service import ConversationSummaryService
-from services.semantic_task_service import SemanticTaskService
+from app.conversation_context import ConversationSummaryService
+from app.request_router import RequestRouter
 
 
 class V3Regressions(unittest.TestCase):
@@ -25,9 +25,9 @@ class V3Regressions(unittest.TestCase):
         ir = IntentIR(1, 'clarify', (IntentOperation('weather', 'query', {}),),
                       ('location',), False, ('天气',), .9)
         compiler = SimpleNamespace(try_compile=lambda *args, **kwargs: ir)
-        service = SemanticTaskService(self.store, compiler,
+        service = RequestRouter(self.store, compiler,
             travel_service=SimpleNamespace(execute_tool=lambda *args: 'ok'))
-        reply = service.handle(self.event, self.store.begin_event(self.event.event_key))
+        reply = service.handle(self.event, self.store.delivery.begin_event(self.event.event_key))
         self.assertIn('地点', reply)
         with self.store._connect() as db:
             row = db.execute('SELECT status,missing_slots_json FROM travel_tasks').fetchone()
@@ -36,7 +36,7 @@ class V3Regressions(unittest.TestCase):
 
     def test_stale_summary_can_be_rebuilt(self):
         for index in range(8):
-            self.store.save_turn(self.event.storage_scope_id, 'owner', f'e{index}', 'x'*700, 'y'*700)
+            self.store.conversations.save_turn(self.event.storage_scope_id, 'owner', f'e{index}', 'x'*700, 'y'*700)
         def generate(**kwargs):
             # Keep this invalidation regression on the current wire contract;
             # legacy persisted records are tested separately from model output.

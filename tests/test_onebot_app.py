@@ -27,9 +27,9 @@ from adapters.onebot_app import (
 from app.bot_application import TravelBotApplication
 from core.settings import OneBotSettings, SettingsError
 from infrastructure.memory_store import MemoryStore
-from services.document_service import DocumentIngestResult
+from tools.materials import DocumentIngestResult
 from services.outbox_worker import OutboxWorker
-from services.upload_binding import PrivateUploadResult
+from adapters.upload_binding import PrivateUploadResult
 
 
 class RecordingTransport:
@@ -53,8 +53,14 @@ class RecordingTransport:
 
 
 class FakeTravelService:
+    manages_read_retries = False
+
     def handle(self, content):
         return f"reply:{content}"
+
+    def execute_result(self,name,arguments):
+        from core.tool_result import ToolResult
+        return ToolResult('completed',name,data='reply:查询天气 '+arguments['location']+'\n天气：晴')
 
 
 class FakeDocumentService:
@@ -255,7 +261,7 @@ class OneBotAppTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        messages = self.store.get_recent_chat_messages("onebot", "10001")
+        messages = self.store.conversations.get_recent_chat_messages("onebot", "10001")
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].content, "明早八点集合")
         self.assertEqual(self.transport.messages, [])
@@ -355,7 +361,7 @@ class OneBotAppTests(unittest.TestCase):
         self.assertEqual(len(self.transport.messages), 1)
 
     def test_active_reservation_workflow_accepts_next_image_without_at(self):
-        self.store.start_reservation_workflow(
+        self.store.reservations.start_reservation_workflow(
             "onebot",
             "10001",
             "20001",
@@ -682,10 +688,7 @@ class OneBotAppTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.transport.messages), 1)
-        self.assertEqual(
-            self.transport.messages[0].payload["message"],
-            "reply:查询天气 西宁",
-        )
+        self.assertIn("reply:查询天气 西宁",self.transport.messages[0].payload["message"])
 
     def test_reply_to_bot_invokes_application(self):
         response = self.client.post(
@@ -714,7 +717,7 @@ class OneBotAppTests(unittest.TestCase):
 
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
-        messages = self.store.get_recent_chat_messages("onebot", "10001")
+        messages = self.store.conversations.get_recent_chat_messages("onebot", "10001")
         self.assertEqual(len(messages), 1)
         self.assertEqual(len(self.transport.messages), 1)
 

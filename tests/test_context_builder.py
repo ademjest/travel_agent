@@ -3,11 +3,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from agents.context_builder import (
-    MAX_CONTEXT_CHARS,
-    ContextBuilder,
-    render_untrusted_context,
-)
+from app.conversation_context import MAX_CONTEXT_CHARS, ContextBuilder, render_untrusted_context
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
 
@@ -30,7 +26,7 @@ class ContextBuilderTests(unittest.TestCase):
             group_id="group-a",
             member_id="member-a",
             seconds=0):
-        self.store.save_chat_message(
+        self.store.conversations.save_chat_message(
             message_key=f"qq_official:group:{group_id}:{message_id}",
             platform="qq_official",
             group_id=group_id,
@@ -64,14 +60,14 @@ class ContextBuilderTests(unittest.TestCase):
         self.assertNotIn("不应出现的群消息", context.group_context)
 
     def test_low_relevance_document_fallback_is_labeled_and_has_document_id(self):
-        doc = self.store.add_document('group-a', 'member-a', 'notes.md', 'unrelated-doc',
+        doc = self.store.documents.add_document('group-a', 'member-a', 'notes.md', 'unrelated-doc',
                                       '青海湖景色介绍', ['青海湖景色介绍'])
-        context = self.store.build_document_context('group-a', '火箭发动机')
+        context = self.store.documents.build_document_context('group-a', '火箭发动机')
         self.assertIn('相关性较低', context)
         self.assertIn(f'文档#{doc.document_id}', context)
 
     def test_document_qa_does_not_inject_unrelated_latest_document(self):
-        self.store.add_document('group-a', 'member-a', 'notes.md', 'unrelated-doc-qa',
+        self.store.documents.add_document('group-a', 'member-a', 'notes.md', 'unrelated-doc-qa',
                                 '青海湖景色介绍', ['青海湖景色介绍'])
 
         context = self.builder.build(self.event('火箭发动机参数'), purpose='document_qa')
@@ -120,7 +116,7 @@ class ContextBuilderTests(unittest.TestCase):
                 member_id=f"member-{index}",
                 seconds=index,
             )
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-a",
             "member-a",
             "plan.txt",
@@ -144,7 +140,7 @@ class ContextBuilderTests(unittest.TestCase):
                 "与住宿无关的闲聊" + "甲" * 300,
                 seconds=index,
             )
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-a",
             "member-a",
             "plan.txt",
@@ -164,7 +160,7 @@ class ContextBuilderTests(unittest.TestCase):
         self.assertIn("QQ 官方", context.source_note)
 
     def test_document_context_is_isolated_between_platforms(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             "10001",
             "member",
             "official.txt",
@@ -172,7 +168,7 @@ class ContextBuilderTests(unittest.TestCase):
             "官方平台住宿西宁。",
             ["官方平台住宿西宁。"],
         )
-        self.store.add_document(
+        self.store.documents.add_document(
             "onebot:10001",
             "member",
             "onebot.txt",

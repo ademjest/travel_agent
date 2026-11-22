@@ -10,7 +10,7 @@ from app.runtime_factory import build_runtime
 from core.chat_transport import ChatAttachment, ChatEvent
 from core.settings import Settings, OneBotSettings
 from infrastructure.memory_store import MemoryStore
-from services.image_context_service import ImageContextService
+from tools.materials import MaterialsTool
 from test_travel_agent import FakeClient, assistant_message, completion
 from test_trips import SPEC, PLACES, plan_value
 
@@ -28,7 +28,7 @@ class ImageContextTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.temp.cleanup)
         self.store = MemoryStore(Path(self.temp.name) / 'media.db')
         self.client = FakeClient([response({'facts': '使用日期为2030年10月1日。', 'answer': '票面写的是2030年10月1日。', 'uncertain': False})])
-        self.service = ImageContextService(self.store, lambda attachment: (PNG, 'image/png'), self.client, 'test')
+        self.service = MaterialsTool(self.store, downloader=lambda attachment: (PNG, 'image/png'), client=self.client, model='test')
         self.event = ChatEvent('onebot', 'group', 'image', '100', 'owner', '这张票哪天使用？',
             attachments=(ChatAttachment('ticket.png', 'https://example.test/image', 'image/png'),))
 
@@ -71,7 +71,7 @@ class ImageContextTests(unittest.IsolatedAsyncioTestCase):
         transport = Transport()
         runtime = build_runtime(Settings('', '', frozenset({'100'}), '', '', '', ''), platform='onebot',
             store=self.store, transport=transport, reply_renderer=OneBotReplyRenderer(), group_allowed=lambda group: group == '100')
-        runtime.application.image_context_service = ImageContextService(self.store, lambda attachment: (PNG, 'image/png'), client, 'test')
+        runtime.application.image_context_service = MaterialsTool(self.store, downloader=lambda attachment: (PNG, 'image/png'), client=client, model='test')
         runtime.application.trip_service.clock = lambda: datetime(2030, 9, 9, tzinfo=timezone.utc)
         runtime.application.trip_service.planner.client = client
         runtime.application.trip_service.planner.amap = Mock()
@@ -82,6 +82,11 @@ class ImageContextTests(unittest.IsolatedAsyncioTestCase):
                 {'type': 'at', 'data': {'qq': 'bot'}}, {'type': 'text', 'data': {'text': '根据这张图片规划行程'}},
                 {'type': 'image', 'data': {'name': 'plan.png', 'url': 'https://example.test/image', 'content_type': 'image/png'}},
             ]})
+        self.assertEqual(self.store.trips.list_for_owner(self.event), ())
+        await adapter.handle({'post_type':'message','message_type':'group','group_id':'100',
+            'user_id':'owner','self_id':'bot','message_id':'confirm-image-trip',
+            'message':[{'type':'at','data':{'qq':'bot'}},
+                       {'type':'text','data':{'text':'确认行程修改'}}]})
         trips = self.store.trips.list_for_owner(self.event)
         self.assertEqual(len(trips), 1, str([message.payload for message in transport.messages]))
         self.assertEqual(trips[0]['spec']['field_sources']['destination'], 'image')

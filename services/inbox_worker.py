@@ -10,8 +10,7 @@ from core.execution_scope import CURRENT_EXECUTION, ExecutionRevoked, ExecutionS
 from core.tool_result import ReadFailed
 from infrastructure.attachment_cache import AttachmentCache
 from infrastructure.inbox_repository import JOB_DEADLINE_SECONDS, MAX_JOB_ATTEMPTS
-from services.scheduled_query_service import scheduled_query_control
-from services.policy_watch_service import watch_control
+from core.commands import request_priority, scheduled_query_control, watch_control
 
 
 logger = logging.getLogger(__name__)
@@ -36,14 +35,14 @@ class InboxWorker:
             return {'status': 'ignored'}
         event_key, scope, owner, clean, has_assets = normalized
         text = self.adapter.input_text(clean).strip()
-        priority = int(not has_assets and (scheduled_query_control(text) or watch_control(text) or text in
-            {'查看任务进度', '查看任务', '取消正在处理的请求', '取消当前任务'} or bool(re.fullmatch(r'取消请求\s+\d+', text))))
+        priority = request_priority(text, has_assets)
         try:
             row = await asyncio.to_thread(self.store.inbox.submit, event_key, self.platform, scope, owner, clean, has_assets, priority=priority)
         except ValueError as exc:
             from fastapi import HTTPException
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         self.wakeup.set()
+        self.store.diagnostics.record('request',{'event_key':event_key,'status':'received'})
         if priority:
             job = await asyncio.to_thread(self.store.inbox.claim, job_id=row['id'], platform=self.platform)
             if job:
@@ -63,13 +62,13 @@ class InboxWorker:
         with lifecycle.file_lock if lifecycle else nullcontext():
             if self.platform == 'web' and not self.adapter.scope_allowed(scope):
                 return
-            claim = claim or self.store.begin_event(event_key)
+            claim = claim or self.store.delivery.begin_event(event_key)
             if claim is None:
                 return
             channel = self.adapter.input_channel(payload)
             original = self.adapter.input_text(payload)
             rendered = self.adapter.application.reply_renderer.render(channel, original, text)
-            self.store.prepare_event_outbox(event_key, claim.claim_token, self.platform,
+            self.store.delivery.prepare_event_outbox(event_key, claim.claim_token, self.platform,
                 channel, scope, owner, self.adapter.input_reply_id(payload), rendered,
                 '[后台任务通知]' if synthetic else original, assistant_text=text)
 
@@ -121,13 +120,14 @@ class InboxWorker:
         return True
 
     async def _execute(self, job):
+        self.store.diagnostics.record('request',{'event_key':job['event_key'],'status':'claimed'})
         scope = ExecutionScope(str(self.store.database_path.resolve()), job['id'], job['claim_token'])
         token = CURRENT_EXECUTION.set(scope)
         try:
-            if job['payload'].get('post_type') == 'scheduled_query':
-                return await self.adapter.application.scheduled_query_service.execute_job(job, self.adapter.application.reply_renderer)
-            if job['payload'].get('post_type') == 'policy_watch':
-                return await self.adapter.application.policy_watch_service.execute_job(job, self.adapter.application.reply_renderer)
+            background_kind = job['payload'].get('post_type')
+            if background_kind in {'scheduled_query', 'policy_watch'}:
+                return await self.adapter.application.reminders_tool.execute_due(
+                    background_kind, job, self.adapter.application.reply_renderer)
             if job.get('priority'):
                 payload = job['payload']
                 with self.store._connect() as connection:
@@ -139,11 +139,10 @@ class InboxWorker:
                     await self.adapter.application.handle(event)
                     return {'status': 'handled'}
                 text = self.adapter.input_text(payload).strip()
-                service = (getattr(self.adapter.application, 'policy_watch_service', None) if watch_control(text)
-                           else getattr(self.adapter.application, 'scheduled_query_service', None))
+                service = self.adapter.application.reminders_tool
                 if service is not None and (scheduled_query_control(text) or watch_control(text)):
                     event = self.adapter.input_event(payload)
-                    claim = await asyncio.to_thread(self.store.begin_event, job['event_key'])
+                    claim = await asyncio.to_thread(self.store.delivery.begin_event, job['event_key'])
                     if claim:
                         reply = claim.prepared_reply if claim.prepared_reply is not None else await asyncio.to_thread(service.handle, event, claim)
                         await self._reply(job['event_key'], job['scope_id'], job['owner_id'], payload, reply, claim=claim)
@@ -172,7 +171,7 @@ class InboxWorker:
             rendered = self.adapter.application.reply_renderer.render_reminder(job['owner_id'], event['prepared_reply'])
         else:
             rendered = self.adapter.application.reply_renderer.render(channel, event['prepared_memory_content'] or '', event['prepared_reply'])
-        await asyncio.to_thread(self.store.prepare_event_outbox, job['event_key'], event['claim_token'], self.platform,
+        await asyncio.to_thread(self.store.delivery.prepare_event_outbox, job['event_key'], event['claim_token'], self.platform,
             channel, job['scope_id'], job['owner_id'], self.adapter.input_reply_id(payload), rendered,
             event['prepared_memory_content'], assistant_text=event['prepared_reply'])
         await asyncio.to_thread(self.store.inbox.finish, job, {'status': 'recovered_output'})
@@ -204,8 +203,8 @@ class InboxWorker:
         execution = asyncio.create_task(self._execute(job))
         try:
             result = await asyncio.wait_for(asyncio.shield(execution), self.deadline_seconds)
-            event_status = await asyncio.to_thread(self.store.get_event_status, job['event_key'])
-            outbox = await asyncio.to_thread(self.store.list_outbox_for_event, job['event_key'])
+            event_status = await asyncio.to_thread(self.store.delivery.get_event_status, job['event_key'])
+            outbox = await asyncio.to_thread(self.store.delivery.list_outbox_for_event, job['event_key'])
             if result.get('status') == 'handled' and event_status == 'processing' and not outbox:
                 await asyncio.to_thread(self.store.inbox.fail, job, 'event lease still active', busy=True)
             else:
@@ -228,6 +227,8 @@ class InboxWorker:
                     await self._reply('inbox-notice:' + job['event_key'], job['scope_id'], job['owner_id'], job['payload'],
                         '这次请求在重试后仍未完成，请重新发送。可以用“查看任务进度”检查其他请求。', synthetic=True)
                 if state != 'revoked':
+                    self.store.diagnostics.record('request',{'event_key':job['event_key'],'status':'failed' if state=='failed' else 'retry',
+                        'error_type':type(exc).__name__})
                     logger.warning('Inbox attempt failed: job_id=%s error_type=%s state=%s', job['id'], type(exc).__name__, state)
         finally:
             renewal.cancel()

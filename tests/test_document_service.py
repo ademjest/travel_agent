@@ -12,7 +12,7 @@ from docx import Document
 from openpyxl import Workbook
 
 from infrastructure.memory_store import MemoryStore
-from services.document_service import DocumentService
+from tools.materials import MaterialsTool
 
 
 def make_docx_bytes():
@@ -61,7 +61,7 @@ class DocumentServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         store = MemoryStore(Path(self.temp_dir.name) / "memory.db")
-        self.service = DocumentService(store)
+        self.service = MaterialsTool(store)
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -101,11 +101,10 @@ class DocumentServiceTests(unittest.TestCase):
             worksheets=[worksheet],
             close=Mock(),
         )
-        with patch.object(
-                DocumentService,
-                "_validate_office_archive",
+        with patch(
+                "infrastructure.document_formats.validate_office_archive",
                 return_value=None), patch(
-                "services.document_service.load_workbook",
+                "infrastructure.document_formats.load_workbook",
                 return_value=workbook) as load:
             text = self.service._extract_text("plan.xlsx", b"xlsx")
 
@@ -124,7 +123,7 @@ class DocumentServiceTests(unittest.TestCase):
             archive.writestr("word/document.xml", b"x" * 20)
 
         with patch(
-                "services.document_service.MAX_ARCHIVE_UNCOMPRESSED_BYTES",
+                "infrastructure.document_formats.MAX_ARCHIVE_UNCOMPRESSED_BYTES",
                 10):
             with self.assertRaisesRegex(ValueError, "解压后"):
                 self.service._extract_text("large.docx", buffer.getvalue())
@@ -147,7 +146,7 @@ class DocumentServiceTests(unittest.TestCase):
 
         self.assertTrue(result.handled)
         self.assertIn("已保存旅行文档", result.reply)
-        context = self.service.memory_store.build_document_context(
+        context = self.service.memory_store.documents.build_document_context(
             "group",
             "茶卡住哪里",
         )
@@ -167,7 +166,7 @@ class DocumentServiceTests(unittest.TestCase):
 
         self.assertEqual(len(prepared), 1)
         self.assertEqual(prepared[0].filename, "plan.docx")
-        context = self.service.memory_store.build_document_context(
+        context = self.service.memory_store.documents.build_document_context(
             "group",
             "茶卡住哪里",
         )
@@ -191,7 +190,7 @@ class DocumentServiceTests(unittest.TestCase):
 
         self.assertTrue(result.handled)
         self.assertIn("已保存旅行文档", result.reply)
-        context = self.service.memory_store.build_document_context(
+        context = self.service.memory_store.documents.build_document_context(
             "group-xlsx",
             "茶卡盐湖",
         )
@@ -213,7 +212,7 @@ class DocumentServiceTests(unittest.TestCase):
         self.assertEqual(prepared[0].filename, "plan.xlsx")
         self.assertIn("茶卡盐湖", prepared[0].full_text)
         self.assertEqual(
-            self.service.memory_store.build_document_context(
+            self.service.memory_store.documents.build_document_context(
                 "group",
                 "茶卡盐湖",
             ),
@@ -254,7 +253,7 @@ class DocumentServiceTests(unittest.TestCase):
 
     def test_document_summary_is_saved_as_long_term_context(self):
         store = MemoryStore(Path(self.temp_dir.name) / "summary.db")
-        service = DocumentService(
+        service = MaterialsTool(
             store,
             summarizer=lambda filename, text: "8月16日住茶卡镇，8月17日前往大柴旦。",
         )
@@ -274,7 +273,7 @@ class DocumentServiceTests(unittest.TestCase):
             )
 
         self.assertIn("已生成长期行程摘要", result.reply)
-        context = store.build_document_context(
+        context = store.documents.build_document_context(
             "group-summary",
             "我们整体怎么安排？",
         )
@@ -290,7 +289,7 @@ class DocumentServiceTests(unittest.TestCase):
             release.wait(timeout=2)
             return "行程摘要"
 
-        service = DocumentService(store, summarizer=summarize)
+        service = MaterialsTool(store, summarizer=summarize)
         attachment = SimpleNamespace(
             filename="plan.docx",
             url="https://example.test/plan.docx",
@@ -313,7 +312,7 @@ class DocumentServiceTests(unittest.TestCase):
             thread.start()
             try:
                 self.assertTrue(started.wait(timeout=1))
-                context = store.build_document_context(
+                context = store.documents.build_document_context(
                     "group-slow-summary",
                     "茶卡住哪里",
                 )

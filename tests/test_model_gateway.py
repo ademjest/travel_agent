@@ -15,6 +15,20 @@ from infrastructure.model_gateway import ModelGateway, estimate_input, usage_rep
 
 
 class ModelGatewayTests(unittest.TestCase):
+    def test_travel_outputs_follow_tiers_and_planning_multiplier_stays_bounded(self):
+        for tier,limit in [('economy',4096),('balanced',6144),('quality',8192)]:
+            with patch.dict(os.environ,{'AI_BUDGET_TIER':tier}):
+                for purpose in ('travel_answer_write','trip_plan','trip_plan_repair'):
+                    with model_call_context(purpose):
+                        self.gateway.create(model='fake',messages=[{'role':'user','content':'saved material'}])
+                    self.assertEqual(self.requests[-1]['max_completion_tokens'],limit)
+                with model_call_context('trip_plan',output_multiplier=2):
+                    self.gateway.create(model='fake',messages=[{'role':'user','content':'long trip'}])
+                self.assertLessEqual(self.requests[-1]['max_completion_tokens'],8192)
+        with model_call_context('intent_parse'):
+            self.gateway.create(model='fake',messages=[{'role':'user','content':'short'}])
+        self.assertEqual(self.requests[-1]['max_completion_tokens'],1024)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -99,7 +113,7 @@ class ModelGatewayTests(unittest.TestCase):
                          (1,.5,2))
         self.assertEqual(row['cost_origin'],'live')
 
-    def test_report_recalculates_unpriced_history_with_current_rates(self):
+    def test_report_keeps_unpriced_history_unknown_when_current_rates_change(self):
         with patch.dict('os.environ', {'LLM_INPUT_PRICE_PER_M': '', 'LLM_OUTPUT_PRICE_PER_M': ''}):
             self.gateway.create(model='fake', messages=[])
         with patch.dict('os.environ', {'LLM_INPUT_PRICE_PER_M': '2',
@@ -107,12 +121,12 @@ class ModelGatewayTests(unittest.TestCase):
                                        'LLM_OUTPUT_PRICE_PER_M': '10',
                                        'LLM_PRICE_CURRENCY': 'USD'}):
             report = usage_report(self.store)
-        self.assertEqual(report['totals']['cost_unknown'],0)
-        self.assertEqual(report['totals']['cost_recalculated'],1)
-        self.assertEqual(report['totals']['cache_detail_missing'],1)
-        self.assertAlmostEqual(report['totals']['estimated_cost'],.00014)
-        self.assertEqual(report['totals']['currency'],'USD')
-        self.assertIn('按当前生效费率回算',report['cost_note'])
+        self.assertEqual(report['totals']['cost_unknown'],1)
+        self.assertEqual(report['totals']['unknown_identity'],1)
+        self.assertEqual(report['totals']['cost_recalculated'],0)
+        self.assertEqual(report['totals']['cost_breakdown'],[])
+        with self.store._connect() as db:
+            self.assertIsNone(db.execute('SELECT estimated_cost FROM model_calls').fetchone()[0])
 
     def test_truly_missing_usage_remains_unknown(self):
         self.result.usage = None
@@ -122,6 +136,15 @@ class ModelGatewayTests(unittest.TestCase):
         self.assertEqual(report['totals']['cost_unknown'],1)
         self.assertEqual(report['totals']['unknown_usage'],1)
         self.assertEqual(report['totals']['cost_recalculated'],0)
+
+    def test_historic_identity_is_not_filled_from_current_settings_or_repeated_as_a_label(self):
+        with patch.dict('os.environ',{'LLM_PROVIDER_ALIAS':''}):self.gateway.create(model='historic-model',messages=[])
+        with self.store._connect() as db:before=[tuple(r) for r in db.execute('SELECT * FROM model_calls')]
+        with patch.dict('os.environ',{'LLM_PROVIDER_ALIAS':'new-provider','LLM_MODEL_ID':'historic-model'}):
+            row=usage_report(self.store)['purposes'][0]
+        self.assertEqual(row['model_id'],'historic-model');self.assertEqual(row['connection_id'],'legacy_unknown')
+        self.assertEqual(row['connection_name'],'')
+        with self.store._connect() as db:self.assertEqual(before,[tuple(r) for r in db.execute('SELECT * FROM model_calls')])
 
     def test_default_currency_is_usd_and_persisted_cost_is_not_repriced(self):
         with patch.dict('os.environ', {'LLM_INPUT_PRICE_PER_M':'1','LLM_OUTPUT_PRICE_PER_M':'2'}, clear=False):

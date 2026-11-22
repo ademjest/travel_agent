@@ -11,9 +11,9 @@ from app.runtime_factory import build_runtime
 from core.chat_transport import ChatEvent
 from core.settings import Settings, OneBotSettings
 from infrastructure.memory_store import MemoryStore
-from services.booking_policy import BookingPolicyResolver
+from tools.reminders.policy import BookingPolicyResolver
 from services.inbox_worker import InboxWorker
-from services.policy_watch_service import PolicyWatchService
+from tools.reminders.tool import RemindersTool
 
 
 class PolicyWatchTests(unittest.IsolatedAsyncioTestCase):
@@ -36,8 +36,9 @@ class PolicyWatchTests(unittest.IsolatedAsyncioTestCase):
         self.transport = Transport()
         self.runtime = build_runtime(Settings('', '', frozenset({'100'}), '', '', '', ''), platform='onebot',
             store=self.store, transport=self.transport, reply_renderer=OneBotReplyRenderer(), group_allowed=lambda group: group == '100')
-        self.service = PolicyWatchService(self.store, self.resolver, clock=lambda: self.now)
+        self.service = RemindersTool(self.store, resolver=self.resolver, clock=lambda: self.now)
         self.runtime.application.policy_watch_service = self.service
+        self.runtime.application.reminders_tool = self.service
         self.worker = InboxWorker(self.store, OneBotAdapter(OneBotSettings('http://localhost', 'out', 'in', frozenset({'100'})), self.runtime.application, self.store))
 
     def event(self, text='', key='read', owner='owner'):
@@ -45,7 +46,7 @@ class PolicyWatchTests(unittest.IsolatedAsyncioTestCase):
 
     def handle(self, text, key='create'):
         event = self.event(text, key)
-        return self.service.handle(event, self.store.begin_event(event.event_key))
+        return self.service.handle(event, self.store.delivery.begin_event(event.event_key), kind='watch')
 
     def create(self, ending='到10月1日'):
         return self.handle('监测湖北省博物馆预约规则，' + ending)
@@ -124,14 +125,14 @@ class PolicyWatchTests(unittest.IsolatedAsyncioTestCase):
         self.now = datetime.fromisoformat(self.row()['next_check_at'])
         await self.runtime.reminder_scheduler.scan_once(self.now)
         job = self.store.inbox.claim(now=self.now, lane='scheduled')
-        with patch.object(self.store, 'prepare_event_outbox', side_effect=RuntimeError('crash before outbox')):
+        with patch.object(self.store.delivery, 'prepare_event_outbox', side_effect=RuntimeError('crash before outbox')):
             with self.assertRaises(RuntimeError):
-                await self.service.execute_job(job, OneBotReplyRenderer())
+                await self.service.execute_due('policy_watch', job, OneBotReplyRenderer())
         self.assertEqual(self.row()['status'], 'active')
         self.now += timedelta(hours=1)
         with patch.object(self.resolver, 'resolve', side_effect=AssertionError('cached receipt required')):
-            await self.service.execute_job(job, OneBotReplyRenderer())
-        self.assertEqual(len(self.store.list_outbox_for_event(job['event_key'])), 1)
+            await self.service.execute_due('policy_watch', job, OneBotReplyRenderer())
+        self.assertEqual(len(self.store.delivery.list_outbox_for_event(job['event_key'])), 1)
 
     async def test_stop_while_fetching_fences_late_writes(self):
         self.create()

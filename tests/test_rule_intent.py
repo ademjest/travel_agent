@@ -6,10 +6,10 @@ from unittest.mock import Mock, patch
 
 from core.chat_transport import ChatEvent
 from core.commands import parse_command
-from core.rule_intent import parse_rules,RuleResult,compound_boundary
+from app.request_router import parse_rules, RuleResult, compound_boundary
 from core.tool_result import ToolResult
 from infrastructure.memory_store import MemoryStore
-from services.semantic_task_service import SemanticTaskService
+from app.request_router import RequestRouter
 
 
 class RuleIntentTests(unittest.TestCase):
@@ -51,9 +51,9 @@ class RuleIntentTests(unittest.TestCase):
             compiler=Mock()
             travel=Mock()
             travel.execute_result.side_effect=lambda tool,args:ToolResult('completed',tool,data=args['location']+'晴')
-            service=SemanticTaskService(store,compiler,travel_service=travel)
+            service=RequestRouter(store,compiler,travel_service=travel,tool_executor=lambda name,args,context:travel.execute_result(name,args))
             event=ChatEvent('web','group','batch','conversation','owner','查询天气武汉；查询天气长沙')
-            claim=store.begin_event(event.event_key)
+            claim=store.delivery.begin_event(event.event_key)
             result=service.handle(event,claim)
             self.assertIn('武汉晴',result); self.assertIn('长沙晴',result)
             compiler.try_compile.assert_not_called()
@@ -62,7 +62,7 @@ class RuleIntentTests(unittest.TestCase):
                 rows=db.execute('SELECT slots_json FROM travel_tasks').fetchall()
                 self.assertEqual(len(rows),1)
                 self.assertEqual(len(json.loads(rows[0][0])['operations']),2)
-            self.assertEqual(service.handle(event,store.begin_event(event.event_key)),result)
+            self.assertEqual(service.handle(event,store.delivery.begin_event(event.event_key)),result)
             self.assertEqual(travel.execute_result.call_count,2)
 
     def test_partial_failure_is_visible_and_not_retried_as_whole_request(self):
@@ -71,9 +71,9 @@ class RuleIntentTests(unittest.TestCase):
             compiler=Mock();travel=Mock()
             travel.execute_result.side_effect=[ToolResult('completed','get_current_weather',data='武汉晴'),
                 ToolResult('failed','get_current_weather',data='长沙查询失败')]
-            service=SemanticTaskService(store,compiler,travel_service=travel)
+            service=RequestRouter(store,compiler,travel_service=travel,tool_executor=lambda name,args,context:travel.execute_result(name,args))
             event=ChatEvent('web','group','batch','c','o','查询天气武汉；查询天气长沙')
-            reply=service.handle(event,store.begin_event(event.event_key))
+            reply=service.handle(event,store.delivery.begin_event(event.event_key))
             self.assertIn('已完成',reply);self.assertIn('失败',reply)
             compiler.try_compile.assert_not_called()
 
@@ -81,15 +81,15 @@ class RuleIntentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store=MemoryStore(Path(tmp)/'test.db');travel=Mock();compiler=Mock()
             travel.execute_result.side_effect=[ToolResult('completed','get_current_weather',data='武汉晴'),RuntimeError('interruption')]
-            service=SemanticTaskService(store,compiler,travel_service=travel)
+            service=RequestRouter(store,compiler,travel_service=travel,tool_executor=lambda name,args,context:travel.execute_result(name,args))
             event=ChatEvent('web','group','batch','c','o','查询天气武汉；查询天气长沙')
-            claim=store.begin_event(event.event_key)
+            claim=store.delivery.begin_event(event.event_key)
             with self.assertRaises(RuntimeError): service.handle(event,claim)
             reopened=MemoryStore(store.database_path)
             resumed_travel=Mock()
             resumed_travel.execute_result.return_value=ToolResult('completed','get_current_weather',data='长沙晴')
-            service=SemanticTaskService(reopened,compiler,travel_service=resumed_travel)
-            with patch('services.semantic_task_service.parse_rules',return_value=RuleResult('fallback')):
+            service=RequestRouter(reopened,compiler,travel_service=resumed_travel,tool_executor=lambda name,args,context:resumed_travel.execute_result(name,args))
+            with patch('app.request_router.parse_rules',return_value=RuleResult('fallback')):
                 reply=service.handle(event,claim)
             self.assertIn('武汉晴',reply);self.assertIn('长沙晴',reply)
             self.assertEqual(resumed_travel.execute_result.call_count,1)

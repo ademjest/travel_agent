@@ -1,0 +1,1515 @@
+{
+  "request": {
+    "date": "2026-11-01",
+    "earliestStartTime": 0,
+    "format": "json",
+    "fromStation": "WHN",
+    "latestStartTime": 24,
+    "limitedNum": 60,
+    "sortFlag": "startTime",
+    "toStation": "XAY",
+    "trainFilterFlags": "G"
+  },
+  "retrieved_at": "2026-10-28T15:27:07.343764+00:00",
+  "trains": [
+    {
+      "start_train_code": "G3901",
+      "start_time": "07:18",
+      "arrive_time": "11:11",
+      "lishi": "03:53",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1342,
+          "num": "10"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 669,
+          "num": "6"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 417,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 417,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3901",
+      "start_time": "07:18",
+      "arrive_time": "11:36",
+      "lishi": "04:18",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1405,
+          "num": "10"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 698,
+          "num": "6"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 435,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 435,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3903",
+      "start_time": "08:57",
+      "arrive_time": "12:32",
+      "lishi": "03:35",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1342,
+          "num": "9"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 669,
+          "num": "4"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 417,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 417,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3903",
+      "start_time": "08:57",
+      "arrive_time": "12:57",
+      "lishi": "04:00",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1405,
+          "num": "9"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 698,
+          "num": "4"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 435,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 435,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3180",
+      "start_time": "09:42",
+      "arrive_time": "14:01",
+      "lishi": "04:19",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1525,
+          "num": "2"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 784,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 491,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 491,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3925",
+      "start_time": "10:01",
+      "arrive_time": "12:58",
+      "lishi": "02:57",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1379,
+          "num": "5"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 685,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 428,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 428,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G640",
+      "start_time": "10:04",
+      "arrive_time": "14:52",
+      "lishi": "04:48",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1125,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 784,
+          "num": "1"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 491,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 491,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G864",
+      "start_time": "10:41",
+      "arrive_time": "15:38",
+      "lishi": "04:57",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1334,
+          "num": "1"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 784,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 463,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 463,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3854",
+      "start_time": "10:53",
+      "arrive_time": "15:00",
+      "lishi": "04:07",
+      "from_station": "武汉",
+      "to_station": "西安东",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1346,
+          "num": "1"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 674,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 420,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 420,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G2172",
+      "start_time": "11:22",
+      "arrive_time": "15:51",
+      "lishi": "04:29",
+      "from_station": "武汉",
+      "to_station": "西安东",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1346,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 674,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 420,
+          "num": "17"
+        },
+        {
+          "seat_name": "无座",
+          "price": 420,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3855",
+      "start_time": "11:32",
+      "arrive_time": "15:00",
+      "lishi": "03:28",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1306,
+          "num": "1"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 653,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 407,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 407,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G852",
+      "start_time": "11:43",
+      "arrive_time": "16:14",
+      "lishi": "04:31",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1620,
+          "num": "8"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 740,
+          "num": "4"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 463,
+          "num": "19"
+        },
+        {
+          "seat_name": "无座",
+          "price": 463,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G2173",
+      "start_time": "12:02",
+      "arrive_time": "15:51",
+      "lishi": "03:49",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1306,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 653,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 407,
+          "num": "17"
+        },
+        {
+          "seat_name": "无座",
+          "price": 407,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3863",
+      "start_time": "12:08",
+      "arrive_time": "16:00",
+      "lishi": "03:52",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1379,
+          "num": "9"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 685,
+          "num": "6"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 428,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 428,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3917",
+      "start_time": "12:39",
+      "arrive_time": "16:28",
+      "lishi": "03:49",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1313,
+          "num": "7"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 650,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 406,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 406,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3917",
+      "start_time": "12:39",
+      "arrive_time": "16:57",
+      "lishi": "04:18",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1376,
+          "num": "7"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 679,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 424,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 424,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G404",
+      "start_time": "13:10",
+      "arrive_time": "16:50",
+      "lishi": "03:40",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1715,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 871,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 545,
+          "num": "无"
+        },
+        {
+          "seat_name": "无座",
+          "price": 545,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G842",
+      "start_time": "13:25",
+      "arrive_time": "18:25",
+      "lishi": "05:00",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1525,
+          "num": "6"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 784,
+          "num": "2"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 491,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 491,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3905",
+      "start_time": "13:35",
+      "arrive_time": "17:24",
+      "lishi": "03:49",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1342,
+          "num": "10"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 669,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 417,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 417,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G846",
+      "start_time": "14:14",
+      "arrive_time": "19:27",
+      "lishi": "05:13",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1620,
+          "num": "1"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 784,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 491,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 491,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G914",
+      "start_time": "15:13",
+      "arrive_time": "20:04",
+      "lishi": "04:51",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1430,
+          "num": "1"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 740,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 463,
+          "num": "11"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3907",
+      "start_time": "15:16",
+      "arrive_time": "18:49",
+      "lishi": "03:33",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1379,
+          "num": "6"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 685,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 428,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 428,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3907",
+      "start_time": "15:16",
+      "arrive_time": "19:14",
+      "lishi": "03:58",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1442,
+          "num": "6"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 714,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 446,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 446,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G4611",
+      "start_time": "15:46",
+      "arrive_time": "19:07",
+      "lishi": "03:21",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1306,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 653,
+          "num": "4"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 407,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 407,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G4611",
+      "start_time": "15:46",
+      "arrive_time": "19:42",
+      "lishi": "03:56",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1369,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 682,
+          "num": "4"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 425,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 425,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G1168",
+      "start_time": "15:54",
+      "arrive_time": "20:04",
+      "lishi": "04:10",
+      "from_station": "武汉",
+      "to_station": "西安东",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1382,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 690,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 430,
+          "num": "1"
+        },
+        {
+          "seat_name": "无座",
+          "price": 430,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G1168",
+      "start_time": "15:54",
+      "arrive_time": "20:30",
+      "lishi": "04:36",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1445,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 719,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 448,
+          "num": "7"
+        },
+        {
+          "seat_name": "无座",
+          "price": 448,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3909",
+      "start_time": "16:12",
+      "arrive_time": "20:16",
+      "lishi": "04:04",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1174,
+          "num": "10"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 583,
+          "num": "2"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 363,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 363,
+          "num": "11"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3998",
+      "start_time": "16:27",
+      "arrive_time": "21:11",
+      "lishi": "04:44",
+      "from_station": "武汉东",
+      "to_station": "西安东",
+      "from_station_telecode": "LFN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1216,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 609,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 380,
+          "num": "1"
+        },
+        {
+          "seat_name": "无座",
+          "price": 380,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G1165",
+      "start_time": "16:39",
+      "arrive_time": "20:04",
+      "lishi": "03:25",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1342,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 669,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 417,
+          "num": "1"
+        },
+        {
+          "seat_name": "无座",
+          "price": 417,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G1165",
+      "start_time": "16:39",
+      "arrive_time": "20:30",
+      "lishi": "03:51",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1405,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 698,
+          "num": "2"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 435,
+          "num": "1"
+        },
+        {
+          "seat_name": "无座",
+          "price": 435,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3911",
+      "start_time": "16:48",
+      "arrive_time": "20:36",
+      "lishi": "03:48",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1271,
+          "num": "7"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 637,
+          "num": "10"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 397,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 397,
+          "num": "13"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3911",
+      "start_time": "16:48",
+      "arrive_time": "21:09",
+      "lishi": "04:21",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1334,
+          "num": "7"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 666,
+          "num": "10"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 415,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 415,
+          "num": "13"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G868",
+      "start_time": "16:53",
+      "arrive_time": "21:26",
+      "lishi": "04:33",
+      "from_station": "武汉东",
+      "to_station": "西安东",
+      "from_station_telecode": "LFN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1317,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 662,
+          "num": "2"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 412,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 412,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3995",
+      "start_time": "17:14",
+      "arrive_time": "21:11",
+      "lishi": "03:57",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1169,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 584,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 365,
+          "num": "1"
+        },
+        {
+          "seat_name": "无座",
+          "price": 365,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3913",
+      "start_time": "17:28",
+      "arrive_time": "20:45",
+      "lishi": "03:17",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1271,
+          "num": "10"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 637,
+          "num": "1"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 397,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 397,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G869",
+      "start_time": "17:37",
+      "arrive_time": "21:26",
+      "lishi": "03:49",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1271,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 637,
+          "num": "2"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 397,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 397,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G830",
+      "start_time": "17:47",
+      "arrive_time": "22:44",
+      "lishi": "04:57",
+      "from_station": "武汉",
+      "to_station": "西安东",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1311,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 658,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 410,
+          "num": "10"
+        },
+        {
+          "seat_name": "无座",
+          "price": 410,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G830",
+      "start_time": "17:47",
+      "arrive_time": "23:14",
+      "lishi": "05:27",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1374,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 687,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 428,
+          "num": "10"
+        },
+        {
+          "seat_name": "无座",
+          "price": 428,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3915",
+      "start_time": "18:12",
+      "arrive_time": "21:31",
+      "lishi": "03:19",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1271,
+          "num": "8"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 637,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 397,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 397,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G3915",
+      "start_time": "18:12",
+      "arrive_time": "22:10",
+      "lishi": "03:58",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1334,
+          "num": "8"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 666,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 415,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 415,
+          "num": "有"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G831",
+      "start_time": "18:37",
+      "arrive_time": "22:44",
+      "lishi": "04:07",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1271,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 637,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 397,
+          "num": "10"
+        },
+        {
+          "seat_name": "无座",
+          "price": 397,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G831",
+      "start_time": "18:37",
+      "arrive_time": "23:14",
+      "lishi": "04:37",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1334,
+          "num": "无"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 666,
+          "num": "无"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 415,
+          "num": "10"
+        },
+        {
+          "seat_name": "无座",
+          "price": 415,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G410",
+      "start_time": "18:42",
+      "arrive_time": "22:03",
+      "lishi": "03:21",
+      "from_station": "武汉",
+      "to_station": "西安东",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1382,
+          "num": "3"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 690,
+          "num": "1"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 430,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 430,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G410",
+      "start_time": "18:42",
+      "arrive_time": "22:28",
+      "lishi": "03:46",
+      "from_station": "武汉",
+      "to_station": "西安北",
+      "from_station_telecode": "WHN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1445,
+          "num": "3"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 719,
+          "num": "1"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 448,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 448,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G411",
+      "start_time": "19:21",
+      "arrive_time": "22:03",
+      "lishi": "02:42",
+      "from_station": "汉口",
+      "to_station": "西安东",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "XDY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1342,
+          "num": "4"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 669,
+          "num": "1"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 417,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 417,
+          "num": "无"
+        }
+      ]
+    },
+    {
+      "start_train_code": "G411",
+      "start_time": "19:21",
+      "arrive_time": "22:28",
+      "lishi": "03:07",
+      "from_station": "汉口",
+      "to_station": "西安北",
+      "from_station_telecode": "HKN",
+      "to_station_telecode": "EAY",
+      "prices": [
+        {
+          "seat_name": "商务座",
+          "price": 1405,
+          "num": "4"
+        },
+        {
+          "seat_name": "一等座",
+          "price": 698,
+          "num": "1"
+        },
+        {
+          "seat_name": "二等座",
+          "price": 435,
+          "num": "有"
+        },
+        {
+          "seat_name": "无座",
+          "price": 435,
+          "num": "无"
+        }
+      ]
+    }
+  ]
+}

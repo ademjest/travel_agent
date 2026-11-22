@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from infrastructure.memory_store import MemoryStore
-from services.document_service import PreparedDocument
+from tools.materials import PreparedDocument
 
 
 @contextmanager
@@ -73,7 +73,7 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_only_returns_latest_six_turns(self):
         for index in range(8):
-            self.store.save_turn(
+            self.store.conversations.save_turn(
                 "group",
                 "member",
                 f"msg-{index}",
@@ -81,35 +81,35 @@ class MemoryStoreTests(unittest.TestCase):
                 f"assistant-{index}",
             )
 
-        turns = self.store.get_recent_turns("group", "member")
+        turns = self.store.conversations.get_recent_turns("group", "member")
 
         self.assertEqual(len(turns), 6)
         self.assertEqual(turns[0].user_content, "user-2")
         self.assertEqual(turns[-1].user_content, "user-7")
 
     def test_event_can_only_be_claimed_once(self):
-        self.assertTrue(self.store.claim_event("event-1"))
-        self.assertFalse(self.store.claim_event("event-1"))
+        self.assertTrue(self.store.delivery.claim_event("event-1"))
+        self.assertFalse(self.store.delivery.claim_event("event-1"))
 
     def test_completed_event_cannot_be_reclaimed(self):
-        claim = self.store.begin_event("completed-event")
+        claim = self.store.delivery.begin_event("completed-event")
 
         self.assertTrue(
-            self.store.complete_event(
+            self.store.delivery.complete_event(
                 claim.event_id,
                 claim.claim_token,
             )
         )
         self.assertEqual(
-            self.store.get_event_status("completed-event"),
+            self.store.delivery.get_event_status("completed-event"),
             "completed",
         )
-        self.assertIsNone(self.store.begin_event("completed-event"))
+        self.assertIsNone(self.store.delivery.begin_event("completed-event"))
 
     def test_prepared_event_creates_one_pending_outbox_row(self):
-        claim = self.store.begin_event("qq_official:group:g1:m1")
+        claim = self.store.delivery.begin_event("qq_official:group:g1:m1")
 
-        outbox_id = self.store.prepare_event_outbox(
+        outbox_id = self.store.delivery.prepare_event_outbox(
             event_id=claim.event_id,
             claim_token=claim.claim_token,
             platform="qq_official",
@@ -121,14 +121,14 @@ class MemoryStoreTests(unittest.TestCase):
             memory_content="question",
         )
 
-        pending = self.store.list_due_outbox("qq_official")
+        pending = self.store.delivery.list_due_outbox("qq_official")
         self.assertEqual([item.outbox_id for item in pending], [outbox_id])
         self.assertEqual(pending[0].payload["content"], "reply")
 
     def test_repreparing_same_event_does_not_duplicate_outbox(self):
         event_id = "qq_official:group:g1:m2"
-        first = self.store.begin_event(event_id)
-        first_id = self.store.prepare_event_outbox(
+        first = self.store.delivery.begin_event(event_id)
+        first_id = self.store.delivery.prepare_event_outbox(
             event_id=event_id,
             claim_token=first.claim_token,
             platform="qq_official",
@@ -139,10 +139,10 @@ class MemoryStoreTests(unittest.TestCase):
             payload={"msg_type": 0, "content": "reply"},
             memory_content="question",
         )
-        self.store.fail_event(event_id, first.claim_token, "send failed")
-        second = self.store.begin_event(event_id)
+        self.store.delivery.fail_event(event_id, first.claim_token, "send failed")
+        second = self.store.delivery.begin_event(event_id)
 
-        second_id = self.store.prepare_event_outbox(
+        second_id = self.store.delivery.prepare_event_outbox(
             event_id=event_id,
             claim_token=second.claim_token,
             platform="qq_official",
@@ -155,17 +155,17 @@ class MemoryStoreTests(unittest.TestCase):
         )
 
         self.assertEqual(second_id, first_id)
-        rows = self.store.list_outbox_for_event(event_id)
+        rows = self.store.delivery.list_outbox_for_event(event_id)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].payload["content"], "reply")
 
     def test_sending_row_is_recovered_after_lease_expiry(self):
         now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
-        claim = self.store.begin_event(
+        claim = self.store.delivery.begin_event(
             "qq_official:group:g1:m3",
             now=now,
         )
-        outbox_id = self.store.prepare_event_outbox(
+        outbox_id = self.store.delivery.prepare_event_outbox(
             event_id=claim.event_id,
             claim_token=claim.claim_token,
             platform="qq_official",
@@ -178,7 +178,7 @@ class MemoryStoreTests(unittest.TestCase):
             now=now,
         )
 
-        token = self.store.claim_outbox(
+        token = self.store.delivery.claim_outbox(
             outbox_id,
             now=now,
             lease_duration=timedelta(minutes=1),
@@ -186,13 +186,13 @@ class MemoryStoreTests(unittest.TestCase):
 
         self.assertIsNotNone(token)
         self.assertEqual(
-            self.store.list_due_outbox(
+            self.store.delivery.list_due_outbox(
                 "qq_official",
                 now + timedelta(seconds=59),
             ),
             (),
         )
-        due = self.store.list_due_outbox(
+        due = self.store.delivery.list_due_outbox(
             "qq_official",
             now + timedelta(minutes=1),
         )
@@ -201,8 +201,8 @@ class MemoryStoreTests(unittest.TestCase):
     def test_mark_outbox_sent_completes_group_event_and_saves_turn(self):
         now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
         event_id = "qq_official:group:g1:m4"
-        claim = self.store.begin_event(event_id, now=now)
-        outbox_id = self.store.prepare_event_outbox(
+        claim = self.store.delivery.begin_event(event_id, now=now)
+        outbox_id = self.store.delivery.prepare_event_outbox(
             event_id=event_id,
             claim_token=claim.claim_token,
             platform="qq_official",
@@ -214,21 +214,21 @@ class MemoryStoreTests(unittest.TestCase):
             memory_content="question",
             now=now,
         )
-        token = self.store.claim_outbox(outbox_id, now=now)
+        token = self.store.delivery.claim_outbox(outbox_id, now=now)
 
         self.assertTrue(
-            self.store.mark_outbox_sent(outbox_id, token, now=now)
+            self.store.delivery.mark_outbox_sent(outbox_id, token, now=now)
         )
-        self.assertEqual(self.store.get_event_status(event_id), "completed")
-        turns = self.store.get_recent_turns("g1", "u1")
+        self.assertEqual(self.store.delivery.get_event_status(event_id), "completed")
+        turns = self.store.conversations.get_recent_turns("g1", "u1")
         self.assertEqual(len(turns), 1)
         self.assertEqual(turns[0].user_content, "question")
         self.assertEqual(turns[0].assistant_content, "reply")
 
     def test_onebot_group_turn_uses_platform_scoped_session(self):
         event_id = "onebot:group:10001:message-1"
-        claim = self.store.begin_event(event_id)
-        outbox_id = self.store.prepare_event_outbox(
+        claim = self.store.delivery.begin_event(event_id)
+        outbox_id = self.store.delivery.prepare_event_outbox(
             event_id=event_id,
             claim_token=claim.claim_token,
             platform="onebot",
@@ -239,34 +239,34 @@ class MemoryStoreTests(unittest.TestCase):
             payload={"message": "reply"},
             memory_content="question",
         )
-        token = self.store.claim_outbox(outbox_id)
+        token = self.store.delivery.claim_outbox(outbox_id)
 
-        self.assertTrue(self.store.mark_outbox_sent(outbox_id, token))
+        self.assertTrue(self.store.delivery.mark_outbox_sent(outbox_id, token))
         self.assertEqual(
-            len(self.store.get_recent_turns("onebot:10001", "20001")),
+            len(self.store.conversations.get_recent_turns("onebot:10001", "20001")),
             1,
         )
         self.assertEqual(
-            self.store.get_recent_turns("10001", "20001"),
+            self.store.conversations.get_recent_turns("10001", "20001"),
             (),
         )
 
     def test_failed_event_can_be_reclaimed_immediately(self):
-        first_claim = self.store.begin_event("failed-event")
+        first_claim = self.store.delivery.begin_event("failed-event")
 
         self.assertTrue(
-            self.store.fail_event(
+            self.store.delivery.fail_event(
                 first_claim.event_id,
                 first_claim.claim_token,
                 "send failed",
             )
         )
         self.assertEqual(
-            self.store.get_event_status("failed-event"),
+            self.store.delivery.get_event_status("failed-event"),
             "failed",
         )
 
-        second_claim = self.store.begin_event("failed-event")
+        second_claim = self.store.delivery.begin_event("failed-event")
 
         self.assertIsNotNone(second_claim)
         self.assertNotEqual(
@@ -275,9 +275,9 @@ class MemoryStoreTests(unittest.TestCase):
         )
 
     def test_prepared_reply_survives_failure_for_retry(self):
-        first_claim = self.store.begin_event("prepared-event")
+        first_claim = self.store.delivery.begin_event("prepared-event")
         self.assertTrue(
-            self.store.prepare_event_reply(
+            self.store.delivery.prepare_event_reply(
                 first_claim.event_id,
                 first_claim.claim_token,
                 "prepared reply",
@@ -285,14 +285,14 @@ class MemoryStoreTests(unittest.TestCase):
             )
         )
         self.assertTrue(
-            self.store.fail_event(
+            self.store.delivery.fail_event(
                 first_claim.event_id,
                 first_claim.claim_token,
                 "network failed",
             )
         )
 
-        retry_claim = self.store.begin_event("prepared-event")
+        retry_claim = self.store.delivery.begin_event("prepared-event")
 
         self.assertEqual(retry_claim.prepared_reply, "prepared reply")
         self.assertEqual(
@@ -302,33 +302,33 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_processing_event_can_be_reclaimed_after_lease_expires(self):
         now = datetime(2026, 7, 16, 8, 0, tzinfo=timezone.utc)
-        first_claim = self.store.begin_event(
+        first_claim = self.store.delivery.begin_event(
             "expired-lease-event",
             now=now,
             lease_duration=timedelta(minutes=1),
         )
 
         self.assertIsNone(
-            self.store.begin_event(
+            self.store.delivery.begin_event(
                 "expired-lease-event",
                 now=now + timedelta(seconds=59),
             )
         )
-        second_claim = self.store.begin_event(
+        second_claim = self.store.delivery.begin_event(
             "expired-lease-event",
             now=now + timedelta(minutes=1),
         )
 
         self.assertIsNotNone(second_claim)
         self.assertFalse(
-            self.store.complete_event(
+            self.store.delivery.complete_event(
                 first_claim.event_id,
                 first_claim.claim_token,
                 now=now + timedelta(minutes=2),
             )
         )
         self.assertTrue(
-            self.store.complete_event(
+            self.store.delivery.complete_event(
                 second_claim.event_id,
                 second_claim.claim_token,
                 now=now + timedelta(minutes=2),
@@ -337,7 +337,7 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_competing_event_claims_have_only_one_winner(self):
         def claim(_):
-            return self.store.begin_event("racing-event")
+            return self.store.delivery.begin_event("racing-event")
 
         with ThreadPoolExecutor(max_workers=4) as executor:
             claims = list(executor.map(claim, range(4)))
@@ -367,24 +367,24 @@ class MemoryStoreTests(unittest.TestCase):
         migrated_store = MemoryStore(database_path)
 
         self.assertEqual(
-            migrated_store.get_event_status("legacy-event"),
+            migrated_store.delivery.get_event_status("legacy-event"),
             "completed",
         )
-        self.assertIsNone(migrated_store.begin_event("legacy-event"))
-        new_claim = migrated_store.begin_event("new-event")
+        self.assertIsNone(migrated_store.delivery.begin_event("legacy-event"))
+        new_claim = migrated_store.delivery.begin_event("new-event")
         self.assertIsNotNone(new_claim)
 
     def test_sessions_are_isolated_by_member(self):
-        self.store.save_turn("group", "member-a", "a", "A问题", "A回答")
-        self.store.save_turn("group", "member-b", "b", "B问题", "B回答")
+        self.store.conversations.save_turn("group", "member-a", "a", "A问题", "A回答")
+        self.store.conversations.save_turn("group", "member-b", "b", "B问题", "B回答")
 
-        turns = self.store.get_recent_turns("group", "member-a")
+        turns = self.store.conversations.get_recent_turns("group", "member-a")
 
         self.assertEqual(len(turns), 1)
         self.assertEqual(turns[0].user_content, "A问题")
 
     def test_document_context_retrieves_relevant_chunk(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             group_openid="group",
             uploader_openid="member",
             filename="青甘行程.docx",
@@ -396,13 +396,13 @@ class MemoryStoreTests(unittest.TestCase):
             ],
         )
 
-        context = self.store.build_document_context("group", "敦煌住哪里？")
+        context = self.store.documents.build_document_context("group", "敦煌住哪里？")
 
         self.assertIn("青甘行程.docx", context)
         self.assertIn("敦煌沙洲夜市附近酒店", context)
 
     def test_document_context_uses_at_most_two_relevant_chunks(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             group_openid="group",
             uploader_openid="member",
             filename="plan.docx",
@@ -416,7 +416,7 @@ class MemoryStoreTests(unittest.TestCase):
             summary="青海湖行程摘要",
         )
 
-        context = self.store.build_document_context("group", "青海湖")
+        context = self.store.documents.build_document_context("group", "青海湖")
 
         self.assertLessEqual(len(context), 3200)
         self.assertIn("第一片段", context)
@@ -424,7 +424,7 @@ class MemoryStoreTests(unittest.TestCase):
         self.assertNotIn("第三片段", context)
 
     def test_relevant_chunk_is_not_pushed_out_by_many_summaries(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             group_openid="group",
             uploader_openid="member",
             filename="早期祁连行程.docx",
@@ -434,7 +434,7 @@ class MemoryStoreTests(unittest.TestCase):
             summary="祁连山旧行程摘要",
         )
         for index in range(10):
-            self.store.add_document(
+            self.store.documents.add_document(
                 group_openid="group",
                 uploader_openid="member",
                 filename=f"最近资料-{index}.docx",
@@ -444,7 +444,7 @@ class MemoryStoreTests(unittest.TestCase):
                 summary="无关摘要" * 300,
             )
 
-        context = self.store.build_document_context(
+        context = self.store.documents.build_document_context(
             "group",
             "祁连山住宿怎么安排？",
         )
@@ -457,7 +457,7 @@ class MemoryStoreTests(unittest.TestCase):
         )
 
     def test_document_excerpt_keeps_match_near_chunk_tail(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             group_openid="group",
             uploader_openid="member",
             filename="海西行程.md",
@@ -466,7 +466,7 @@ class MemoryStoreTests(unittest.TestCase):
             chunks=["甲" * 1700 + "翡翠湖集合点在景区东门。"],
         )
 
-        context = self.store.build_document_context(
+        context = self.store.documents.build_document_context(
             "group",
             "翡翠湖集合点在哪里？",
         )
@@ -474,7 +474,7 @@ class MemoryStoreTests(unittest.TestCase):
         self.assertIn("翡翠湖集合点在景区东门", context)
 
     def test_two_character_document_search_is_group_scoped(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-a",
             "member",
             "西宁安排.md",
@@ -482,7 +482,7 @@ class MemoryStoreTests(unittest.TestCase):
             "西宁住宿安排在城西区。",
             ["西宁住宿安排在城西区。"],
         )
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-b",
             "member",
             "其他群秘密.md",
@@ -491,7 +491,7 @@ class MemoryStoreTests(unittest.TestCase):
             ["西宁住宿安排在秘密地点。"],
         )
 
-        context = self.store.build_document_context("group-a", "西宁")
+        context = self.store.documents.build_document_context("group-a", "西宁")
 
         self.assertIn("西宁住宿安排在城西区", context)
         self.assertNotIn("秘密地点", context)
@@ -499,7 +499,7 @@ class MemoryStoreTests(unittest.TestCase):
     def test_fts_hit_does_not_also_run_substring_full_scan(self):
         database_path = Path(self.temp_dir.name) / "tracing.db"
         store = TracingMemoryStore(database_path)
-        store.add_document(
+        store.documents.add_document(
             "group",
             "member",
             "青海湖.md",
@@ -511,7 +511,7 @@ class MemoryStoreTests(unittest.TestCase):
             self.skipTest("SQLite build does not provide FTS5 trigram")
 
         store.statements.clear()
-        context = store.build_document_context("group", "青海湖集合")
+        context = store.documents.build_document_context("group", "青海湖集合")
         statements = "\n".join(store.statements).lower()
 
         self.assertIn("青海湖二郎剑景区早上九点集合", context)
@@ -557,7 +557,7 @@ class MemoryStoreTests(unittest.TestCase):
             )
 
         migrated_store = MemoryStore(database_path)
-        context = migrated_store.build_document_context(
+        context = migrated_store.documents.build_document_context(
             "group",
             "青海湖二郎剑几点集合？",
         )
@@ -572,7 +572,7 @@ class MemoryStoreTests(unittest.TestCase):
             self.assertIsNotNone(migration)
 
     def test_lists_document_contents_newest_first_with_ordered_chunks(self):
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-a",
             "member",
             "older.md",
@@ -580,7 +580,7 @@ class MemoryStoreTests(unittest.TestCase):
             "older first\nolder second",
             ["older first", "older second"],
         )
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-a",
             "member",
             "newer.md",
@@ -588,7 +588,7 @@ class MemoryStoreTests(unittest.TestCase):
             "newer only",
             ["newer only"],
         )
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-b",
             "member",
             "secret.md",
@@ -597,7 +597,7 @@ class MemoryStoreTests(unittest.TestCase):
             ["other group"],
         )
 
-        documents = self.store.list_document_contents("group-a")
+        documents = self.store.documents.list_document_contents("group-a")
 
         self.assertEqual(
             tuple(document.filename for document in documents),
@@ -610,10 +610,10 @@ class MemoryStoreTests(unittest.TestCase):
         )
 
     def test_duplicate_document_is_not_inserted_twice(self):
-        first = self.store.add_document(
+        first = self.store.documents.add_document(
             "group", "member", "plan.docx", "same-hash", "行程内容", ["行程内容"]
         )
-        second = self.store.add_document(
+        second = self.store.documents.add_document(
             "group", "member", "plan-copy.docx", "same-hash", "行程内容", ["行程内容"]
         )
 
@@ -623,7 +623,7 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_redeems_valid_upload_binding_for_private_user(self):
         now = datetime(2026, 7, 15, 8, 0, tzinfo=timezone.utc)
-        self.store.create_upload_binding(
+        self.store.uploads.create_upload_binding(
             "code-hash",
             "group-a",
             "member-a",
@@ -631,7 +631,7 @@ class MemoryStoreTests(unittest.TestCase):
             now=now,
         )
 
-        result = self.store.redeem_upload_binding(
+        result = self.store.uploads.redeem_upload_binding(
             "code-hash",
             "private-user",
             now=now,
@@ -639,12 +639,12 @@ class MemoryStoreTests(unittest.TestCase):
 
         self.assertEqual(result.status, "redeemed")
         self.assertEqual(result.binding.group_openid, "group-a")
-        pending = self.store.get_pending_upload_binding("private-user", now=now)
+        pending = self.store.uploads.get_pending_upload_binding("private-user", now=now)
         self.assertEqual(pending.binding_id, result.binding.binding_id)
 
     def test_expired_upload_binding_cannot_be_redeemed(self):
         now = datetime(2026, 7, 15, 8, 0, tzinfo=timezone.utc)
-        self.store.create_upload_binding(
+        self.store.uploads.create_upload_binding(
             "expired-hash",
             "group-a",
             "member-a",
@@ -652,7 +652,7 @@ class MemoryStoreTests(unittest.TestCase):
             now=now - timedelta(minutes=10),
         )
 
-        result = self.store.redeem_upload_binding(
+        result = self.store.uploads.redeem_upload_binding(
             "expired-hash",
             "private-user",
             now=now,
@@ -663,20 +663,20 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_upload_binding_cannot_be_redeemed_by_another_user(self):
         now = datetime(2026, 7, 15, 8, 0, tzinfo=timezone.utc)
-        self.store.create_upload_binding(
+        self.store.uploads.create_upload_binding(
             "single-use-hash",
             "group-a",
             "member-a",
             now + timedelta(minutes=10),
             now=now,
         )
-        self.store.redeem_upload_binding(
+        self.store.uploads.redeem_upload_binding(
             "single-use-hash",
             "private-user-a",
             now=now,
         )
 
-        result = self.store.redeem_upload_binding(
+        result = self.store.uploads.redeem_upload_binding(
             "single-use-hash",
             "private-user-b",
             now=now,
@@ -689,7 +689,7 @@ class MemoryStoreTests(unittest.TestCase):
         database_path = Path(self.temp_dir.name) / "racing.db"
         store = RacingMemoryStore(database_path)
         now = datetime(2026, 7, 15, 8, 0, tzinfo=timezone.utc)
-        store.create_upload_binding(
+        store.uploads.create_upload_binding(
             "racing-hash",
             "group-a",
             "member-a",
@@ -700,7 +700,7 @@ class MemoryStoreTests(unittest.TestCase):
 
         def redeem(user_openid):
             try:
-                return store.redeem_upload_binding(
+                return store.uploads.redeem_upload_binding(
                     "racing-hash",
                     user_openid,
                     now=now,
@@ -718,45 +718,45 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_consumed_upload_binding_is_no_longer_pending(self):
         now = datetime(2026, 7, 15, 8, 0, tzinfo=timezone.utc)
-        self.store.create_upload_binding(
+        self.store.uploads.create_upload_binding(
             "consumed-hash",
             "group-a",
             "member-a",
             now + timedelta(minutes=10),
             now=now,
         )
-        redemption = self.store.redeem_upload_binding(
+        redemption = self.store.uploads.redeem_upload_binding(
             "consumed-hash",
             "private-user",
             now=now,
         )
 
-        self.store.consume_upload_binding(redemption.binding.binding_id, now=now)
+        self.store.uploads.consume_upload_binding(redemption.binding.binding_id, now=now)
 
         self.assertIsNone(
-            self.store.get_pending_upload_binding("private-user", now=now)
+            self.store.uploads.get_pending_upload_binding("private-user", now=now)
         )
 
     def test_pending_upload_binding_can_only_be_claimed_once(self):
         now = datetime(2026, 7, 15, 8, 0, tzinfo=timezone.utc)
-        self.store.create_upload_binding(
+        self.store.uploads.create_upload_binding(
             "claim-hash",
             "group-a",
             "member-a",
             now + timedelta(minutes=10),
             now=now,
         )
-        self.store.redeem_upload_binding(
+        self.store.uploads.redeem_upload_binding(
             "claim-hash",
             "private-user",
             now=now,
         )
 
-        first = self.store.claim_pending_upload_binding(
+        first = self.store.uploads.claim_pending_upload_binding(
             "private-user",
             now=now,
         )
-        second = self.store.claim_pending_upload_binding(
+        second = self.store.uploads.claim_pending_upload_binding(
             "private-user",
             now=now,
         )
@@ -766,20 +766,20 @@ class MemoryStoreTests(unittest.TestCase):
 
     def test_competing_document_events_consume_binding_once(self):
         now = datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc)
-        self.store.create_upload_binding(
+        self.store.uploads.create_upload_binding(
             "document-race-hash",
             "group-a",
             "member-a",
             now + timedelta(minutes=10),
             now=now,
         )
-        redemption = self.store.redeem_upload_binding(
+        redemption = self.store.uploads.redeem_upload_binding(
             "document-race-hash",
             "private-user",
             now=now,
         )
-        first_claim = self.store.begin_event("private-event-1", now=now)
-        second_claim = self.store.begin_event("private-event-2", now=now)
+        first_claim = self.store.delivery.begin_event("private-event-1", now=now)
+        second_claim = self.store.delivery.begin_event("private-event-2", now=now)
         document = PreparedDocument(
             filename="plan.txt",
             sha256="same-document",
@@ -790,7 +790,7 @@ class MemoryStoreTests(unittest.TestCase):
 
         def commit(event_id, claim_token):
             try:
-                self.store.commit_private_document_event(
+                self.store.uploads.commit_private_document_event(
                     event_id=event_id,
                     claim_token=claim_token,
                     platform="qq_official",
@@ -818,7 +818,7 @@ class MemoryStoreTests(unittest.TestCase):
 
         self.assertEqual(results, ["committed", "rejected"])
         outbox_count = sum(
-            len(self.store.list_outbox_for_event(event_id))
+            len(self.store.delivery.list_outbox_for_event(event_id))
             for event_id in ("private-event-1", "private-event-2")
         )
         self.assertEqual(outbox_count, 1)

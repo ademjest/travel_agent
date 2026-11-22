@@ -2,10 +2,14 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from core.tool_result import ToolResult
 
 from infrastructure.memory_store import MemoryStore
-from tools.agent_tools import AgentToolContext, READ_TOOL_ARTIFACT_TOOL
-from tools.reservation_tools import AgentToolRouter
+from core.tool_result import AgentToolContext
+from core.tool_result import READ_TOOL_ARTIFACT_TOOL
+from tools.registry import AgentToolRouter
+from tools.travel_query import TravelQueryTool
+from tools.reservation.tool import ReservationTool
 
 
 class ToolArtifactTests(unittest.TestCase):
@@ -13,8 +17,9 @@ class ToolArtifactTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.store = MemoryStore(Path(self.temp.name) / 'artifacts.db')
-        travel = SimpleNamespace(execute_tool=lambda name, arguments: '甲' * 7000)
-        self.router = AgentToolRouter(travel, SimpleNamespace(), SimpleNamespace(), self.store.tool_artifacts)
+        travel = SimpleNamespace(manages_read_retries=False,
+                                 execute_result=lambda name, arguments: ToolResult('completed', name, data='甲' * 7000))
+        self.router = AgentToolRouter(TravelQueryTool(store=self.store, backend=travel), ReservationTool(self.store), self.store.tool_artifacts)
         self.context = AgentToolContext('web', 'conversation-a', 'owner', 'event-a')
 
     def test_large_result_is_persisted_and_can_be_read_in_pages(self):

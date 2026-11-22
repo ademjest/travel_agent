@@ -5,6 +5,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def log_directory() -> Path:
+    return PROJECT_ROOT.parent / "travel_agent_val_log"
+
+
 def app_data_dir() -> Path:
     configured = os.getenv("APP_DATA_DIR", "").strip()
     path = Path(configured) if configured else PROJECT_ROOT / "data"

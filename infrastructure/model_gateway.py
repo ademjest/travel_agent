@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import json
+import hashlib
 import logging
 import os
 import threading
@@ -8,10 +9,12 @@ from types import SimpleNamespace
 import uuid
 
 from core.execution_scope import CURRENT_EXECUTION
-from core.model_budget import MODEL_CALL, MODEL_EVENT, ModelCallContext, ModelBudgetExceeded
+from core.model_budget import MODEL_CALL, MODEL_EVENT, MODEL_ROUTE, ModelCallContext, ModelBudgetExceeded
 from core.model_policy import current_policy, model_for_purpose, output_limit_for_purpose
 from core.model_pricing import pricing_config, estimate_cost
-from infrastructure.model_accounting import initialize_accounting, period_keys, reserve_ledger, settle_ledger, ledger_report
+from infrastructure.model_accounting import initialize_accounting, period_keys, reserve_ledger, settle_ledger, ledger_report, ledger_occupancy
+from infrastructure.model_client import model_failure_metadata
+from core.model_config import ModelConfigError
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +41,17 @@ def estimate_input(value):
 
 
 def _pricing_config(model=None, default_model=None):
+    if model is None and 'LLM_CONFIG_JSON' in os.environ:
+        from core.model_config import parse_config
+        try:
+            config=parse_config(os.environ['LLM_CONFIG_JSON'])
+            connection,profile=config.select('unspecified',force_default=True)
+            price=profile.pricing
+            return {'input':price.get('input'),'cached':price.get('cached',price.get('input')),
+                'output':price.get('output'),'currency':price.get('currency','USD'),
+                'version':price.get('version',''),'provider':connection.id}
+        except ModelConfigError:
+            return {'input':None,'cached':None,'output':None,'currency':'UNK','version':'','provider':''}
     return pricing_config(model, default_model)
 
 
@@ -69,7 +83,7 @@ def _cost_for_row(row, pricing):
         input_price if snapshot else pricing['cached'])
     if input_price is None or output_price is None:
         return {'cost': None, 'currency': '', 'origin': '', 'currency_inferred': 0,
-                'cache_detail_missing': 0, 'unknown': 'pricing'}
+                'cache_detail_missing': 0, 'unknown': pricing.get('unmatched_reason','pricing')}
     cached = _row_value(row, 'cached_input_tokens')
     cache_detail_missing = int(type(cached) is not int)
     cached = cached if type(cached) is int else 0
@@ -78,9 +92,10 @@ def _cost_for_row(row, pricing):
     if cost is None:
         return {'cost':None,'currency':'','origin':'','currency_inferred':0,
                 'cache_detail_missing':cache_detail_missing,'unknown':'usage'}
-    currency = stored_currency or pricing['currency']
-    return {'cost': cost, 'currency': currency, 'origin': 'recalculated',
-            'currency_inferred': int(not stored_currency),
+    supplemented=pricing.get('current_estimate',False) and not snapshot
+    currency = pricing['currency'] if supplemented else stored_currency or pricing['currency']
+    return {'cost': cost, 'currency': currency, 'origin': 'current_pricing' if supplemented else 'recalculated',
+            'pricing_version':pricing.get('version',''), 'currency_inferred': int(not stored_currency and not supplemented),
             'cache_detail_missing': cache_detail_missing, 'unknown': ''}
 
 
@@ -88,10 +103,11 @@ def _empty_usage():
     return {'calls': 0, 'prompt_tokens': 0, 'cached_input_tokens': 0, 'completion_tokens': 0,
             'reasoning_tokens': 0, 'estimated_cost': 0.0, 'cost_unknown': 0,
             'cost_recalculated': 0, 'cache_detail_missing': 0, 'currency_inferred': 0,
-            'unknown_usage': 0, 'unknown_pricing': 0, 'usage_missing': 0, '_costs': {}}
+            'unknown_usage': 0, 'unknown_pricing': 0, 'unknown_identity':0,
+            'cost_supplemented':0, 'usage_missing': 0, '_costs': {}, '_bases':{}}
 
 
-def _add_usage(target, row, pricing):
+def _add_usage(target, row, pricing, result=None):
     target['calls'] += 1
     for source, key in (('prompt_tokens','prompt_tokens'), ('cached_input_tokens','cached_input_tokens'),
                         ('completion_tokens','completion_tokens'), ('reasoning_tokens','reasoning_tokens')):
@@ -100,23 +116,31 @@ def _add_usage(target, row, pricing):
                 and (source!='cached_input_tokens' or (type(_row_value(row,'prompt_tokens')) is int
                                                        and value<=row['prompt_tokens']))):
             target[key] += value
-    result = _cost_for_row(row, pricing)
+    result = result or _cost_for_row(row, pricing)
     if result['cost'] is None:
         target['cost_unknown'] += 1
         if result['unknown'] == 'usage':
             target['unknown_usage'] += 1
             target['usage_missing'] += 1
+        elif result['unknown']=='identity':
+            target['unknown_identity'] += 1
         else:
             target['unknown_pricing'] += 1
         return
     target['_costs'][result['currency']] = target['_costs'].get(result['currency'], 0.0) + result['cost']
     target['cost_recalculated'] += int(result['origin'] == 'recalculated')
+    target['cost_supplemented'] += int(result['origin']=='current_pricing')
+    basis=(result['origin'],result['currency'],result.get('pricing_version',''))
+    projection=target['_bases'].setdefault(basis,{'amount':0.,'calls':0})
+    projection['amount']+=result['cost'];projection['calls']+=1
     target['cache_detail_missing'] += result['cache_detail_missing']
     target['currency_inferred'] += result['currency_inferred']
 
 
 def _finalize_usage(value):
     costs = value.pop('_costs')
+    value['cost_bases']=[{'basis':basis,'currency':currency,'pricing_version':version,**item}
+                         for (basis,currency,version),item in sorted(value.pop('_bases').items())]
     breakdown = [{'currency': currency, 'amount': amount} for currency, amount in sorted(costs.items())]
     value['cost_breakdown'] = breakdown
     value['cost_mixed'] = len(breakdown) > 1
@@ -125,31 +149,54 @@ def _finalize_usage(value):
     return value
 
 
-def _usage_aggregates(connection, rows=None):
+def _usage_aggregates(connection, rows=None, *, include_rounds=False):
     pricing = _pricing_config()
-    totals, groups = _empty_usage(), {}
+    from core.model_config import resolve_config
+    try:config=resolve_config(os.getenv('LLM_CONFIG_JSON'),os.environ)
+    except ModelConfigError:config=None
+    totals, groups, labels, rounds = _empty_usage(), {}, {}, {}
     if rows is None:
         rows = connection.execute('SELECT * FROM model_calls ORDER BY started_at').fetchall()
     for row in rows:
-        row_pricing = _pricing_config(row['model_id'])
-        if _row_value(row,'provider_alias','') != row_pricing['provider']:
-            row_pricing = {**row_pricing,'input':None,'cached':None,'output':None}
-        _add_usage(totals, row, row_pricing)
-        key = (_row_value(row, 'purpose', 'unspecified') or 'unspecified', row['model_id'])
+        snapshot=json.loads(_row_value(row,'pricing_json','{}') or '{}')
+        row_pricing={'input':None,'cached':None,'output':None,'currency':'UNK',**snapshot}
+        if (_row_value(row,'estimated_cost') is None and
+                not all(_row_value(row,key) is not None for key in ('input_price_per_m','output_price_per_m'))
+                and not all(row_pricing.get(key) is not None for key in ('input','output'))):
+            matched=config.matching_pricing(_row_value(row,'connection_id'),_row_value(row,'profile_id'),
+                row['model_id'],_row_value(row,'route_identity')) if config else None
+            if matched is not None:
+                row_pricing={**row_pricing,**matched,'cached':matched.get('cached',matched.get('input')),'current_estimate':True}
+            else:row_pricing['unmatched_reason']='identity'
+        result=_cost_for_row(row,row_pricing)
+        _add_usage(totals, row, row_pricing,result)
+        key = (_row_value(row,'connection_id','legacy_unknown'),_row_value(row,'profile_id','legacy_unknown'),
+               _row_value(row, 'purpose', 'unspecified') or 'unspecified', row['model_id'])
+        labels[key]={'connection_name':snapshot.get('connection_name') or _row_value(row,'provider_alias','') or '',
+                     'profile_name':snapshot.get('profile_name') or row['model_id']}
         group = groups.setdefault(key, _empty_usage())
-        _add_usage(group, row, row_pricing)
+        _add_usage(group, row, row_pricing,result)
+        if include_rounds:
+            turn=rounds.setdefault(row['event_key'],{'event_key':row['event_key'],'started_at':row['started_at'],
+                'totals':_empty_usage(),'calls':[]})
+            _add_usage(turn['totals'],row,row_pricing,result)
+            turn['calls'].append({'call_id':row['call_id'],'purpose':key[2],'model_id':row['model_id'],
+                **labels[key],'connection_id':key[0],'profile_id':key[1],
+                'prompt_tokens':_row_value(row,'prompt_tokens'),'completion_tokens':_row_value(row,'completion_tokens'),
+                'elapsed_seconds':_row_value(row,'elapsed_seconds'),'status':row['status'],**result})
     purposes = []
-    for (purpose, model_id), value in groups.items():
-        purposes.append({'purpose': purpose, 'model_id': model_id, **_finalize_usage(value)})
+    for (connection_id,profile_id,purpose, model_id), value in groups.items():
+        purposes.append({'purpose': purpose, 'model_id': model_id,'connection_id':connection_id,
+                         'profile_id':profile_id,**labels[(connection_id,profile_id,purpose,model_id)], **_finalize_usage(value)})
     purposes.sort(key=lambda row: (-row['calls'], row['purpose'], row['model_id']))
-    return _finalize_usage(totals), purposes, pricing
+    return _finalize_usage(totals), purposes, pricing,[{**value,'totals':_finalize_usage(value['totals'])} for value in rounds.values()]
 
 
 def usage_summary(store):
     with store._connect() as connection:
         if not connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='model_calls'").fetchone():
             return _finalize_usage(_empty_usage())
-        totals, _, _ = _usage_aggregates(connection)
+        totals, _, _, _ = _usage_aggregates(connection)
         return totals
 
 
@@ -160,7 +207,7 @@ def usage_report(store):
             totals, purposes, pricing = _finalize_usage(_empty_usage()), [], _pricing_config()
             day_reserved = month_reserved = 0
         else:
-            totals, purposes, pricing = _usage_aggregates(connection)
+            totals, purposes, pricing, _ = _usage_aggregates(connection)
             today = datetime.now(timezone.utc).date()
             has_ledger=connection.execute("SELECT 1 FROM sqlite_master WHERE name='model_accounting_settings'").fetchone()
             day_key,month_key=period_keys(connection,datetime.now(timezone.utc)) if has_ledger else (today.isoformat(),today.replace(day=1).isoformat())
@@ -173,6 +220,14 @@ def usage_report(store):
                 day_reserved = month_reserved = 0
         accounting=ledger_report(connection)
         corrections = historical_cost_corrections(connection)
+    from core.model_config import resolve_config
+    try:
+        config=resolve_config(os.getenv('LLM_CONFIG_JSON'),os.environ)
+        limits=config.cost_limits
+        uncovered=sorted({p.pricing.get('currency','USD') for p in config.profiles
+            if not any(float(v or 0)>0 for v in limits.get(p.pricing.get('currency','USD'),{}).values())})
+    except ModelConfigError:
+        limits={};uncovered=[]
     return {'totals': totals, 'purposes': purposes,
             'currency': totals['currency'] or pricing['currency'],
             'pricing_active': pricing['input'] is not None and pricing['output'] is not None,
@@ -180,7 +235,7 @@ def usage_report(store):
                        'monthly_limit': policy.monthly_token_limit,
                        'day_reserved': day_reserved, 'month_reserved': month_reserved, **accounting,
                        'daily_cost_limit':policy.daily_cost_limit,'monthly_cost_limit':policy.monthly_cost_limit,
-                       'cost_currency':policy.cost_currency},
+                       'cost_currency':policy.cost_currency,'cost_limits':limits,'unlimited_currencies':uncovered},
             'cost_note': _usage_note(totals, pricing), 'historical_corrections':corrections}
 
 
@@ -189,13 +244,17 @@ def _usage_note(totals, pricing):
         return '尚无模型调用记录。'
     notes = ['费用是本地估算，不等同于供应商账单。']
     if totals['cost_recalculated']:
-        notes.append(f"{totals['cost_recalculated']} 次历史调用按当前生效费率回算。")
+        notes.append(f"{totals['cost_recalculated']} 次历史调用按已保存费率快照回算。")
+    if totals['cost_supplemented']:
+        notes.append(f"{totals['cost_supplemented']} 次历史缺价按身份匹配的当前费率补估；不改写原始记录或预算账本。")
     if totals['cache_detail_missing']:
         notes.append(f"{totals['cache_detail_missing']} 次调用缺少缓存拆分，全部输入按普通输入费率保守估算；不能据此判断缓存未命中。")
     if totals['unknown_usage']:
         notes.append(f"{totals['unknown_usage']} 次缺少供应商 usage，仍无法估算。")
     if totals['unknown_pricing']:
-        notes.append(f"{totals['unknown_pricing']} 次因当前输入或输出费率不完整而无法估算。")
+        notes.append(f"{totals['unknown_pricing']} 次缺少完整费率，无法估算。")
+    if totals['unknown_identity']:
+        notes.append(f"{totals['unknown_identity']} 次历史身份无法匹配，未按当前默认模型猜填费用。")
     if totals['currency_inferred']:
         notes.append(f"{totals['currency_inferred']} 次历史记录未保存币种，按当前币种 {pricing['currency']} 展示。")
     if totals['cost_mixed']:
@@ -212,13 +271,30 @@ def conversation_usage_report(store, identity, owner):
                 substr(event_key,1,?)=? OR job_id IN
                 (SELECT id FROM inbox_jobs WHERE platform='web' AND scope_id=? AND owner_id=?)
                 ORDER BY started_at''', (len(prefix), prefix, identity, owner)).fetchall()
-            totals, purposes, pricing = _usage_aggregates(connection, rows)
+            totals, purposes, pricing, rounds = _usage_aggregates(connection, rows,include_rounds=True)
         else:
             rows = []
             totals, purposes, pricing = _finalize_usage(_empty_usage()), [], _pricing_config()
+            rounds=[]
+        has_wendao=connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='wendao_calls'").fetchone()
+        supplier_usage={'wendao_submissions':connection.execute(
+            "SELECT count(*) FROM wendao_calls WHERE platform='web' AND scope=? AND owner=?",(identity,owner)).fetchone()[0]
+            if has_wendao else None,'cost':None,'usage':None,
+            'note':'问道仅列已记录的提交数，用量和费用未知；地图、铁路等工具费用未接入模型统计。'}
+        if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='wendao_requests'").fetchone():
+            supplier_usage['wendao_submissions']=(supplier_usage['wendao_submissions'] or 0)+connection.execute(
+                "SELECT count(*) FROM wendao_requests WHERE platform='web' AND scope=? AND owner=?",(identity,owner)).fetchone()[0]
+        if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_requests'").fetchone():
+            grouped={turn['event_key']:turn for turn in rounds}
+            rounds=[]
+            for request in connection.execute('SELECT event_key,content,created_at FROM web_requests WHERE conversation_id=? ORDER BY created_at,rowid',(identity,)):
+                turn=grouped.pop(request['event_key'],None) or {'event_key':request['event_key'],'started_at':request['created_at'],
+                    'totals':_finalize_usage(_empty_usage()),'calls':[]}
+                rounds.append({**turn,'user_message':request['content'][:120]})
+            rounds.extend(grouped.values())
     totals['total_tokens'] = totals['prompt_tokens'] + totals['completion_tokens']
     totals['running_calls'] = sum(row['status'] == 'running' for row in rows)
-    return {'conversation_id': identity, 'totals': totals, 'purposes': purposes,
+    return {'conversation_id': identity, 'totals': totals, 'purposes': purposes,'rounds':rounds,'supplier_usage':supplier_usage,
             'currency': totals['currency'] or pricing['currency'],
             'cost_note': _usage_note(totals, pricing),
             'scope_note': '仅统计当前会话保留的模型调用；输入包含缓存输入，输出包含推理 token，均不重复计入总量。'}
@@ -246,13 +322,23 @@ def historical_cost_corrections(connection):
 
 
 class ModelGateway:
-    def __init__(self, store, client, *, default_model=None):
+    def __init__(self, store, client=None, *, default_model=None, skill_manager=None,
+                 configuration=None, client_factory=None):
         self.store = store
         self.client = client
         self.default_model = default_model
+        self.skill_manager = skill_manager
+        self.configuration = configuration
+        self.client_factory = client_factory
+        self._clients = {}
+        self._client_lock = threading.Lock()
+        if configuration and client is not None:
+            connection,_=configuration.select('unspecified',force_default=True)
+            self._clients[connection.id]=client
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
         self.embeddings = SimpleNamespace(create=self.create_embedding)
         with store._connect() as connection:
+            connection.execute('BEGIN IMMEDIATE')
             connection.execute('''CREATE TABLE IF NOT EXISTS model_calls (
                 call_id TEXT PRIMARY KEY, event_key TEXT NOT NULL, job_id INTEGER,
                 model_id TEXT NOT NULL, status TEXT NOT NULL, input_estimate INTEGER NOT NULL,
@@ -268,16 +354,6 @@ class ModelGateway:
                 pricing_version TEXT NOT NULL DEFAULT '', cost_estimation_version INTEGER NOT NULL DEFAULT 1,
                 cost_origin TEXT NOT NULL DEFAULT '',
                 usage_accounted INTEGER NOT NULL DEFAULT 0, pricing_json TEXT NOT NULL DEFAULT '{}'
-            )''')
-            connection.execute('''CREATE TABLE IF NOT EXISTS model_usage_periods (
-                period_type TEXT NOT NULL, period_start TEXT NOT NULL,
-                purpose TEXT NOT NULL, model_id TEXT NOT NULL,
-                calls INTEGER NOT NULL DEFAULT 0, reserved_tokens INTEGER NOT NULL DEFAULT 0,
-                prompt_tokens INTEGER NOT NULL DEFAULT 0, cached_input_tokens INTEGER NOT NULL DEFAULT 0,
-                completion_tokens INTEGER NOT NULL DEFAULT 0, reasoning_tokens INTEGER NOT NULL DEFAULT 0,
-                estimated_cost REAL NOT NULL DEFAULT 0, cost_unknown INTEGER NOT NULL DEFAULT 0,
-                cost_currency TEXT NOT NULL DEFAULT '',
-                PRIMARY KEY(period_type, period_start, purpose, model_id)
             )''')
             columns = {row['name'] for row in connection.execute('PRAGMA table_info(model_calls)').fetchall()}
             additions = {
@@ -306,6 +382,13 @@ class ModelGateway:
                 'request_bytes': 'INTEGER NOT NULL DEFAULT 0',
                 'input_parts_json': "TEXT NOT NULL DEFAULT '{}'",
                 'finish_reason': "TEXT NOT NULL DEFAULT ''",
+                'stage_id': "TEXT NOT NULL DEFAULT ''",
+                'asset_version': "TEXT NOT NULL DEFAULT ''",
+                'asset_bundle_hash': "TEXT NOT NULL DEFAULT ''",
+                'system_hash': "TEXT NOT NULL DEFAULT ''",
+                'connection_id': "TEXT NOT NULL DEFAULT 'legacy_unknown'",
+                'profile_id': "TEXT NOT NULL DEFAULT 'legacy_unknown'",
+                'route_identity': "TEXT NOT NULL DEFAULT ''",
             }
             for name, definition in additions.items():
                 if name not in columns:
@@ -313,6 +396,51 @@ class ModelGateway:
             connection.execute('CREATE INDEX IF NOT EXISTS idx_model_calls_event ON model_calls(event_key, started_at)')
             connection.execute('CREATE INDEX IF NOT EXISTS idx_model_calls_purpose ON model_calls(purpose, started_at)')
             initialize_accounting(connection)
+
+    def _route(self, context, kwargs, *, embedding=False):
+        if self.configuration is None:
+            if not context.force_default_model and not embedding:
+                kwargs['model']=model_for_purpose(str(kwargs.get('model','')),context.purpose)
+            pricing=_pricing_config(kwargs.get('model'),self.default_model)
+            return self.client,pricing
+        if embedding and not context.profile_id:
+            raise ModelConfigError('云向量实验必须显式指定 embedding 类型模型档案；本地索引不受影响。')
+        connection,profile=self.configuration.select(context.purpose,profile_id=context.profile_id,
+            force_default=context.force_default_model)
+        if (profile.kind=='embedding')!=embedding:
+            raise ModelConfigError('聊天和 embedding 模型档案不能混用。')
+        required={'embedding'} if embedding else {'text'}
+        if kwargs.get('tools'):required.add('tools')
+        if (kwargs.get('response_format') or {}).get('type') in {'json_object','json_schema'}:required.add('json')
+        if any(isinstance(m.get('content'),list) and any(isinstance(p,dict) and p.get('type')=='image_url'
+                for p in m['content']) for m in kwargs.get('messages',[])):required.add('vision')
+        if required-set(profile.capabilities):
+            raise ModelConfigError('所选模型未声明本次所需的结构化、工具或图片能力，尚未发送请求。')
+        kwargs['model']=profile.model_id
+        if not embedding:
+            other='max_tokens' if profile.token_parameter=='max_completion_tokens' else 'max_completion_tokens'
+            if other in kwargs and profile.token_parameter in kwargs:
+                raise ModelConfigError('不能同时提供两种模型输出上限参数。')
+            if other in kwargs:
+                kwargs[profile.token_parameter]=kwargs.pop(other)
+            kwargs.setdefault(profile.token_parameter,MAX_OUTPUT_TOKENS)
+            if profile.temperature=='omit':kwargs.pop('temperature',None)
+        with self._client_lock:
+            if connection.id not in self._clients:
+                from infrastructure.model_client import create_model_client
+                factory=self.client_factory or create_model_client
+                self._clients[connection.id]=factory(api_key=connection.api_key,base_url=connection.base_url,timeout=90)
+            client=self._clients[connection.id]
+        rates=profile.pricing
+        pricing={'input':rates.get('input'),'cached':rates.get('cached',rates.get('input')),
+            'output':rates.get('output'),'currency':rates.get('currency','USD'),
+            'version':rates.get('version') or self.configuration.version,'provider':connection.id,
+            'connection_id':connection.id,'profile_id':profile.id,'config_version':self.configuration.version,
+            'connection_name':connection.name,'profile_name':profile.name,
+            'route_identity':self.configuration.route_identity(connection,profile),
+            'stage_id':context.stage_id or ('explicit:'+context.profile_id if context.profile_id else ''),
+            'cost_limits':self.configuration.cost_limits}
+        return client,pricing
 
     def _ensure_active(self):
         scope = CURRENT_EXECUTION.get()
@@ -335,20 +463,25 @@ class ModelGateway:
                                         ((now-timedelta(seconds=300)).isoformat(),)).fetchone()[0]
             if active >= 2:
                 return None
-            row = connection.execute('SELECT count(*) AS calls, coalesce(sum(reserved_tokens),0) AS reserved FROM model_calls WHERE event_key=?', (event_key,)).fetchone()
-            if row['calls'] >= MAX_MODEL_CALLS_PER_EVENT or row['reserved'] + estimate + output > MAX_EVENT_ESTIMATE:
-                raise ModelBudgetExceeded('本次任务的模型调用或总预算已达到上限。请缩小本次任务范围后重试。')
+            calls,occupied=ledger_occupancy(connection,event_key,event=True)
+            details={'calls':calls,'occupied_tokens':occupied,'requested_tokens':estimate+output,'call_limit':MAX_MODEL_CALLS_PER_EVENT,'token_limit':MAX_EVENT_ESTIMATE}
+            if calls>=MAX_MODEL_CALLS_PER_EVENT:
+                raise ModelBudgetExceeded('本条请求的模型调用次数已达到上限；本次没有自动重发，可查看已有结果或明确发起新查询。',code='event_call_limit',details=details)
+            if occupied+estimate+output>MAX_EVENT_ESTIMATE:
+                raise ModelBudgetExceeded('本条请求的累计token占用不足以容纳本次调用；请缩小处理范围后发起新查询，原样重试不能释放占用。',code='event_token_limit',details=details)
             day_start,month_start = period_keys(connection,now)
             if policy.daily_token_limit:
                 used = connection.execute("SELECT coalesce(sum(reserved_tokens),0) FROM model_usage_periods WHERE period_type='day' AND period_start=?",
                                           (day_start,)).fetchone()[0]
                 if used + estimate + output > policy.daily_token_limit:
-                    raise ModelBudgetExceeded('今日模型 token 预算已达到上限，请稍后再试或调整预算设置。')
+                    raise ModelBudgetExceeded('今日模型token预算不足以容纳本次调用；请等待日周期恢复或调整预算配置，开始新一轮查询也不会清除此占用。',
+                        code='daily_token_limit',details={'occupied_tokens':used,'requested_tokens':estimate+output,'limit':policy.daily_token_limit})
             if policy.monthly_token_limit:
                 used = connection.execute("SELECT coalesce(sum(reserved_tokens),0) FROM model_usage_periods WHERE period_type='month' AND period_start=?",
                                           (month_start,)).fetchone()[0]
                 if used + estimate + output > policy.monthly_token_limit:
-                    raise ModelBudgetExceeded('本月模型 token 预算已达到上限，请调整预算设置。')
+                    raise ModelBudgetExceeded('本月模型token预算不足以容纳本次调用；请等待月周期恢复或调整预算配置。',
+                        code='monthly_token_limit',details={'occupied_tokens':used,'requested_tokens':estimate+output,'limit':policy.monthly_token_limit})
             call_id = uuid.uuid4().hex
             reserve_ledger(connection,call_id,event_key,call_context,model,estimate,output,pricing,now)
             connection.execute('''INSERT INTO model_calls
@@ -357,21 +490,27 @@ class ModelGateway:
                  repair_attempt, fallback_from)
                 VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                 (call_id, event_key, scope.job_id if scope else None, model, estimate, estimate+output, now.isoformat(),
-                 call_context.purpose, os.getenv('LLM_PROVIDER_ALIAS', '').strip(),
-                 os.getenv('LLM_CONFIG_VERSION', '').strip(), call_context.prompt_version,
+                 call_context.purpose, pricing.get('provider',''),
+                 pricing.get('config_version',os.getenv('LLM_CONFIG_VERSION', '').strip()), call_context.prompt_version,
                  call_context.context_policy_version, output, call_context.repair_attempt,
                  call_context.fallback_from))
             connection.execute('UPDATE model_calls SET pricing_json=? WHERE call_id=?',
                                (json.dumps(pricing),call_id))
+            connection.execute('UPDATE model_calls SET connection_id=?,profile_id=?,route_identity=? WHERE call_id=?',
+                (pricing.get('connection_id','legacy_unknown'),pricing.get('profile_id','legacy_unknown'),pricing.get('route_identity',''),call_id))
+            connection.execute('UPDATE model_calls SET stage_id=?,asset_version=?,asset_bundle_hash=?,system_hash=? WHERE call_id=?',
+                (call_context.stage_id, call_context.asset_version, call_context.asset_bundle_hash,
+                 (metadata or {}).get('system_hash', ''), call_id))
             if metadata:
                 connection.execute('UPDATE model_calls SET request_bytes=?,input_parts_json=? WHERE call_id=?',
                                    (metadata['request_bytes'],json.dumps(metadata['parts']),call_id))
             for period_type, period_start in (('day', day_start), ('month', month_start)):
                 connection.execute('''INSERT INTO model_usage_periods
-                    (period_type,period_start,purpose,model_id,calls,reserved_tokens)
-                    VALUES (?,?,?,?,1,?) ON CONFLICT(period_type,period_start,purpose,model_id)
+                    (period_type,period_start,purpose,model_id,connection_id,profile_id,cost_currency,calls,reserved_tokens)
+                    VALUES (?,?,?,?,?,?,?,1,?) ON CONFLICT(period_type,period_start,purpose,model_id,connection_id,profile_id,cost_currency)
                     DO UPDATE SET calls=calls+1,reserved_tokens=reserved_tokens+excluded.reserved_tokens''',
-                    (period_type, period_start, call_context.purpose, model, estimate + output))
+                    (period_type, period_start, call_context.purpose, model,pricing.get('connection_id','legacy_unknown'),
+                     pricing.get('profile_id','legacy_unknown'),pricing['currency'],estimate + output))
         return call_id
 
     @staticmethod
@@ -398,6 +537,8 @@ class ModelGateway:
         try:
             with self.store._connect() as connection:
                 settled=settle_ledger(connection,call_id,prompt,cached,completion,reasoning)
+                connection.execute('UPDATE model_usage_ledger SET result_received=max(result_received,?) WHERE call_id=?',
+                                   (int(result is not None),call_id))
                 if settled is None:
                     return
                 pricing=settled['pricing']
@@ -423,20 +564,26 @@ class ModelGateway:
     def create(self, **kwargs):
         try:
             return self._create(**kwargs)
-        except ModelBudgetExceeded:
+        except ModelConfigError:
+            self.store.diagnostics.record('model',{'status':'configuration_blocked','error_code':'model_configuration',
+                'error_type':'ModelConfigError','purpose':(MODEL_CALL.get() or ModelCallContext()).purpose})
+            raise
+        except ModelBudgetExceeded as error:
             self.store.diagnostics.record('model', {'status': 'budget_blocked',
-                'purpose': (MODEL_CALL.get() or ModelCallContext()).purpose})
+                'purpose': (MODEL_CALL.get() or ModelCallContext()).purpose,'error_code':error.code,'validation':error.details})
             raise
 
     def _create(self, **kwargs):
         call_context = MODEL_CALL.get() or ModelCallContext()
-        default_model = self.default_model or str(kwargs.get('model',''))
-        if not call_context.force_default_model:
-            kwargs['model'] = model_for_purpose(str(kwargs.get('model', '')), call_context.purpose)
+        system_hash = hashlib.sha256(json.dumps([message.get('content') for message in kwargs.get('messages', [])
+            if message.get('role') == 'system'], ensure_ascii=False, sort_keys=True,
+            separators=(',', ':')).encode()).hexdigest()
+        client,pricing=self._route(call_context,kwargs)
         estimate = estimate_input(kwargs.get('messages', [])) + estimate_input(kwargs.get('tools', []))
         request_bytes = len(json.dumps(kwargs,ensure_ascii=False,default=str).encode('utf-8'))
         if request_bytes > MAX_REQUEST_BYTES:
-            raise ModelBudgetExceeded('完整模型请求超过硬字节上限，请减少图片或资料。')
+            raise ModelBudgetExceeded('完整模型请求超过硬字节上限，未发送；请减少图片或资料，原样重试不会缩小请求。',
+                code='request_bytes_limit',details={'actual':request_bytes,'limit':MAX_REQUEST_BYTES})
         parts = {'tools':estimate_input(kwargs.get('tools',[]))}
         for message in kwargs.get('messages',[]):
             role = message.get('role','unknown')
@@ -444,14 +591,22 @@ class ModelGateway:
                 role = 'unknown'
             parts[role] = parts.get(role,0) + estimate_input(message.get('content',''))
         if estimate > MAX_INPUT_ESTIMATE:
-            raise ModelBudgetExceeded('本次模型输入过长，请缩小资料或任务范围后重试。')
+            raise ModelBudgetExceeded('本次模型输入估算超过上限，未发送；请缩小资料或对象范围，原样重试不会缩小输入。',
+                code='model_input_limit',details={'actual':estimate,'limit':MAX_INPUT_ESTIMATE,'parts':parts})
         output_key = 'max_tokens' if 'max_tokens' in kwargs else 'max_completion_tokens'
         output = min(int(kwargs.get(output_key, MAX_OUTPUT_TOKENS)), MAX_OUTPUT_TOKENS)
         output = min(output, output_limit_for_purpose(call_context.purpose,MAX_OUTPUT_TOKENS) * call_context.output_multiplier)
         if output < 1:
             raise ModelBudgetExceeded('模型输出预算必须为正数。')
         kwargs[output_key] = output
+        pricing={**pricing,'request_fingerprint':hashlib.sha256(json.dumps(
+            {key:value for key,value in kwargs.items() if key!='timeout'},ensure_ascii=False,sort_keys=True,
+            separators=(',',':'),default=str).encode()).hexdigest()}
         event_key = MODEL_EVENT.get() or 'direct-model:' + uuid.uuid4().hex
+        if call_context.stage_id:
+            from infrastructure.skill_manager import CURRENT_SKILLS, SkillSnapshot, skill_asset
+            snapshot = CURRENT_SKILLS.get() or SkillSnapshot({call_context.stage_id: skill_asset(call_context.stage_id)})
+            self.store.delivery.freeze_skill_assets(event_key, snapshot.metadata())
         waiting_since = time.monotonic()
         acquired = False
         call_id = None
@@ -464,21 +619,31 @@ class ModelGateway:
             while call_id is None:
                 self._ensure_active()
                 call_id = self._reserve(event_key, str(kwargs.get('model', '')), estimate, output, call_context,
-                                        _pricing_config(str(kwargs.get('model','')),default_model),
-                                        {'request_bytes':request_bytes,'parts':parts})
+                                        pricing,
+                                        {'request_bytes':request_bytes,'parts':parts,'system_hash':system_hash})
                 if call_id is None:
                     if time.monotonic() - waiting_since > 180:
                         raise ModelBudgetExceeded('模型服务繁忙，等待超过本次上限，请稍后重试。')
                     time.sleep(0.2)
             started = time.monotonic()
-            self.store.diagnostics.record('model', {'event_key': event_key, 'call_id': call_id,
-                'status': 'started', 'purpose': call_context.purpose, 'prompt_version': call_context.prompt_version,
-                'context_policy_version': call_context.context_policy_version, 'model_id': kwargs['model'],
-                'input_estimate': estimate, 'output_limit': output, 'request_bytes': request_bytes})
             result, error = None, None
             try:
                 kwargs['timeout'] = min(float(kwargs.get('timeout', 90)), 90.0, self._ensure_active())
-                result = self.client.chat.completions.create(**kwargs)
+                network=getattr(client,'network_metadata',None)
+                network=network if isinstance(network,dict) else {'network_policy':'injected_or_legacy'}
+                self.store.diagnostics.record('model', {'event_key': event_key, 'call_id': call_id,
+                    'provider_alias':pricing.get('provider','main'),'connection_id':pricing.get('connection_id','legacy_unknown'),
+                    'profile_id':pricing.get('profile_id','legacy_unknown'),'config_version':pricing.get('config_version',''),
+                    'status': 'started', 'purpose': call_context.purpose, 'prompt_version': call_context.prompt_version,
+                    'stage_id': call_context.stage_id, 'asset_version': call_context.asset_version,
+                    'asset_bundle_hash': call_context.asset_bundle_hash, 'system_hash': system_hash,
+                    'context_policy_version': call_context.context_policy_version, 'model_id': kwargs['model'],
+                    'input_estimate': estimate, 'output_limit': output, 'request_bytes': request_bytes,
+                    'timeout_seconds':kwargs['timeout'],'fallback_from':call_context.fallback_from,
+                    'repair_attempt':call_context.repair_attempt,'force_default_model':call_context.force_default_model,**network})
+                route_token=MODEL_ROUTE.set(pricing)
+                try:result = client.chat.completions.create(**kwargs)
+                finally:MODEL_ROUTE.reset(route_token)
                 self._ensure_active()
                 return result
             except BaseException as exc:
@@ -487,9 +652,12 @@ class ModelGateway:
             finally:
                 self._finish(call_id, started, result, error)
                 self.store.diagnostics.record('model', {'event_key': event_key, 'call_id': call_id,
+                    'provider_alias':pricing.get('provider','main'),'connection_id':pricing.get('connection_id','legacy_unknown'),
+                    'profile_id':pricing.get('profile_id','legacy_unknown'),
                     'status': 'failed' if error else 'completed', 'purpose': call_context.purpose,
                     'error_type': type(error).__name__ if error else '',
-                    'elapsed_seconds': round(time.monotonic() - started, 3)})
+                    'elapsed_seconds': round(time.monotonic() - started, 3),
+                    **(model_failure_metadata(error) if error else {})})
         finally:
             if acquired:
                 MODEL_SLOTS.release()
@@ -500,7 +668,11 @@ class ModelGateway:
         estimate=estimate_input(input)
         if estimate>MAX_INPUT_ESTIMATE:
             raise ModelBudgetExceeded('检索索引批次过大，请分批处理。')
-        with model_call_context('retrieval_embedding',prompt_version='embedding-v3'):
+        profile_id=(MODEL_CALL.get() or ModelCallContext()).profile_id
+        with model_call_context('retrieval_embedding',prompt_version='embedding-v3',profile_id=profile_id):
+            arguments={'model':model}
+            client,pricing=self._route(MODEL_CALL.get(),arguments,embedding=True)
+            model=arguments['model']
             self._ensure_active()
             if not MODEL_SLOTS.acquire(timeout=min(10,self._ensure_active())):
                 raise ModelBudgetExceeded('模型并发繁忙，请稍后检索。')
@@ -510,10 +682,10 @@ class ModelGateway:
             error=None
             try:
                 call_id=self._reserve(MODEL_EVENT.get() or 'embedding:'+uuid.uuid4().hex,model,estimate,0,
-                                      MODEL_CALL.get(),_pricing_config(model,os.getenv('LLM_MODEL_ID','')))
+                                      MODEL_CALL.get(),pricing)
                 if call_id is None:
                     raise ModelBudgetExceeded('模型并发繁忙，请稍后检索。')
-                result=self.client.embeddings.create(model=model,input=input,timeout=min(90,self._ensure_active()),**kwargs)
+                result=client.embeddings.create(model=model,input=input,timeout=min(90,self._ensure_active()),**kwargs)
                 self._ensure_active()
                 return result
             except BaseException as exc:
@@ -527,4 +699,5 @@ class ModelGateway:
                 MODEL_SLOTS.release()
 
     def close(self):
-        self.client.close()
+        clients=[*self._clients.values(),*([self.client] if self.client is not None else [])]
+        for client in {id(c):c for c in clients}.values():client.close()

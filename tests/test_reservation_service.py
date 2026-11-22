@@ -8,17 +8,11 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from core.commands import parse_command
-from infrastructure.memory_store import MemoryStore, StoredDocumentContent
-from services.reservation_service import (
-    ReservationExtractionItem,
-    ReservationItineraryResolver,
-    ReservationService,
-    VisitDateResolution,
-    build_reminder_occurrences,
-    calculate_booking_date,
-    normalize_extraction_item,
-    parse_beijing_datetime_list,
-)
+from infrastructure.memory_store import MemoryStore
+from infrastructure.document_repository import StoredDocumentContent
+from tools.reservation.dates import ReservationExtractionItem, ReservationItineraryResolver, VisitDateResolution, build_reminder_occurrences, calculate_booking_date, normalize_extraction_item
+from tools.reservation.tool import ReservationTool
+from core.time_input import parse_beijing_datetime_list
 
 
 class ReservationRuleTests(unittest.TestCase):
@@ -586,7 +580,7 @@ class ReservationDraftTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.store = MemoryStore(Path(self.temp_dir.name) / "drafts.db")
-        self.image, unused = self.store.create_reservation_image(
+        self.image, unused = self.store.reservations.create_reservation_image(
             storage_scope_id="group-a",
             platform="qq_official",
             group_id="group-a",
@@ -597,7 +591,7 @@ class ReservationDraftTests(unittest.TestCase):
             byte_size=100,
             model_id="vision-model",
         )
-        self.store.add_document(
+        self.store.documents.add_document(
             group_openid="group-a",
             uploader_openid="member-a",
             filename="行程.md",
@@ -636,7 +630,7 @@ class ReservationDraftTests(unittest.TestCase):
                 "resolved",
             ),
         })
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=resolver,
         )
@@ -652,7 +646,7 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(resolver.calls[0][0][0].filename, "行程.md")
 
     def test_zero_or_multiple_dates_require_manual_input(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({
                 "莫高窟": VisitDateResolution(
@@ -676,7 +670,7 @@ class ReservationDraftTests(unittest.TestCase):
 
     def test_no_reservation_item_skips_date_matching(self):
         resolver = FakeItineraryResolver({})
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=resolver,
         )
@@ -689,7 +683,7 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(resolver.calls, [])
 
     def test_reservation_without_advance_rule_remains_visible_and_blocks_confirmation(self):
-        service = ReservationService(self.store, itinerary_resolver=FakeItineraryResolver({}))
+        service = ReservationTool(self.store, itinerary_resolver=FakeItineraryResolver({}))
         plan = service.create_draft(self.image, (self.item('测试展馆', True, 0, 'none'),))
         self.assertTrue(plan.items[0].requires_reservation)
         self.assertEqual(plan.items[0].status, 'needs_input')
@@ -699,7 +693,7 @@ class ReservationDraftTests(unittest.TestCase):
             service.confirm_plan(plan.platform, plan.group_id, plan.creator_id, plan.plan_code)
 
     def test_empty_extraction_still_creates_manual_draft(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -709,7 +703,7 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertIn("新增预约", reply)
 
     def test_replayed_image_event_reuses_original_draft(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -731,7 +725,7 @@ class ReservationDraftTests(unittest.TestCase):
         )
 
     def test_manual_add_and_date_completion_recalculate_booking_date(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -765,7 +759,7 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertEqual(completed.items[0].booking_date, date(2026, 8, 15))
 
     def test_draft_items_can_change_requirement_date_and_visit_status(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -805,7 +799,7 @@ class ReservationDraftTests(unittest.TestCase):
         self.assertIn("状态：不去参观", rendered)
 
     def test_draft_items_batch_update_is_atomic_and_uses_names(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -857,7 +851,7 @@ class ReservationDraftTests(unittest.TestCase):
                     },
                 ),
             )
-        loaded = self.store.get_reservation_plan(
+        loaded = self.store.reservations.get_reservation_plan(
             "qq_official", "group-a", plan.plan_code
         )
         self.assertFalse(loaded.items[0].requires_reservation)
@@ -867,7 +861,7 @@ class ReservationDraftTests(unittest.TestCase):
         resolver = FakeItineraryResolver({
             "嘉峪关": VisitDateResolution((), "not_scheduled"),
         })
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=resolver,
         )
@@ -885,7 +879,7 @@ class ReservationDraftTests(unittest.TestCase):
 
     def test_refresh_plan_resolves_unresolved_items_from_latest_documents(self):
         resolver = FakeItineraryResolver({})
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("青海湖", True, 1, "day"),),
@@ -906,7 +900,7 @@ class ReservationDraftTests(unittest.TestCase):
 
     def test_refresh_plan_preserves_manual_ready_date(self):
         resolver = FakeItineraryResolver({})
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("青海湖", True, 1, "day"),),
@@ -934,7 +928,7 @@ class ReservationDraftTests(unittest.TestCase):
 
     def test_refresh_plan_keeps_ambiguous_candidates_for_manual_choice(self):
         resolver = FakeItineraryResolver({})
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("莫高窟", True, 1, "month"),),
@@ -960,7 +954,7 @@ class ReservationDraftTests(unittest.TestCase):
         resolver = FakeItineraryResolver({
             "嘉峪关": VisitDateResolution((), "not_scheduled")
         })
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("嘉峪关", True, 1, "day"),),
@@ -1008,7 +1002,7 @@ class ReservationDraftTests(unittest.TestCase):
                 "ambiguous",
             )
         }
-        draft_service = ReservationService(
+        draft_service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver(current_resolution),
         )
@@ -1016,16 +1010,16 @@ class ReservationDraftTests(unittest.TestCase):
             self.image,
             (self.item("lake", True, 1, "day"),),
         )
-        slow_service = ReservationService(
+        slow_service = ReservationTool(
             self.store,
             itinerary_resolver=BlockingResolver(),
         )
-        fast_service = ReservationService(
+        fast_service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver(current_resolution),
         )
 
-        with patch("infrastructure.memory_store.datetime", FixedDatetime):
+        with patch("infrastructure.reservation_repository.datetime", FixedDatetime):
             with ThreadPoolExecutor(max_workers=1) as executor:
                 slow_future = executor.submit(
                     slow_service.refresh_plan,
@@ -1046,7 +1040,7 @@ class ReservationDraftTests(unittest.TestCase):
                     release_slow.set()
                 slow_result = slow_future.result(timeout=2)
 
-        loaded = self.store.get_reservation_plan(
+        loaded = self.store.reservations.get_reservation_plan(
             "qq_official", "group-a", plan.plan_code
         )
         self.assertEqual(fast_result.updated_count, 0)
@@ -1083,7 +1077,7 @@ class ReservationDraftTests(unittest.TestCase):
                     for name in attraction_names
                 }
 
-        draft_service = ReservationService(
+        draft_service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({
                 "lake": VisitDateResolution(
@@ -1106,11 +1100,11 @@ class ReservationDraftTests(unittest.TestCase):
             newer_started,
             release_newer,
         )
-        newer_service = ReservationService(
+        newer_service = ReservationTool(
             self.store,
             itinerary_resolver=newer_resolver,
         )
-        older_service = ReservationService(
+        older_service = ReservationTool(
             self.store,
             itinerary_resolver=older_resolver,
         )
@@ -1139,7 +1133,7 @@ class ReservationDraftTests(unittest.TestCase):
                 release_newer.set()
             newer_result = newer_future.result(timeout=2)
 
-        loaded = self.store.get_reservation_plan(
+        loaded = self.store.reservations.get_reservation_plan(
             "qq_official", "group-a", plan.plan_code
         )
         self.assertEqual(older_result.updated_count, 1)
@@ -1151,7 +1145,7 @@ class ReservationDraftTests(unittest.TestCase):
         )
 
     def test_refresh_plan_rejects_another_creator(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -1168,7 +1162,7 @@ class ReservationDraftTests(unittest.TestCase):
 
 class ReservationManagementTests(ReservationDraftTests):
     def ready_plan(self, custom_times=()):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({
                 "青海湖": VisitDateResolution(
@@ -1203,7 +1197,7 @@ class ReservationManagementTests(ReservationDraftTests):
             "member-a",
             plan.plan_code,
         )
-        reminders = self.store.list_reservation_reminders(
+        reminders = self.store.reservations.list_reservation_reminders(
             "qq_official",
             "group-a",
             "member-a",
@@ -1223,7 +1217,7 @@ class ReservationManagementTests(ReservationDraftTests):
             "member-a",
             plan.plan_code,
         )
-        reminders = self.store.list_reservation_reminders(
+        reminders = self.store.reservations.list_reservation_reminders(
             "qq_official",
             "group-a",
             "member-a",
@@ -1232,7 +1226,7 @@ class ReservationManagementTests(ReservationDraftTests):
         self.assertTrue(all(item.is_custom for item in reminders))
 
     def test_all_no_reservation_plan_confirms_with_zero_reminders(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -1248,14 +1242,14 @@ class ReservationManagementTests(ReservationDraftTests):
         )
         self.assertEqual(confirmed.status, "confirmed")
         self.assertEqual(
-            self.store.list_reservation_reminders(
+            self.store.reservations.list_reservation_reminders(
                 "qq_official", "group-a", "member-a"
             ),
             (),
         )
 
     def test_incomplete_plan_cannot_be_confirmed(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -1271,7 +1265,7 @@ class ReservationManagementTests(ReservationDraftTests):
                 plan.plan_code,
             )
         self.assertEqual(
-            self.store.list_reservation_reminders(
+            self.store.reservations.list_reservation_reminders(
                 "qq_official", "group-a", "member-a"
             ),
             (),
@@ -1287,7 +1281,7 @@ class ReservationManagementTests(ReservationDraftTests):
         )
         self.assertEqual(first.plan_id, second.plan_id)
         self.assertEqual(
-            len(self.store.list_reservation_reminders(
+            len(self.store.reservations.list_reservation_reminders(
                 "qq_official", "group-a", "member-a"
             )),
             2,
@@ -1295,7 +1289,7 @@ class ReservationManagementTests(ReservationDraftTests):
 
     def test_list_plans_refreshes_draft_before_formatting(self):
         resolver = FakeItineraryResolver({})
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("青海湖", True, 1, "day"),),
@@ -1315,7 +1309,7 @@ class ReservationManagementTests(ReservationDraftTests):
 
     def test_confirmation_refreshes_draft_before_creating_reminders(self):
         resolver = FakeItineraryResolver({})
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("青海湖", True, 1, "day"),),
@@ -1333,7 +1327,7 @@ class ReservationManagementTests(ReservationDraftTests):
         )
 
         self.assertEqual(confirmed.status, "confirmed")
-        reminders = self.store.list_reservation_reminders(
+        reminders = self.store.reservations.list_reservation_reminders(
             "qq_official", "group-a", "member-a"
         )
         self.assertEqual(len(reminders), 2)
@@ -1344,7 +1338,7 @@ class ReservationManagementTests(ReservationDraftTests):
                 (date(2026, 8, 16),), "resolved"
             )
         })
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("青海湖", True, 1, "day"),),
@@ -1371,7 +1365,7 @@ class ReservationManagementTests(ReservationDraftTests):
 
     def test_explicit_refresh_command_returns_updated_draft(self):
         resolver = FakeItineraryResolver({})
-        service = ReservationService(self.store, itinerary_resolver=resolver)
+        service = ReservationTool(self.store, itinerary_resolver=resolver)
         plan = service.create_draft(
             self.image,
             (self.item("青海湖", True, 1, "day"),),
@@ -1396,7 +1390,7 @@ class ReservationManagementTests(ReservationDraftTests):
         self.assertIn("2026-08-17", reply)
 
     def test_confirmation_help_command_returns_exact_syntax(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -1415,7 +1409,7 @@ class ReservationManagementTests(ReservationDraftTests):
         self.assertIn("确认预约 R-YYYYMMDD-NNN", reply)
 
     def test_reservation_workflow_commands_start_and_stop_image_collection(self):
-        service = ReservationService(
+        service = ReservationTool(
             self.store,
             itinerary_resolver=FakeItineraryResolver({}),
         )
@@ -1473,7 +1467,7 @@ class ReservationManagementTests(ReservationDraftTests):
             item_code,
             date(2026, 8, 18),
         )
-        active = self.store.list_reservation_reminders(
+        active = self.store.reservations.list_reservation_reminders(
             "qq_official", "group-a", "member-a"
         )
         self.assertEqual(result.item.visit_date, date(2026, 8, 18))
@@ -1492,7 +1486,7 @@ class ReservationManagementTests(ReservationDraftTests):
             confirmed.items[0].public_code,
             parse_beijing_datetime_list("2026-08-15 07:30"),
         )
-        active = self.store.list_reservation_reminders(
+        active = self.store.reservations.list_reservation_reminders(
             "qq_official", "group-a", "member-a"
         )
         self.assertEqual(len(active), 1)
@@ -1511,7 +1505,7 @@ class ReservationManagementTests(ReservationDraftTests):
             confirmed.items[0].public_code,
         )
         self.assertEqual(
-            self.store.list_reservation_reminders(
+            self.store.reservations.list_reservation_reminders(
                 "qq_official", "group-a", "member-a"
             ),
             (),
@@ -1546,7 +1540,7 @@ class ReservationManagementTests(ReservationDraftTests):
             plan.plan_code,
         )
         self.assertFalse(warning)
-        cancelled = self.store.get_reservation_plan(
+        cancelled = self.store.reservations.get_reservation_plan(
             "qq_official", "group-a", plan.plan_code
         )
         self.assertEqual(cancelled.status, "cancelled")

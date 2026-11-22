@@ -1,0 +1,398 @@
+{
+  "physical_calls": 5,
+  "origin": "2026-10-20 authorized synthetic public POI smoke",
+  "cases": [
+    {
+      "name": "天安门广场",
+      "selected": {
+        "poi_id": "B000A83C1S",
+        "name": "天安门广场",
+        "parent_id": null,
+        "typecode": "110210|110105",
+        "location": "116.397755,39.903182",
+        "address": "东长安街",
+        "city": "北京市",
+        "adcode": "110101",
+        "opening_today_raw": "05:00-22:00",
+        "opening_week_raw": "周一至周日 05:00-22:00",
+        "phone": "010-63095745",
+        "average_cost_raw": null,
+        "entrance_location": "116.399433,39.905097",
+        "exit_location": null,
+        "children": [],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/text",
+        "retrieved_at": "2026-10-19T16:33:44.885783+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B000A83C1S",
+          "name": "天安门广场",
+          "parent": "",
+          "typecode": "110210|110105",
+          "location": "116.397755,39.903182",
+          "address": "东长安街",
+          "cityname": "北京市",
+          "adcode": "110101",
+          "business": {
+            "opentime_today": "05:00-22:00",
+            "opentime_week": "周一至周日 05:00-22:00",
+            "tel": "010-63095745",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "116.399433,39.905097",
+            "exit_location": null
+          }
+        },
+        "content_hash": "57d7da18547c387a0bd6b36ad037e0f28351bc06f105a9e8760bfd1bde846808",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      }
+    },
+    {
+      "name": "故宫博物院",
+      "selected": {
+        "poi_id": "B000A8UIN8",
+        "name": "故宫博物院",
+        "parent_id": null,
+        "typecode": "110201|140100",
+        "location": "116.397029,39.917839",
+        "address": "景山前街4号",
+        "city": "北京市",
+        "adcode": "110101",
+        "opening_today_raw": null,
+        "opening_week_raw": "旺季4月1日至10月31日 周二至周日 08:30-17:00 16:00停止检票，淡季11月1日至3月31日 周二至周日 08:30-16:30 15:30停止检票，周一全天关闭，节假日营业时间以官方通知为准",
+        "phone": "4009501925",
+        "average_cost_raw": null,
+        "entrance_location": "116.402976,39.915134",
+        "exit_location": null,
+        "children": [],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/detail",
+        "retrieved_at": "2026-10-19T16:33:45.882119+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B000A8UIN8",
+          "name": "故宫博物院",
+          "parent": "",
+          "typecode": "110201|140100",
+          "location": "116.397029,39.917839",
+          "address": "景山前街4号",
+          "cityname": "北京市",
+          "adcode": "110101",
+          "business": {
+            "opentime_today": null,
+            "opentime_week": "旺季4月1日至10月31日 周二至周日 08:30-17:00 16:00停止检票，淡季11月1日至3月31日 周二至周日 08:30-16:30 15:30停止检票，周一全天关闭，节假日营业时间以官方通知为准",
+            "tel": "4009501925",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "116.402976,39.915134",
+            "exit_location": null
+          }
+        },
+        "content_hash": "0e19b79372569551d050455e8ba64dee9a0b4a9396ccbdf4d069f0e0c92341ee",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      }
+    },
+    {
+      "name": "景山公园",
+      "selected": {
+        "poi_id": "B000A7I1OL",
+        "name": "景山公园",
+        "parent_id": null,
+        "typecode": "110101",
+        "location": "116.396551,39.925875",
+        "address": "景山西街44号",
+        "city": "北京市",
+        "adcode": "110102",
+        "opening_today_raw": null,
+        "opening_week_raw": "1月至3月,11月至12月 周一至周日 06:30-20:00 最晚进入19:30；4月至10月 周一至周日 06:00-21:00 最晚进入20:30",
+        "phone": "010-64038098",
+        "average_cost_raw": null,
+        "entrance_location": "116.399542,39.925796",
+        "exit_location": null,
+        "children": [
+          {
+            "id": "B0M2M9PPZH",
+            "name": "景山公园-售票处地上停车场",
+            "location": "116.394075,39.926425",
+            "address": "景山西街44号景山公园内(西侧)",
+            "typecode": "150904"
+          },
+          {
+            "id": "B0H6GHYDQ8",
+            "name": "景山公园游客中心",
+            "location": "116.396496,39.923533",
+            "address": "景山西街44号景山公园内(南侧)",
+            "typecode": "070201"
+          },
+          {
+            "id": "B0H6GHZMLX",
+            "name": "景山公园东门售票处",
+            "location": "116.399309,39.925992",
+            "address": "景山西街44号景山公园内(东侧)",
+            "typecode": "070306"
+          },
+          {
+            "id": "B000A9QR8V",
+            "name": "景山公园南门售票处",
+            "location": "116.396846,39.923502",
+            "address": "景山西街44号景山公园南门外",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0FFFVD13N",
+            "name": "景山公园西门售票处",
+            "location": "116.393972,39.925787",
+            "address": "景山西街44号(故宫后门对面)景山公园内(西侧)",
+            "typecode": "070306"
+          }
+        ],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/text",
+        "retrieved_at": "2026-10-19T16:33:46.990185+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B000A7I1OL",
+          "name": "景山公园",
+          "parent": "",
+          "typecode": "110101",
+          "location": "116.396551,39.925875",
+          "address": "景山西街44号",
+          "cityname": "北京市",
+          "adcode": "110102",
+          "business": {
+            "opentime_today": null,
+            "opentime_week": "1月至3月,11月至12月 周一至周日 06:30-20:00 最晚进入19:30；4月至10月 周一至周日 06:00-21:00 最晚进入20:30",
+            "tel": "010-64038098",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "116.399542,39.925796",
+            "exit_location": null
+          }
+        },
+        "content_hash": "4e0cac9939bbcbd98cdf75d9a52baa62faecb1bd43015ad835a9704b4d8dc58c",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      }
+    },
+    {
+      "name": "北海公园",
+      "selected": {
+        "poi_id": "B000A80UL1",
+        "name": "北海公园",
+        "parent_id": null,
+        "typecode": "110101",
+        "location": "116.391802,39.928775",
+        "address": "文津街1号",
+        "city": "北京市",
+        "adcode": "110102",
+        "opening_today_raw": null,
+        "opening_week_raw": "淡季:06:30-20:00,旺季:06:00-21:00",
+        "phone": "010-64037972",
+        "average_cost_raw": null,
+        "entrance_location": "116.389876,39.922333",
+        "exit_location": null,
+        "children": [
+          {
+            "id": "B0FFGCWA1I",
+            "name": "北海公园西门内部停车场(不对外开放)",
+            "location": "116.386553,39.923365",
+            "address": "文津街北100米",
+            "typecode": "150905"
+          },
+          {
+            "id": "B0FFFQ0AAC",
+            "name": "北海公园南门售票处",
+            "location": "116.389876,39.922926",
+            "address": "文津街1号北海公园内(南侧)",
+            "typecode": "070306"
+          },
+          {
+            "id": "B000A8WBA1",
+            "name": "北海公园北门售票处",
+            "location": "116.391937,39.933239",
+            "address": "文津街1后门(北海北地铁站B东北口步行370米)",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0H6V5GZ0Y",
+            "name": "北海公园南门游客服务中心",
+            "location": "116.389857,39.922920",
+            "address": "文津街1号北海公园南门",
+            "typecode": "070201"
+          },
+          {
+            "id": "B0H6V5HM4F",
+            "name": "北海公园西北门售票处",
+            "location": "116.389954,39.933127",
+            "address": "地安门西大街24号(北海北地铁站B东北口步行200米)",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0H64HIF2D",
+            "name": "北海公园西南门售票处",
+            "location": "116.386514,39.922930",
+            "address": "文津街1号北海公园(西南角)",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0FFHGNBF4",
+            "name": "北海公园东门售票处",
+            "location": "116.391100,39.925949",
+            "address": "文津街1号北海公园东门",
+            "typecode": "070306"
+          },
+          {
+            "id": "B0FFFQEKLN",
+            "name": "北海荷花船售票处",
+            "location": "116.391477,39.931400",
+            "address": "文津街1号北海公园北海荷花船内",
+            "typecode": "070304"
+          },
+          {
+            "id": "B0FFHGNBFD",
+            "name": "北海公园咨询服务",
+            "location": "116.391952,39.933209",
+            "address": "文津街1号北海公园(北海北地铁站B东北口步行360米)",
+            "typecode": "070201"
+          }
+        ],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/text",
+        "retrieved_at": "2026-10-19T16:33:48.037270+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B000A80UL1",
+          "name": "北海公园",
+          "parent": "",
+          "typecode": "110101",
+          "location": "116.391802,39.928775",
+          "address": "文津街1号",
+          "cityname": "北京市",
+          "adcode": "110102",
+          "business": {
+            "opentime_today": null,
+            "opentime_week": "淡季:06:30-20:00,旺季:06:00-21:00",
+            "tel": "010-64037972",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "116.389876,39.922333",
+            "exit_location": null
+          }
+        },
+        "content_hash": "5c55dcce12741295f775f1f39912590ba0f97188b43804bff3935c6bd983d20e",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      }
+    },
+    {
+      "name": "湖北省博物馆",
+      "selected": {
+        "poi_id": "B001B0JYXS",
+        "name": "湖北省博物馆",
+        "parent_id": "B001B0A0CK",
+        "typecode": "140100",
+        "location": "114.365446,30.561506",
+        "address": "东湖路160号",
+        "city": "武汉市",
+        "adcode": "420106",
+        "opening_today_raw": "09:00-17:00",
+        "opening_week_raw": "周二至周五09:00-17:00 最晚进入16:00；周六至周日 09:00-20:30 最晚进入19:30；周一 全天不开放（法定节假日除外） ；法定节假日 08:30-18:00开放 最晚进入17:00",
+        "phone": "027-86716789",
+        "average_cost_raw": null,
+        "entrance_location": "114.366568,30.55984",
+        "exit_location": null,
+        "children": [
+          {
+            "id": "B0IGSZ3SDI",
+            "name": "湖北省博物馆停车场",
+            "location": "114.365734,30.559841",
+            "address": "东湖路160号湖北省博物馆",
+            "typecode": "150904"
+          },
+          {
+            "id": "B0K6VHTZ7N",
+            "name": "湖北省博物馆地面停车场",
+            "location": "114.366253,30.562828",
+            "address": "东湖路160号湖北省博物馆",
+            "typecode": "150904"
+          },
+          {
+            "id": "B0IGSZ2Z4J",
+            "name": "湖北省博物馆大巴车停车场",
+            "location": "114.365492,30.559831",
+            "address": "东湖路160号湖北省博物馆",
+            "typecode": "150905"
+          }
+        ],
+        "provider": "amap",
+        "api_version": "v5",
+        "interface_path": "/v5/place/detail",
+        "retrieved_at": "2026-10-19T16:33:54.166713+00:00",
+        "timezone": "Asia/Shanghai",
+        "snapshot": {
+          "id": "B001B0JYXS",
+          "name": "湖北省博物馆",
+          "parent": "B001B0A0CK",
+          "typecode": "140100",
+          "location": "114.365446,30.561506",
+          "address": "东湖路160号",
+          "cityname": "武汉市",
+          "adcode": "420106",
+          "business": {
+            "opentime_today": "09:00-17:00",
+            "opentime_week": "周二至周五09:00-17:00 最晚进入16:00；周六至周日 09:00-20:30 最晚进入19:30；周一 全天不开放（法定节假日除外） ；法定节假日 08:30-18:00开放 最晚进入17:00",
+            "tel": "027-86716789",
+            "cost": null
+          },
+          "navi": {
+            "entr_location": "114.366568,30.55984",
+            "exit_location": null
+          }
+        },
+        "content_hash": "2356d53dbbd06246c4bfcd9461e1c837cf65b0973c8cde67ee515f474bde0050",
+        "field_paths": {
+          "opening_today_raw": "business.opentime_today",
+          "opening_week_raw": "business.opentime_week",
+          "phone": "business.tel",
+          "average_cost_raw": "business.cost",
+          "entrance_location": "navi.entr_location",
+          "exit_location": "navi.exit_location"
+        }
+      }
+    }
+  ]
+}

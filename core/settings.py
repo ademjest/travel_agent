@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 class SettingsError(RuntimeError):
@@ -16,6 +16,8 @@ class Settings:
     llm_base_url: str
     llm_model_id: str
     allow_all_groups: bool = False
+    rail_mcp_config: str = field(default='', repr=False)
+    model_config_json: str | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -52,6 +54,8 @@ class Settings:
             llm_base_url=llm_base_url,
             llm_model_id=llm_model_id,
             allow_all_groups=allow_all_groups,
+            rail_mcp_config=os.getenv('RAIL_MCP_CONFIG', ''),
+            model_config_json=os.getenv('LLM_CONFIG_JSON'),
         )
 
     def allows_group(self, group_openid: str) -> bool:
@@ -62,11 +66,17 @@ class Settings:
 
     @property
     def llm_configured(self) -> bool:
-        return bool(
-            self.llm_api_key
-            and self.llm_base_url
-            and self.llm_model_id
-        )
+        from core.model_config import ModelConfigError
+        try:
+            return self.model_configuration.configured
+        except ModelConfigError:
+            return False
+
+    @property
+    def model_configuration(self):
+        from core.model_config import resolve_config
+        return resolve_config(self.model_config_json,{**os.environ,
+            'LLM_API_KEY':self.llm_api_key,'LLM_BASE_URL':self.llm_base_url,'LLM_MODEL_ID':self.llm_model_id})
 
 
 @dataclass(frozen=True)

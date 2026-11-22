@@ -1,3 +1,5 @@
+from app.request_router import RequestRouter
+from tools.trip.tool import TripTool
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -8,17 +10,17 @@ import unittest
 from unittest.mock import Mock
 
 from agents.intent_compiler import IntentCompiler
-from agents.trip_planner import TripPlanner, TripPlanError
+from tools.trip.planner import TripPlanner, TripPlanError
 from core.chat_transport import ChatEvent
 from core.tasks import TaskUpdate
-from core.trip_updates import apply_constraints, date_range
+from tools.trip.constraints import apply_constraints, date_range
 from infrastructure.amap_client import AmapError
 from infrastructure.memory_store import MemoryStore
 from infrastructure.preference_repository import PreferenceConflict
 from infrastructure.task_repository import TaskConflict
-from services.preference_service import PreferenceService
-from services.semantic_task_service import SemanticTaskService
-from services.trip_service import TripService
+from tools.preferences import PreferencesTool
+from app.request_router import RequestRouter
+from tools.trip.tool import TripTool
 from test_trips import PLACES, SPEC, model_response, plan_value
 from test_travel_agent import FakeClient
 
@@ -37,6 +39,33 @@ def intent(changes=None, **extra):
 
 
 class ContextUpdateTests(unittest.TestCase):
+    def test_orphaned_legacy_budget_text_does_not_compete_with_structured_budget(self):
+        trip=deepcopy(self.saved)
+        trip['spec'].update(budget_text='住宿 每人每天 300 CNY',applied_preferences={},
+            budgets={'accommodation':{'value':'200-400','unit_text':'人民币每间每晚'}})
+        text=TripTool.format_trip(trip,full=True)
+        self.assertNotIn('每人每天 300',text)
+        self.assertIn('200-400',text)
+        self.assertEqual(trip['spec']['budget_text'],'住宿 每人每天 300 CNY')
+
+    def test_trip_labels_and_saved_tip_suppression_in_all_formats(self):
+        trip = deepcopy(self.saved)
+        spec = trip['spec']
+        spec.pop('document_ids', None)
+        spec.update(date_is_tentative=True, date_reference_day='2030-09-30',
+            budget_text='2000元', accommodation_text='安静', dining_text='清淡',
+            hotel_preferences={'preferred_brands':['测试品牌']}, applied_preferences={'pace':'relaxed'})
+        activity = trip['plan']['days'][0]['activities'][0]
+        activity['description'] = {'intro':{'text':'馆藏反映悠久的地方文化。'}, 'tips':[{'text':'旧版玩法不应展示'}]}
+        before = deepcopy(trip)
+        for preview, full in ((False,False), (True,False), (False,True)):
+            text = TripTool.format_trip(trip, preview=preview, full=full)
+            for label in ('日期暂定','你的要求','预算目标','住宿要求','餐饮要求','住宿筛选','已采用你的偏好'):
+                self.assertIn('**'+label+'：** ', text)
+            self.assertNotIn('旧版玩法不应展示', text)
+            self.assertIn('地方文化', text)
+        self.assertEqual(trip, before)
+
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
@@ -49,7 +78,7 @@ class ContextUpdateTests(unittest.TestCase):
         self.amap.search_places.return_value = list(PLACES.values())
         self.amap.route_for_pois.return_value = {'duration_seconds':600,'distance_meters':800}
         self.planner = TripPlanner(FakeClient([model_response(plan_value())]),'test',self.amap)
-        self.service = TripService(self.store,self.planner,clock=lambda:self.now)
+        self.service = TripTool(self.store,self.planner,clock=lambda:self.now)
         self.saved = self.save('a')
 
     def event(self, text, key='change', **kwargs):
@@ -60,19 +89,19 @@ class ContextUpdateTests(unittest.TestCase):
         trip = {'trip_id':self.store.trips.new_id(e.event_key),'title':city+'三日行程','status':'active',
                 'spec':{**deepcopy(self.spec),'destination':city},
                 'plan':self.planner.validate_plan(plan_value(),self.spec,PLACES),'sources':deepcopy(PLACES)}
-        self.store.trips.commit(e,self.store.begin_event(e.event_key),
+        self.store.trips.commit(e,self.store.delivery.begin_event(e.event_key),
             TaskUpdate('itinerary','completed','创建行程',{'trip_id':trip['trip_id']}),'created',trip=trip)
         return self.store.trips.get(e,trip['trip_id'])
 
     def dispatch(self, value=None, text=MESSAGE, key='change', compiler=None):
         e = self.event(text,key)
         compiler = compiler or IntentCompiler(FakeClient([model_response(value or intent())]),'test')
-        service = SemanticTaskService(self.store,compiler,self.service,clock=lambda:self.now)
-        return service.handle(e,self.store.begin_event(e.event_key))
+        service = RequestRouter(self.store,compiler,self.service,clock=lambda:self.now)
+        return service.handle(e,self.store.delivery.begin_event(e.event_key))
 
     def confirm(self, key='confirm'):
         e = self.event('确认行程修改',key)
-        return self.service.handle(e,self.store.begin_event(e.event_key))
+        return self.service.handle(e,self.store.delivery.begin_event(e.event_key))
 
     def current(self):
         return self.store.trips.get(self.event(''),self.saved['trip_id'])
@@ -85,7 +114,7 @@ class ContextUpdateTests(unittest.TestCase):
         self.assertEqual(self.current()['version'],1)
         ctx = json.loads(json.loads(client.completions.requests[0]['messages'][1]['content'])['context'])
         self.assertEqual(ctx['current_trip']['destination'],'武汉')
-        self.assertIn('研究武汉',ctx['current_trip']['research_summary'])
+        self.assertTrue(ctx['current_trip']['research_available'])
         self.assertIn('已应用',self.confirm())
         trip = self.current()
         self.assertEqual(trip['version'],2)
@@ -97,26 +126,26 @@ class ContextUpdateTests(unittest.TestCase):
         with self.store._connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM travel_tasks WHERE task_type IN ('transit','walking')").fetchone()[0],0)
 
-    def test_mixed_hotel_budget_clarification_keeps_all_changes_and_target(self):
+    def test_mixed_hotel_budget_defaults_keep_all_changes_and_target(self):
         text = MESSAGE + '，然后酒店要舒适一点但不要太贵，价格在200-300区间'
         changes = {**deepcopy(CHANGES),
             'accommodation':{'value':'酒店要舒适一点但不要太贵','requested':True,'source':'酒店要舒适一点但不要太贵'},
             'budget':{'value':'200-300','scope':'accommodation','source':'价格在200-300区间'}}
         first = intent(changes,question='200-300 的币种和计价单位是什么？')
         first.update(action='clarify',missing_fields=['budget_unit'])
-        reply = self.dispatch(first,text)
-        self.assertIn('200-300 的币种和计价单位',reply)
-        self.assertIn('酒店要舒适一点',reply)
-        self.assertEqual(self.current()['version'],1)
-        # Even after another trip is saved, the answer belongs to the original trip.
-        self.save('another-trip','南京')
         hotel = {'id':'hotel','name':'测试舒适酒店','address':'测试路','type':'住宿服务'}
         self.amap.search_places.return_value = [*PLACES.values(),hotel]
         self.planner.client.completions.responses = [model_response({**plan_value(),'hotel_ids':['hotel']})]
-        changes['budget']['unit_text'] = '人民币每间每晚'
-        reply = self.dispatch(intent(changes),'人民币每间每晚','budget-answer')
-        self.assertIn('确认行程修改',reply)
-        self.assertIn('住宿预算目标：200-300；人民币每间每晚',reply)
+        reply = self.dispatch(first,text)
+        self.assertNotIn('200-300 的币种和计价单位',reply)
+        self.assertIn('酒店要舒适一点',reply)
+        self.assertIn('默认币种：人民币',reply)
+        self.assertIn('默认计价：每间每晚',reply)
+        self.assertEqual(self.current()['version'],1)
+        # Saving a different trip does not move the prepared update to that trip.
+        self.save('another-trip','南京')
+        self.assertIn('保存这版行程',reply)
+        self.assertIn('**住宿预算目标：** 200-300；人民币每间每晚',reply)
         self.assertIn('未核实实时价格',reply)
         self.confirm()
         trip = self.current()
@@ -130,14 +159,14 @@ class ContextUpdateTests(unittest.TestCase):
         self.assertEqual(self.store.preferences.snapshot(self.event(''))['values'],{})
 
     def test_budget_clarification_rejects_stale_trip(self):
-        changes = {'budget':{'value':'200-300','scope':'accommodation','source':'200-300'}}
+        changes = {'budget':{'value':'200-300','scope':'food','source':'200-300'}}
         first = intent(changes)
         first.update(action='clarify',missing_fields=['budget_unit'])
-        self.dispatch(first,'酒店预算200-300')
+        self.dispatch(first,'餐饮预算200-300')
         with self.store._connect() as db:
             db.execute('UPDATE trips SET version=version+1')
-        changes['budget']['unit_text'] = '人民币每间每晚'
-        reply = self.dispatch(intent(changes),'人民币每间每晚','answer')
+        changes['budget']['unit_text'] = '人民币每人每天'
+        reply = self.dispatch(intent(changes),'人民币每人每天','answer')
         self.assertIn('已经变化',reply)
 
     def mixed_draft(self):
@@ -146,13 +175,16 @@ class ContextUpdateTests(unittest.TestCase):
             'accommodation':{'value':'酒店舒适一点','source':'酒店舒适一点'},
             'budget':{'value':'200-300元','source':'200-300元','scope':'accommodation','unit_text':'人民币每间每晚'}}
         self.dispatch(intent(changes),text)
-        return self.store.trips.draft(self.event(''),self.current())
+        return TripTool.read_draft(self.store, self.event(''),self.current())
 
     def test_expired_draft_keeps_budget_and_transport_when_adding_hotel_brand(self):
         previous = self.mixed_draft()
         with self.store._connect() as db:
             db.execute("UPDATE travel_tasks SET expires_at='2000-01-01' WHERE task_id=?",(previous['task'].task_id,))
-        self.assertIn('没有仍然有效',self.confirm('expired-confirm'))
+        self.assertIn('确认已过期，草案仍保留',self.confirm('expired-confirm'))
+        self.assertEqual(self.current()['version'],1)
+        self.assertEqual(TripTool.read_draft(self.store,self.event(''),self.current())['task'].task_id,
+                         previous['task'].task_id)
         self.planner.client.completions.responses = [model_response(plan_value())]
         changes = {'accommodation':{'value':'偏好连锁酒店','source':'偏好连锁酒店'}}
         client = FakeClient([model_response(intent(changes))])
@@ -160,7 +192,7 @@ class ContextUpdateTests(unittest.TestCase):
         model_context = json.loads(json.loads(client.completions.requests[0]['messages'][1]['content'])['context'])
         self.assertTrue(model_context['current_trip']['gentle'])
         self.assertEqual(model_context['current_trip']['budgets']['accommodation']['value'],'200-300元')
-        updated = self.store.trips.draft(self.event(''),self.current())
+        updated = TripTool.read_draft(self.store, self.event(''),self.current())
         self.assertNotEqual(updated['task'].task_id,previous['task'].task_id)
         self.assertTrue(updated['candidate']['spec']['gentle'])
         self.assertEqual(updated['candidate']['spec']['transport_preferences']['preferred'],['walking','transit'])
@@ -178,16 +210,16 @@ class ContextUpdateTests(unittest.TestCase):
         candidate['version']=2
         candidate['spec'],_=apply_constraints(candidate['spec'],{'accommodation':{'value':text,'source':text}},text)
         e=self.event(text,'legacy')
-        self.store.trips.commit(e,self.store.begin_event(e.event_key),TaskUpdate('itinerary','collecting',text,
+        self.store.trips.commit(e,self.store.delivery.begin_event(e.event_key),TaskUpdate('itinerary','collecting',text,
             {'trip_id':self.saved['trip_id'],'candidate_trip':candidate,'expected_trip_version':1,'trip_already_saved':False},
             ('confirmation',)),'legacy preview')
         with self.store._connect() as db:
             db.execute("UPDATE travel_tasks SET expires_at='2000-01-01'")
         self.planner.client.completions.responses=[model_response(plan_value())]
         e=self.event('重新生成行程预览','regenerate')
-        reply=self.service.handle(e,self.store.begin_event(e.event_key))
+        reply=self.service.handle(e,self.store.delivery.begin_event(e.event_key))
         self.assertIn('200-300元',reply)
-        spec=self.store.trips.draft(self.event(''),self.current())['candidate']['spec']
+        spec=TripTool.read_draft(self.store, self.event(''),self.current())['candidate']['spec']
         self.assertTrue(spec['gentle'])
         self.assertIn(text,spec['accommodation_text'])
         self.assertIn('酒店舒适一点',spec['accommodation_text'])
@@ -207,18 +239,53 @@ class ContextUpdateTests(unittest.TestCase):
     def test_cancelled_draft_is_not_reintroduced_into_new_request(self):
         self.mixed_draft()
         e=self.event('取消当前任务','cancel')
-        self.store.tasks.command(e,self.store.begin_event(e.event_key))
+        RequestRouter(self.store, None).route(e,self.store.delivery.begin_event(e.event_key))
         self.planner.client.completions.responses=[model_response(plan_value())]
         self.dispatch(intent({'accommodation':{'value':'偏好连锁酒店','source':'偏好连锁酒店'}}),'偏好连锁酒店','fresh')
-        spec=self.store.trips.draft(self.event(''),self.current())['candidate']['spec']
+        spec=TripTool.read_draft(self.store, self.event(''),self.current())['candidate']['spec']
         self.assertFalse(spec['gentle'])
         self.assertNotIn('budgets',spec)
 
-    def test_budget_without_units_is_clarified_even_if_model_marks_update(self):
+    def test_hotel_budget_without_units_previews_with_defaults(self):
         changes = {'budget':{'value':'200-300','scope':'accommodation','source':'200-300'}}
         reply = self.dispatch(intent(changes),'酒店预算200-300')
-        self.assertIn('预算币种与计价单位',reply)
+        self.assertNotIn('请补充预算币种',reply)
+        self.assertIn('默认币种：人民币',reply)
+        self.assertIn('默认计价：每间每晚',reply)
         self.assertEqual(self.current()['version'],1)
+
+    def test_original_hotel_request_with_model_default_units_reaches_preview(self):
+        text='我希望酒店能高档一点，300-400价格区间，尽量是连锁酒店'
+        changes={'accommodation':{'value':'酒店能高档一点','source':'酒店能高档一点','quality_requested':True,
+                                 'quality_text':'高档一点','chain_mode':'preferred'},
+                 'budget':{'value':'300-400','source':'300-400','scope':'accommodation','unit_text':'人民币每间每晚'}}
+        value=intent(changes,question='请问预算是什么币种和计价单位？')
+        value.update(action='clarify',missing_fields=[])
+        reply=self.dispatch(value,text)
+        self.assertIn('默认币种：人民币',reply)
+        self.assertIn('默认计价：每间每晚',reply)
+        self.assertNotIn('请问预算',reply)
+        draft=TripTool.read_draft(self.store,self.event(''),self.current())['candidate']['spec']
+        self.assertEqual(draft['budgets']['accommodation']['value'],'300-400')
+        self.assertEqual(draft['hotel_preferences']['chain_mode'],'preferred')
+        self.assertTrue(draft['hotel_preferences']['quality_requested'])
+        self.assertEqual(self.current()['version'],1)
+
+    def test_food_budget_without_units_still_requires_clarification(self):
+        changes={'budget':{'value':'200-300','scope':'food','source':'200-300'}}
+        reply=self.dispatch(intent(changes),'餐饮预算200-300')
+        self.assertIn('请补充预算币种与计价单位',reply)
+        self.assertEqual(self.current()['version'],1)
+
+    def test_new_trip_requirement_extraction_uses_the_same_hotel_defaults(self):
+        text='规划武汉两天，酒店预算300-400'
+        client=FakeClient([model_response({'destination':'武汉','duration_text':'两天',
+            'budgets':[{'value':'300-400','source':'300-400','scope':'accommodation'}]})])
+        spec=TripPlanner(client,'test',self.amap).extract(text,{},self.now)
+        budget=spec['budgets']['accommodation']
+        self.assertEqual(budget['value'],'300-400')
+        self.assertEqual(budget['unit_text'],'人民币每间每晚')
+        self.assertEqual(budget['unit_defaults'],{'currency':'人民币','basis':'每间','period':'每晚'})
 
     def test_free_form_travel_requirement_reaches_planner(self):
         changes = {'requirements':{'value':'午后留出一段午休时间','source':'午后留出一段午休时间'}}
@@ -231,7 +298,7 @@ class ContextUpdateTests(unittest.TestCase):
         with self.store._connect() as db:
             db.execute("UPDATE travel_tasks SET expires_at='2000-01-01'")
         self.store = MemoryStore(self.store.database_path)
-        self.service = TripService(self.store,self.planner)
+        self.service = TripTool(self.store,self.planner)
         self.assertIn('保留原城市',self.dispatch())
 
     def test_foreign_owner_and_conversation_are_not_candidates(self):
@@ -243,7 +310,7 @@ class ContextUpdateTests(unittest.TestCase):
         self.save('b','南京')
         e = self.event(MESSAGE,reply_to_id='unknown')
         compiler = IntentCompiler(FakeClient([model_response(intent())]),'test')
-        reply = SemanticTaskService(self.store,compiler,self.service).handle(e,self.store.begin_event(e.event_key))
+        reply = RequestRouter(self.store,compiler,self.service).handle(e,self.store.delivery.begin_event(e.event_key))
         self.assertIn('要调整哪一份',reply)
 
     def test_reply_to_expired_planning_task_still_resolves_saved_trip(self):
@@ -254,7 +321,7 @@ class ContextUpdateTests(unittest.TestCase):
                 ('web',self.event('').storage_scope_id,'old-plan-reply',self.event('','a').event_key,'owner'))
         e = self.event(MESSAGE,reply_to_id='old-plan-reply')
         compiler = IntentCompiler(FakeClient([model_response(intent())]),'test')
-        reply = SemanticTaskService(self.store,compiler,self.service).handle(e,self.store.begin_event(e.event_key))
+        reply = RequestRouter(self.store,compiler,self.service).handle(e,self.store.delivery.begin_event(e.event_key))
         self.assertIn(self.saved['trip_id'],reply)
         self.assertIn('保留原城市',reply)
 
@@ -266,7 +333,7 @@ class ContextUpdateTests(unittest.TestCase):
     def test_linked_reminder_change_invalidates_constraint_preview(self):
         self.dispatch()
         e = self.event('提醒预约','reminder')
-        self.store.reminders.commit(e,self.store.begin_event(e.event_key),
+        self.store.reminders.commit(e,self.store.delivery.begin_event(e.event_key),
             TaskUpdate('reminder','completed',e.content,{}),'created',action='create',reminder={
                 'reminder_id':'M-linked','title':'预约湖北省博物馆','scheduled_at_utc':'2030-09-27T00:00:00+00:00',
                 'source':{'trip_id':self.saved['trip_id'],'entity':'湖北省博物馆','visit_date':'2030-10-01'}})
@@ -307,7 +374,7 @@ class ContextUpdateTests(unittest.TestCase):
 
     def test_long_term_only_save_does_not_change_trip(self):
         e = self.event('记住，以后默认轻松节奏','pref')
-        PreferenceService(self.store.preferences).handle(e,self.store.begin_event(e.event_key))
+        PreferencesTool(self.store.preferences).handle(e,self.store.delivery.begin_event(e.event_key))
         self.assertEqual(self.current()['version'],1)
         self.assertFalse(self.current()['spec']['gentle'])
 
@@ -344,7 +411,7 @@ class ContextUpdateTests(unittest.TestCase):
     def test_only_identical_wrong_transit_task_is_superseded(self):
         for i, text in enumerate((MESSAGE,'从黄鹤楼到武汉站坐公交')):
             e = self.event(text,'transit'+str(i))
-            self.store.tasks.prepare_result(e,self.store.begin_event(e.event_key),
+            self.store.tasks.prepare_result(e,self.store.delivery.begin_event(e.event_key),
                 TaskUpdate('transit','collecting',text,{},('origin','destination')),'question')
         self.dispatch()
         with self.store._connect() as db:
@@ -379,10 +446,10 @@ class ConstraintAndDateTests(unittest.TestCase):
             self.assertEqual((result['start_date'],result['end_date'],result['day_count']),('2026-10-01','2026-10-03',3))
 
     def test_date_conflict_and_invalid_ranges(self):
-        with self.assertRaisesRegex(TripPlanError,'不一致'):
-            self.extract('10月1日到10月3日，四天',{'duration_text':'四天'})
-        with self.assertRaisesRegex(TripPlanError,'不一致'):
-            self.extract('10月1日到10月3日，四天',{})
+        result=self.extract('10月1日到10月3日，四天',{'duration_text':'四天'})
+        self.assertEqual(result['day_count'],3)
+        self.assertIn('原天数要求4天',result['duration_adjustment'])
+        self.assertEqual(self.extract('10月1日到10月3日，四天',{})['day_count'],3)
         for text in ('10月3日到10月1日','12月31日到1月2日','2026年2月30日到3月2日'):
             with self.assertRaises(ValueError):
                 date_range(text,self.now)
@@ -408,8 +475,8 @@ class ConstraintAndDateTests(unittest.TestCase):
         changes = {'budget':{'value':'200-300','scope':'accommodation','source':'200-300'}}
         result,_ = apply_constraints(previous,changes,'酒店200-300')
         self.assertEqual(result['budgets']['trip'],previous['budgets']['trip'])
-        self.assertNotIn('unit_text',result['budgets']['accommodation'])
-        changes['budget']['unit_text']='人民币每间每晚'
+        self.assertEqual(result['budgets']['accommodation']['unit_text'],'人民币每间每晚')
+        changes['budget']['unit_text']='美元每间每晚'
         with self.assertRaises(ValueError):
             apply_constraints(previous,changes,'酒店200-300')
 

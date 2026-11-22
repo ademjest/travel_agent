@@ -1,3 +1,4 @@
+from tools.reservation.tool import ReservationTool
 import tempfile
 import unittest
 from datetime import date
@@ -6,13 +7,10 @@ from types import SimpleNamespace
 
 from core.chat_transport import ChatAttachment
 from infrastructure.memory_store import MemoryStore
-from services.reservation_draft_creator import ReservationDraftCreator
-from tools.agent_tools import (
-    CREATE_RESERVATION_DRAFT_TOOL,
-    AgentToolContext,
-    TOOLS_BY_NAME,
-)
-from tools.reservation_tools import AgentToolRouter
+
+from core.tool_result import AgentToolContext
+from core.tool_result import CREATE_RESERVATION_DRAFT_TOOL, TOOLS_BY_NAME
+from tools.registry import AgentToolRouter
 
 
 class FakeImageService:
@@ -31,9 +29,9 @@ class FakeImageService:
         )
 
 
-class FakeReservationService:
+class FakeReservationService(ReservationTool):
     def __init__(self, store):
-        self.store = store
+        super().__init__(store)
         self.created = []
         self.finished = []
         self.updated = []
@@ -58,8 +56,14 @@ class FakeReservationService:
 
 
 class FakeTravelService:
-    def execute_tool(self, name, arguments):
-        return "unused"
+    manages_read_retries = False
+
+    def execute_scoped_result(self, name, arguments, context):
+        return self.execute_result(name, arguments)
+
+    def execute_result(self, name, arguments):
+        from core.tool_result import ToolResult
+        return ToolResult('completed', name, data='unused')
 
 
 class ReservationCreationToolTests(unittest.TestCase):
@@ -68,17 +72,10 @@ class ReservationCreationToolTests(unittest.TestCase):
         self.store = MemoryStore(Path(self.temp_dir.name) / "memory.db")
         self.image_service = FakeImageService()
         self.reservation_service = FakeReservationService(self.store)
-        creator = ReservationDraftCreator(
-            self.image_service,
-            self.reservation_service,
-        )
-        self.router = AgentToolRouter(
-            FakeTravelService(),
-            self.reservation_service,
-            creator,
-        )
+        self.reservation_service.image_service = self.image_service
+        self.router = AgentToolRouter(FakeTravelService(), self.reservation_service)
         self.event_id = "onebot:group:10001:message-1"
-        self.store.begin_event(self.event_id)
+        self.store.delivery.begin_event(self.event_id)
 
     def tearDown(self):
         self.temp_dir.cleanup()

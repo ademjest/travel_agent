@@ -18,10 +18,11 @@ function usageFixture(identity = "a"): ConversationUsageReport {
 it("shows input plus output without double counting cached or reasoning tokens", () => {
   render(<ConversationUsage conversation="a" usage={usageFixture()} />);
   expect(screen.getByText("120 token · 1 次模型调用")).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(screen.getByText("本会话用量"));
   expect(screen.getByText("缓存输入（包含在输入中）")).toBeTruthy();
   expect(screen.getByText("推理 token（包含在输出中）")).toBeTruthy();
   expect(screen.getAllByText("0.000328 USD").length).toBeGreaterThan(0);
-  fireEvent.click(screen.getByText("本会话用量"));
   expect(screen.getByRole("table", { name: "本会话调用明细" })).toBeTruthy();
   expect(screen.getByText("test-model")).toBeTruthy();
 });
@@ -37,8 +38,9 @@ it("keeps known fees visible when some calls are pending or unknown", () => {
   usage.totals = { ...usage.totals, calls: 2, running_calls: 1, cost_unknown: 1, unknown_usage: 1,
     cache_detail_missing: 1, cost_recalculated: 1 };
   render(<ConversationUsage conversation="a" usage={usage} />);
-  expect(screen.getByText("0.000328 USD；1 次费用待核验")).toBeTruthy();
+  expect(screen.getByText("0.000328 USD；1 次无法估算")).toBeTruthy();
   expect(screen.getByText("1 次调用进行中")).toBeTruthy();
+  fireEvent.click(screen.getByText("本会话用量"));
   expect(screen.getByText(/1 次调用用量尚未返回或缺失/)).toBeTruthy();
 });
 
@@ -49,10 +51,18 @@ it("refreshes totals and keeps currencies separate", () => {
     cost_breakdown: [{ currency: "USD", amount: .000328 }, { currency: "CNY", amount: .002 }] } };
   view.rerender(<ConversationUsage conversation="a" usage={updated} />);
   expect(screen.getByText("240 token · 2 次模型调用")).toBeTruthy();
-  expect(screen.getByText("0.000328 USD + 0.002000 CNY")).toBeTruthy();
+  expect(screen.getByText("0.000328 USD；0.002000 CNY")).toBeTruthy();
 });
 
 it("does not show conversation statistics on the uncreated welcome screen", () => {
   const { container } = render(<ConversationUsage conversation="" />);
   expect(container.textContent).toBe("");
+});
+
+it("closes the independent usage dialog when changing conversations",()=>{
+  const view=render(<ConversationUsage conversation="a" usage={usageFixture()}/>);
+  fireEvent.click(screen.getByText("本会话用量"));
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  view.rerender(<ConversationUsage conversation="b" usage={usageFixture("b")}/>);
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

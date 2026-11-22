@@ -5,3 +5,4 @@ openai
 python-docx
 openpyxl
 tzdata
+mcp==1.30.0

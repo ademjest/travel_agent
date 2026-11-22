@@ -1,10 +1,11 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from agents.travel_decision import decide_travel_action
+from test_travel_decision import route_policy
+from core.intent_ir import IntentOperation
 from infrastructure.amap_client import AmapClient, AmapError
 from core.settings import Settings
-from services.travel_service import TravelService
+from tools.travel_query import TravelQueryTool
 from test_amap_client import geocode_response
 
 
@@ -59,20 +60,21 @@ class TravelDiscoveryTests(unittest.TestCase):
         ]
         route = self.client.non_driving_route('起点', '终点', mode='transit', city='武汉')
         self.assertEqual(route['instructions'], ('步行约 500 米', '地铁测试线：甲站 → 乙站'))
-        self.assertEqual(self.client._get.call_args.args[1]['city'], '武汉')
+        self.assertEqual(self.client._get.call_args.args[1]['city'], '武汉市')
+        self.assertEqual(route['city_source'], 'verified_locations')
 
     def test_explicit_modes_exclude_driving_tool(self):
-        for text, expected in (
-            ('武汉站到湖北省博物馆坐地铁怎么走', 'get_transit_route'),
-            ('武汉黄鹤楼到户部巷步行怎么走', 'get_walking_route'),
-            ('推荐武汉的博物馆', 'search_travel_places'),
+        for text, expected, operation in (
+            ('武汉站到湖北省博物馆坐地铁怎么走', 'get_transit_route', IntentOperation('transit', 'query', {'origin':'武汉站','destination':'湖北省博物馆','city':'武汉'})),
+            ('武汉黄鹤楼到户部巷步行怎么走', 'get_walking_route', IntentOperation('walking', 'query', {'origin':'武汉黄鹤楼','destination':'户部巷'})),
+            ('推荐武汉的博物馆', 'search_travel_places', IntentOperation('places', 'search', {'city':'武汉','keywords':'博物馆'})),
         ):
             with self.subTest(text=text):
-                decision = decide_travel_action(text)
+                decision = route_policy(text, [operation], action='read')
                 self.assertEqual(decision.allowed_tools, (expected,))
 
     def test_service_labels_empty_search_and_real_data_limits(self):
-        service = TravelService(Settings('', '', frozenset(), '', '', '', ''))
+        service = TravelQueryTool(Settings('', '', frozenset(), '', '', '', ''))
         service.amap = Mock()
         service.amap.search_places.return_value = ()
         reply = service.execute_tool('search_travel_places', {'city': '武汉', 'keywords': '酒店'})

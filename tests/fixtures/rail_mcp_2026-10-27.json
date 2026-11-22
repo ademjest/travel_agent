@@ -1,0 +1,317 @@
+{
+  "captured_at": "2026-10-27T10:44:24.477547+00:00",
+  "server": {
+    "name": "12306-mcp",
+    "version": "1.9.4"
+  },
+  "schema_sha256": "4197ba3c4946d8d26e2767b129ca11e91cce960fa64d18e634f3f97d25df7604",
+  "requests": [
+    {
+      "origin": "北京",
+      "destination": "上海",
+      "date": "2026-10-30",
+      "scope": "city",
+      "preference": "high_speed",
+      "window": [
+        0,
+        24
+      ]
+    },
+    {
+      "origin": "北京南",
+      "destination": "上海虹桥",
+      "date": "2026-10-30",
+      "scope": "station",
+      "preference": "high_speed",
+      "window": [
+        0,
+        24
+      ]
+    },
+    {
+      "origin": "北京",
+      "destination": "上海",
+      "date": "2026-10-30",
+      "scope": "city",
+      "preference": "all",
+      "window": [
+        18,
+        24
+      ]
+    },
+    {
+      "origin": "南京南",
+      "destination": "上海虹桥",
+      "date": "2026-10-30",
+      "scope": "station",
+      "preference": "all",
+      "window": [
+        0,
+        1
+      ]
+    }
+  ],
+  "responses": [
+    {
+      "tool": "get-station-code-of-citys",
+      "arguments": {
+        "citys": "北京"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"北京\":{\"station_code\":\"BJP\",\"station_name\":\"北京\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-station-code-of-citys",
+      "arguments": {
+        "citys": "上海"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"上海\":{\"station_code\":\"SHH\",\"station_name\":\"上海\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-tickets",
+      "arguments": {
+        "date": "2026-10-30",
+        "fromStation": "BJP",
+        "toStation": "SHH",
+        "trainFilterFlags": "GD",
+        "earliestStartTime": 0,
+        "latestStartTime": 24,
+        "sortFlag": "startTime",
+        "limitedNum": 6,
+        "format": "json"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "[{\"train_no\":\"240000G53106\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G531\",\"start_time\":\"06:08\",\"arrive_time\":\"12:04\",\"lishi\":\"05:56\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":1744,\"discount\":63},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"无\",\"price\":836,\"discount\":66},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"无\",\"price\":498,\"discount\":63},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":498,\"discount\":63}],\"dw_flag\":[\"复兴号\",\"静音车厢\"]},{\"train_no\":\"240000G54700\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G547\",\"start_time\":\"06:18\",\"arrive_time\":\"12:11\",\"lishi\":\"05:53\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":1995,\"discount\":72},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":929,\"discount\":73},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":553,\"discount\":70},{\"seat_name\":\"优选一等座\",\"short\":\"zy\",\"seat_type_code\":\"D\",\"num\":\"有\",\"price\":1277,\"discount\":73},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":553,\"discount\":70}],\"dw_flag\":[\"智能动车组\",\"复兴号\",\"静音车厢\",\"老年优惠\"]},{\"train_no\":\"24000000G10L\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G1\",\"start_time\":\"06:30\",\"arrive_time\":\"11:24\",\"lishi\":\"04:54\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":1995,\"discount\":72},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":1005,\"discount\":79},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":598,\"discount\":76},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":598,\"discount\":76}],\"dw_flag\":[\"复兴号\",\"静音车厢\"]},{\"train_no\":\"24000000G320\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G3\",\"start_time\":\"06:52\",\"arrive_time\":\"11:33\",\"lishi\":\"04:41\",\"from_station\":\"北京南\",\"to_station\":\"上海\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"SHH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2180,\"discount\":78},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"无\",\"price\":1044,\"discount\":82},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":632,\"discount\":79},{\"seat_name\":\"优选一等座\",\"short\":\"zy\",\"seat_type_code\":\"D\",\"num\":\"无\",\"price\":1434,\"discount\":82},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":632,\"discount\":79}],\"dw_flag\":[\"智能动车组\",\"复兴号\",\"静音车厢\"]},{\"train_no\":\"240000G5650J\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G565\",\"start_time\":\"07:07\",\"arrive_time\":\"13:12\",\"lishi\":\"06:05\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2315,\"discount\":84},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":1033,\"discount\":82},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":626,\"discount\":79},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":626,\"discount\":79}],\"dw_flag\":[\"复兴号\",\"静音车厢\",\"老年优惠\"]},{\"train_no\":\"240000G54900\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G549\",\"start_time\":\"07:13\",\"arrive_time\":\"13:03\",\"lishi\":\"05:50\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2315,\"discount\":84},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":967,\"discount\":76},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":576,\"discount\":73},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":576,\"discount\":73}],\"dw_flag\":[\"复兴号\",\"静音车厢\",\"老年优惠\"]}]",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-station-code-by-names",
+      "arguments": {
+        "stationNames": "北京南"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"北京南\":{\"station_code\":\"VNP\",\"station_name\":\"北京南\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-station-code-by-names",
+      "arguments": {
+        "stationNames": "上海虹桥"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"上海虹桥\":{\"station_code\":\"AOH\",\"station_name\":\"上海虹桥\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-tickets",
+      "arguments": {
+        "date": "2026-10-30",
+        "fromStation": "VNP",
+        "toStation": "AOH",
+        "trainFilterFlags": "GD",
+        "earliestStartTime": 0,
+        "latestStartTime": 24,
+        "sortFlag": "startTime",
+        "limitedNum": 6,
+        "format": "json"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "[{\"train_no\":\"240000G53106\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G531\",\"start_time\":\"06:08\",\"arrive_time\":\"12:04\",\"lishi\":\"05:56\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":1744,\"discount\":63},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"无\",\"price\":836,\"discount\":66},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"无\",\"price\":498,\"discount\":63},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":498,\"discount\":63}],\"dw_flag\":[\"复兴号\",\"静音车厢\"]},{\"train_no\":\"240000G54700\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G547\",\"start_time\":\"06:18\",\"arrive_time\":\"12:11\",\"lishi\":\"05:53\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":1995,\"discount\":72},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":929,\"discount\":73},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":553,\"discount\":70},{\"seat_name\":\"优选一等座\",\"short\":\"zy\",\"seat_type_code\":\"D\",\"num\":\"有\",\"price\":1277,\"discount\":73},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":553,\"discount\":70}],\"dw_flag\":[\"智能动车组\",\"复兴号\",\"静音车厢\",\"老年优惠\"]},{\"train_no\":\"24000000G10L\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G1\",\"start_time\":\"06:30\",\"arrive_time\":\"11:24\",\"lishi\":\"04:54\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":1995,\"discount\":72},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":1005,\"discount\":79},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":598,\"discount\":76},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":598,\"discount\":76}],\"dw_flag\":[\"复兴号\",\"静音车厢\"]},{\"train_no\":\"24000000G320\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G3\",\"start_time\":\"06:52\",\"arrive_time\":\"11:33\",\"lishi\":\"04:41\",\"from_station\":\"北京南\",\"to_station\":\"上海\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"SHH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2180,\"discount\":78},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"无\",\"price\":1044,\"discount\":82},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":632,\"discount\":79},{\"seat_name\":\"优选一等座\",\"short\":\"zy\",\"seat_type_code\":\"D\",\"num\":\"无\",\"price\":1434,\"discount\":82},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":632,\"discount\":79}],\"dw_flag\":[\"智能动车组\",\"复兴号\",\"静音车厢\"]},{\"train_no\":\"240000G5650J\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G565\",\"start_time\":\"07:07\",\"arrive_time\":\"13:12\",\"lishi\":\"06:05\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2315,\"discount\":84},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":1033,\"discount\":82},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":626,\"discount\":79},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":626,\"discount\":79}],\"dw_flag\":[\"复兴号\",\"静音车厢\",\"老年优惠\"]},{\"train_no\":\"240000G54900\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G549\",\"start_time\":\"07:13\",\"arrive_time\":\"13:03\",\"lishi\":\"05:50\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2315,\"discount\":84},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"有\",\"price\":967,\"discount\":76},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":576,\"discount\":73},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":576,\"discount\":73}],\"dw_flag\":[\"复兴号\",\"静音车厢\",\"老年优惠\"]}]",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-station-code-of-citys",
+      "arguments": {
+        "citys": "北京"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"北京\":{\"station_code\":\"BJP\",\"station_name\":\"北京\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-station-code-of-citys",
+      "arguments": {
+        "citys": "上海"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"上海\":{\"station_code\":\"SHH\",\"station_name\":\"上海\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-tickets",
+      "arguments": {
+        "date": "2026-10-30",
+        "fromStation": "BJP",
+        "toStation": "SHH",
+        "trainFilterFlags": "",
+        "earliestStartTime": 18,
+        "latestStartTime": 24,
+        "sortFlag": "startTime",
+        "limitedNum": 6,
+        "format": "json"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "[{\"train_no\":\"2400000G2930\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G29\",\"start_time\":\"18:00\",\"arrive_time\":\"22:43\",\"lishi\":\"04:43\",\"from_station\":\"北京南\",\"to_station\":\"上海\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"SHH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2337,\"discount\":84},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"无\",\"price\":1069,\"discount\":84},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":667,\"discount\":84},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":667,\"discount\":84}],\"dw_flag\":[\"复兴号\",\"静音车厢\"]},{\"train_no\":\"2400000G3130\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G31\",\"start_time\":\"18:04\",\"arrive_time\":\"22:58\",\"lishi\":\"04:54\",\"from_station\":\"北京南\",\"to_station\":\"上海虹桥\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"AOH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2315,\"discount\":84},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"无\",\"price\":1058,\"discount\":84},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":661,\"discount\":84},{\"seat_name\":\"优选一等座\",\"short\":\"zy\",\"seat_type_code\":\"D\",\"num\":\"无\",\"price\":1455,\"discount\":84},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":661,\"discount\":84}],\"dw_flag\":[\"智能动车组\",\"复兴号\",\"静音车厢\"]},{\"train_no\":\"2400000G3340\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-30\",\"start_train_code\":\"G33\",\"start_time\":\"19:00\",\"arrive_time\":\"23:35\",\"lishi\":\"04:35\",\"from_station\":\"北京南\",\"to_station\":\"上海\",\"from_station_telecode\":\"VNP\",\"to_station_telecode\":\"SHH\",\"prices\":[{\"seat_name\":\"商务座\",\"short\":\"swz\",\"seat_type_code\":\"9\",\"num\":\"无\",\"price\":2337,\"discount\":84},{\"seat_name\":\"一等座\",\"short\":\"zy\",\"seat_type_code\":\"M\",\"num\":\"无\",\"price\":1069,\"discount\":84},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"无\",\"price\":667,\"discount\":84},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":667,\"discount\":84}],\"dw_flag\":[\"智能动车组\",\"复兴号\",\"静音车厢\",\"老年优惠\"]},{\"train_no\":\"2400000D170O\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-31\",\"start_train_code\":\"D17\",\"start_time\":\"19:10\",\"arrive_time\":\"07:31\",\"lishi\":\"12:21\",\"from_station\":\"北京\",\"to_station\":\"上海松江\",\"from_station_telecode\":\"BJP\",\"to_station_telecode\":\"IMH\",\"prices\":[{\"seat_name\":\"二等卧\",\"short\":\"yw\",\"seat_type_code\":\"J\",\"num\":\"有\",\"price\":516,\"discount\":2076},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":367,\"discount\":80},{\"seat_name\":\"一等卧\",\"short\":\"rw\",\"seat_type_code\":\"I\",\"num\":\"有\",\"price\":697,\"discount\":1080},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"15\",\"price\":367,\"discount\":80}],\"dw_flag\":[\"复兴号\",\"支持选铺\",\"老年优惠\"]},{\"train_no\":\"330000Z28412\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-31\",\"start_train_code\":\"Z281\",\"start_time\":\"19:10\",\"arrive_time\":\"08:44\",\"lishi\":\"13:34\",\"from_station\":\"北京丰台\",\"to_station\":\"上海松江\",\"from_station_telecode\":\"FTP\",\"to_station_telecode\":\"IMH\",\"prices\":[{\"seat_name\":\"硬座\",\"short\":\"yz\",\"seat_type_code\":\"1\",\"num\":\"无\",\"price\":177.5,\"discount\":null},{\"seat_name\":\"软卧\",\"short\":\"rw\",\"seat_type_code\":\"4\",\"num\":\"无\",\"price\":476.5,\"discount\":null},{\"seat_name\":\"硬卧\",\"short\":\"yw\",\"seat_type_code\":\"3\",\"num\":\"无\",\"price\":304.5,\"discount\":null},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":177.5,\"discount\":null}],\"dw_flag\":[\"支持选铺\"]},{\"train_no\":\"24000000D72M\",\"start_date\":\"2026-10-30\",\"arrive_date\":\"2026-10-31\",\"start_train_code\":\"D7\",\"start_time\":\"19:18\",\"arrive_time\":\"07:25\",\"lishi\":\"12:07\",\"from_station\":\"北京\",\"to_station\":\"上海\",\"from_station_telecode\":\"BJP\",\"to_station_telecode\":\"SHH\",\"prices\":[{\"seat_name\":\"二等卧\",\"short\":\"yw\",\"seat_type_code\":\"J\",\"num\":\"有\",\"price\":508,\"discount\":2076},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"2\",\"price\":361,\"discount\":80},{\"seat_name\":\"一等卧\",\"short\":\"rw\",\"seat_type_code\":\"I\",\"num\":\"有\",\"price\":686,\"discount\":1080},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"有\",\"price\":361,\"discount\":80}],\"dw_flag\":[\"复兴号\",\"支持选铺\",\"老年优惠\"]}]",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-station-code-by-names",
+      "arguments": {
+        "stationNames": "南京南"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"南京南\":{\"station_code\":\"NKH\",\"station_name\":\"南京南\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-station-code-by-names",
+      "arguments": {
+        "stationNames": "上海虹桥"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"上海虹桥\":{\"station_code\":\"AOH\",\"station_name\":\"上海虹桥\"}}",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    },
+    {
+      "tool": "get-tickets",
+      "arguments": {
+        "date": "2026-10-30",
+        "fromStation": "NKH",
+        "toStation": "AOH",
+        "trainFilterFlags": "",
+        "earliestStartTime": 0,
+        "latestStartTime": 1,
+        "sortFlag": "startTime",
+        "limitedNum": 6,
+        "format": "json"
+      },
+      "response": {
+        "meta": null,
+        "content": [
+          {
+            "type": "text",
+            "text": "[{\"train_no\":\"0h0000Z1780I\",\"start_date\":\"2026-10-28\",\"arrive_date\":\"2026-10-28\",\"start_train_code\":\"Z175\",\"start_time\":\"00:08\",\"arrive_time\":\"04:01\",\"lishi\":\"03:53\",\"from_station\":\"南京\",\"to_station\":\"上海松江\",\"from_station_telecode\":\"NJH\",\"to_station_telecode\":\"IMH\",\"prices\":[{\"seat_name\":\"硬座\",\"short\":\"yz\",\"seat_type_code\":\"1\",\"num\":\"无\",\"price\":50.5,\"discount\":null},{\"seat_name\":\"软卧\",\"short\":\"rw\",\"seat_type_code\":\"4\",\"num\":\"2\",\"price\":146.5,\"discount\":null},{\"seat_name\":\"硬卧\",\"short\":\"yw\",\"seat_type_code\":\"3\",\"num\":\"1\",\"price\":96.5,\"discount\":null},{\"seat_name\":\"高级软卧\",\"short\":\"gr\",\"seat_type_code\":\"6\",\"num\":\"无\",\"price\":261.5,\"discount\":null},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":50.5,\"discount\":null}],\"dw_flag\":[\"支持选铺\"]},{\"train_no\":\"4700000D6101\",\"start_date\":\"2026-10-29\",\"arrive_date\":\"2026-10-29\",\"start_train_code\":\"D61\",\"start_time\":\"00:49\",\"arrive_time\":\"04:21\",\"lishi\":\"03:32\",\"from_station\":\"南京\",\"to_station\":\"上海松江\",\"from_station_telecode\":\"NJH\",\"to_station_telecode\":\"IMH\",\"prices\":[{\"seat_name\":\"二等卧\",\"short\":\"yw\",\"seat_type_code\":\"J\",\"num\":\"1\",\"price\":111,\"discount\":2061},{\"seat_name\":\"二等座\",\"short\":\"ze\",\"seat_type_code\":\"O\",\"num\":\"有\",\"price\":58,\"discount\":58},{\"seat_name\":\"一等卧\",\"short\":\"rw\",\"seat_type_code\":\"I\",\"num\":\"无\",\"price\":139,\"discount\":1059},{\"seat_name\":\"无座\",\"short\":\"wz\",\"seat_type_code\":\"W\",\"num\":\"无\",\"price\":58,\"discount\":58}],\"dw_flag\":[\"复兴号\",\"支持选铺\"]}]",
+            "annotations": null,
+            "meta": null
+          }
+        ],
+        "structuredContent": null,
+        "isError": false
+      }
+    }
+  ],
+  "note": "Original limited six-row samples; replay proves normalization, not completeness or current availability."
+}

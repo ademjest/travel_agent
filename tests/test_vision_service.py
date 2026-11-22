@@ -6,10 +6,7 @@ from types import SimpleNamespace
 
 from core.chat_transport import ChatAttachment
 from infrastructure.memory_store import MemoryStore
-from services.vision_service import (
-    ImageVisionExtractor,
-    ReservationImageService,
-)
+from tools.reservation.tool import ImageVisionExtractor, ReservationImageService
 
 
 class FakeResponse:
@@ -259,7 +256,7 @@ class VisionServiceTests(unittest.TestCase):
             ["not json", "still not json"],
         )
         with self.assertLogs(
-                "services.vision_service", level="WARNING"):
+                "tools.reservation.tool", level="WARNING"):
             result = service.process_attachment(
                 "group-a",
                 "qq_official",
@@ -279,7 +276,7 @@ class VisionServiceTests(unittest.TestCase):
             [TimeoutError("model timeout")],
         )
         with self.assertLogs(
-                "services.vision_service", level="WARNING"):
+                "tools.reservation.tool", level="WARNING"):
             result = service.process_attachment(
                 "group-a",
                 "qq_official",

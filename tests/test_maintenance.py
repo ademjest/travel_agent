@@ -33,13 +33,13 @@ class MaintenanceServiceTests(unittest.TestCase):
 
     def test_terminal_events_bindings_and_orphan_images_are_purged(self):
         old = self.now - timedelta(days=100)
-        claim = self.store.begin_event("old-event", now=old)
-        self.store.complete_event(
+        claim = self.store.delivery.begin_event("old-event", now=old)
+        self.store.delivery.complete_event(
             claim.event_id,
             claim.claim_token,
             now=old,
         )
-        self.store.create_upload_binding(
+        self.store.uploads.create_upload_binding(
             code_hash="old-binding",
             group_openid="group-a",
             issuer_openid="member-a",
@@ -48,7 +48,7 @@ class MaintenanceServiceTests(unittest.TestCase):
         )
         image_path = self.image_root / "old.jpg"
         image_path.write_bytes(b"image")
-        self.store.create_reservation_image(
+        self.store.reservations.create_reservation_image(
             storage_scope_id="scope-a",
             platform="qq_official",
             group_id="group-a",
@@ -71,7 +71,7 @@ class MaintenanceServiceTests(unittest.TestCase):
 
     def test_document_retention_is_disabled_by_default(self):
         old = self.now - timedelta(days=400)
-        self.store.add_document(
+        self.store.documents.add_document(
             "group-a",
             "member-a",
             "trip.txt",
@@ -88,7 +88,7 @@ class MaintenanceServiceTests(unittest.TestCase):
         result = self.service.run_once(self.now)
 
         self.assertEqual(result["documents"], 0)
-        self.assertTrue(self.store.list_document_contents("group-a"))
+        self.assertTrue(self.store.documents.list_document_contents("group-a"))
 
 
 if __name__ == "__main__":

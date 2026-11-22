@@ -40,23 +40,24 @@ def parse_profiles(raw):
     return value
 
 
-def pricing_config(model=None, default_model=None):
-    provider = os.getenv('LLM_PROVIDER_ALIAS','').strip()
-    for profile in parse_profiles(os.getenv('LLM_MODEL_PRICES','')):
+def pricing_config(model=None, default_model=None, values=None):
+    values = os.environ if values is None else values
+    provider = values.get('LLM_PROVIDER_ALIAS','').strip()
+    for profile in parse_profiles(values.get('LLM_MODEL_PRICES','')):
         if profile['model'] == model and profile.get('provider','') == provider:
             return {'input':profile.get('input'), 'cached':profile.get('cached',profile.get('input')),
                     'output':profile.get('output'), 'currency':profile['currency'],
                     'version':profile.get('version',''), 'provider':provider}
-    known_default = default_model or os.getenv('LLM_MODEL_ID','').strip()
+    known_default = default_model or values.get('LLM_MODEL_ID','').strip()
     allowed = not model or not known_default or model == known_default
     def rate(key):
-        return float(decimal_price(os.getenv(key,''))) if allowed and os.getenv(key,'').strip() else None
+        return float(decimal_price(values.get(key,''))) if allowed and values.get(key,'').strip() else None
     normal = rate('LLM_INPUT_PRICE_PER_M')
     cached = rate('LLM_CACHED_INPUT_PRICE_PER_M')
     return {'input':normal, 'cached':normal if cached is None else cached,
             'output':rate('LLM_OUTPUT_PRICE_PER_M'),
-            'currency':os.getenv('LLM_PRICE_CURRENCY','').strip().upper() or 'USD',
-            'version':os.getenv('LLM_CONFIG_VERSION','').strip(), 'provider':provider}
+            'currency':values.get('LLM_PRICE_CURRENCY','').strip().upper() or 'USD',
+            'version':values.get('LLM_CONFIG_VERSION','').strip(), 'provider':provider}
 
 
 def estimate_cost(prompt, cached, completion, pricing):

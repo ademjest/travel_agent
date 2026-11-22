@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-11-05",
+  "meaning": "官方页面列出的品牌/会员体系；名称命中不等于已逐店核实加盟关系，不表达酒店所有权或房价档次。",
+  "groups": [
+    {
+      "id": "hworld",
+      "name": "华住会品牌体系",
+      "aliases": [
+        "华住会",
+        "华住",
+        "华住集团"
+      ],
+      "legacy_aliases": [
+        "华住会",
+        "华住",
+        "华住集团"
+      ],
+      "source": "https://www.hworld.com/",
+      "source_sha256": "641689fc7ab67695b7a2c0cde5f083604f69cdeccd26ab38083a5ec52214a77a",
+      "coverage": "official_homepage_brand_list",
+      "brands": [
+        {
+          "name": "汉庭酒店",
+          "source": "https://m.hworld.com/hotel/hanting"
+        },
+        {
+          "name": "全季大观",
+          "source": "https://www.hworld.com/"
+        },
+        {
+          "name": "全季酒店",
+          "source": "https://www.hworld.com/hotel/quanji"
+        },
+        {
+          "name": "宋品",
+          "source": "https://www.hworld.com/hotel/song"
+        },
+        {
+          "name": "禧玥酒店",
+          "source": "https://www.hworld.com/hotel/joya"
+        },
+        {
+          "name": "城家公寓",
+          "source": "https://www.hworld.com/hotel/cjia-apartment"
+        },
+        {
+          "name": "城家公寓酒店",
+          "source": "https://www.hworld.com/hotel/cjia-apartment-prime"
+        },
+        {
+          "name": "瑞贝庭公寓酒店",
+          "source": "https://www.hworld.com/"
+        },
+        {
+          "name": "你好酒店",
+          "source": "https://www.hworld.com/hotel/nihao"
+        },
+        {
+          "name": "桔子水晶",
+          "source": "https://www.hworld.com/hotel/juzishuijing"
+        },
+        {
+          "name": "桔子酒店",
+          "source": "https://www.hworld.com/hotel/juzi"
+        },
+        {
+          "name": "施柏阁大观",
+          "source": "https://www.hworld.com/hotel/steigenberger-icons"
+        },
+        {
+          "name": "花间堂",
+          "source": "https://www.hworld.com/hotel/huajiantang"
+        },
+        {
+          "name": "馨乐庭",
+          "source": "https://www.hworld.com/hotel/citadines"
+        },
+        {
+          "name": "城际酒店",
+          "source": "https://www.hworld.com/hotel/intercity"
+        },
+        {
+          "name": "宜必思酒店",
+          "source": "https://www.hworld.com/hotel/ibis"
+        },
+        {
+          "name": "施柏阁",
+          "source": "https://www.hworld.com/hotel/steigenberger"
+        },
+        {
+          "name": "欢阁服务公寓",
+          "source": "https://www.hworld.com/hotel/citigo-house"
+        },
+        {
+          "name": "汉庭快捷",
+          "source": "https://www.hworld.com/"
+        },
+        {
+          "name": "星程酒店",
+          "source": "https://www.hworld.com/hotel/starway"
+        },
+        {
+          "name": "漫心府",
+          "source": "https://www.hworld.com/"
+        },
+        {
+          "name": "美仑美奂",
+          "source": "https://www.hworld.com/hotel/maxx"
+        },
+        {
+          "name": "美仑国际",
+          "source": "https://www.hworld.com/hotel/grand-madison"
+        },
+        {
+          "name": "城家奢华公寓",
+          "source": "https://www.hworld.com/hotel/cjia-lux"
+        },
+        {
+          "name": "海友酒店",
+          "source": "https://www.hworld.com/hotel/hi-lnn"
+        },
+        {
+          "name": "美居酒店",
+          "source": "https://www.hworld.com/hotel/mercure"
+        },
+        {
+          "name": "漫心酒店",
+          "source": "https://www.hworld.com/hotel/manxin"
+        },
+        {
+          "name": "欢阁酒店",
+          "source": "https://www.hworld.com/hotel/citigo"
+        },
+        {
+          "name": "碧舍",
+          "source": "https://www.hworld.com/"
+        },
+        {
+          "name": "美仑酒店",
+          "source": "https://www.hworld.com/hotel/madison"
+        },
+        {
+          "name": "jaz",
+          "source": "https://www.hworld.com/"
+        },
+        {
+          "name": "诺富特",
+          "source": "https://www.hworld.com/hotel/novotel"
+        }
+      ]
+    },
+    {
+      "id": "homeinns",
+      "name": "首旅如家品牌体系",
+      "aliases": [
+        "如家",
+        "如家集团",
+        "首旅如家",
+        "首旅如家集团",
+        "首旅如家酒店集团"
+      ],
+      "legacy_aliases": [
+        "如家集团",
+        "首旅如家",
+        "首旅如家集团",
+        "首旅如家酒店集团"
+      ],
+      "source": "https://www.bthhotels.com/About/Index",
+      "source_sha256": "37df4d73771c79bdb263fd902e9add252f212744e2a3e1ebd622608f7ce50c3a",
+      "coverage": "reviewed_subset_not_exhaustive",
+      "brands": [
+        {
+          "name": "如家酒店",
+          "source": "https://www.bthhotels.com/About/homeinn"
+        },
+        {
+          "name": "如家商旅酒店",
+          "source": "https://www.bthhotels.com/About/rjsl"
+        },
+        {
+          "name": "如家精选酒店",
+          "source": "https://www.bthhotels.com/About/plus"
+        },
+        {
+          "name": "和颐至尚酒店",
+          "source": "https://www.bthhotels.com/About/ytelzs"
+        },
+        {
+          "name": "莫泰酒店",
+          "source": "https://www.bthhotels.com/About/motel"
+        },
+        {
+          "name": "驿居酒店",
+          "source": "https://www.bthhotels.com/About/Index"
+        }
+      ]
+    }
+  ]
+}

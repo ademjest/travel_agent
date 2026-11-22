@@ -31,6 +31,10 @@ class SearchClient:
                 payload[key] = list(dict.fromkeys(domains))
         if payload.get('include_domains'):
             payload['include_domains_mode'] = 'restrict'
+        from infrastructure.execution_diagnostics import SEARCH_TRACE
+        trace = SEARCH_TRACE.get()
+        if trace is not None:
+            trace.record('search-attempts', payload)
         data, _, _ = request_public(self.base_url + '/search',
             headers={'Authorization': 'Bearer ' + self.key},
             payload=payload, max_bytes=300_000, diagnostics=self.diagnostics)
@@ -39,8 +43,11 @@ class SearchClient:
             rows = value['results']
             if not isinstance(rows, list):
                 raise ValueError()
-            return [{'url': row['url'][:2000], 'title': row.get('title', '')[:200],
+            result = [{'url': row['url'][:2000], 'title': row.get('title', '')[:200],
                      'snippet': row.get('content', '')[:1500], 'published_at': row.get('published_date') or ''}
                     for row in rows[:5] if isinstance(row, dict) and isinstance(row.get('url'), str)]
+            if trace is not None:
+                trace.record('search-results', {'query':payload['query'], 'raw':value, 'normalized':result})
+            return result
         except (KeyError, ValueError, TypeError):
             raise PublicHTTPError('invalid_response') from None

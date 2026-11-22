@@ -5,6 +5,18 @@ from core.background_supervisor import BackgroundSupervisor
 
 
 class BackgroundSupervisorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_optional_resource_is_started_once_and_closed_with_supervisor(self):
+        calls=[]
+        class Optional:
+            def start(self): calls.append('start')
+            async def close(self): calls.append('close')
+        supervisor=BackgroundSupervisor(resources=(Optional(),))
+        stop=asyncio.Event()
+        supervisor.start('a',stop.wait)
+        supervisor.start('b',stop.wait)
+        await supervisor.stop()
+        self.assertEqual(calls,['start','close'])
+
     async def test_failed_task_is_restarted_and_reported(self):
         supervisor = BackgroundSupervisor(restart_delay_seconds=0.01)
         restarted = asyncio.Event()

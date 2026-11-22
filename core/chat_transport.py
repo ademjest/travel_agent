@@ -56,6 +56,11 @@ class ChatEvent:
     attachments: tuple[ChatAttachment, ...] = ()
     occurred_at: datetime | None = None
     trip_edit: dict[str, Any] | None = None
+    rail_query: dict[str, Any] | None = None
+    message_reference: dict[str, Any] | None = None
+    draft_action: dict[str, Any] | None = None
+    confirmation: dict[str, Any] | None = None
+    hotel_action: dict[str, Any] | None = None
 
     @property
     def event_key(self) -> str:

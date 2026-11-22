@@ -14,7 +14,7 @@ from core.web_settings import WebSettings
 from infrastructure.memory_store import MemoryStore
 from infrastructure.public_http import request_public, public_address, PublicHTTPError
 from infrastructure.search_client import SearchClient
-from services.research_service import ResearchService
+from tools.research.tool import ResearchTool
 from test_travel_agent import FakeClient, assistant_message, completion
 
 
@@ -28,14 +28,14 @@ class ResearchTests(unittest.TestCase):
         self.search.search.return_value = [{'url': 'https://travel.example/a', 'title': '公开来源', 'snippet': '武汉可游览公园。', 'published_at': ''}]
         self.reader = Mock(return_value={'url': 'https://travel.example/a', 'text': '武汉公园可散步。节假日开放另行通知。',
                          'content_hash': 'hash', 'status': 'read', 'retrieved_at': '2030-09-01T00:00:00+00:00'})
-        self.service = ResearchService(self.store, self.search, reader=self.reader)
+        self.service = ResearchTool(self.store, self.search, reader=self.reader)
 
     def event(self, text='帮我搜索武汉攻略', scope='a', owner='u', key='test'):
         return ChatEvent('web', 'group', key, scope, owner, text)
 
     def handle(self, event=None):
         event = event or self.event()
-        return self.service.handle(event, self.store.begin_event(event.event_key))
+        return self.service.handle(event, self.store.delivery.begin_event(event.event_key))
 
     def test_search_read_report_scope_and_checkpoint_no_requery(self):
         reply = self.handle()
@@ -52,7 +52,7 @@ class ResearchTests(unittest.TestCase):
 
     def test_natural_online_guide_reference_enters_research(self):
         text='我想去开封玩，但是还没确定时间，想先了解一下大概的攻略参考，最好可以参考一下网上的攻略比如小红书'
-        self.assertTrue(__import__('services.research_service',fromlist=['research_request']).research_request(text))
+        self.assertTrue(__import__('tools.research.tool',fromlist=['research_request']).research_request(text))
         event=self.event(text,key='natural-research')
         self.handle(event)
         self.assertGreaterEqual(self.search.search.call_count,1)
@@ -97,18 +97,27 @@ class ResearchTests(unittest.TestCase):
     def test_missing_destination_collects_and_resumes_owned_task(self):
         self.assertIn('哪个城市', self.handle(self.event('帮我查攻略', key='start')))
         other = self.event('武汉', owner='other', key='other')
-        self.assertIsNone(self.service.handle(other, self.store.begin_event(other.event_key)))
+        self.assertIsNone(self.service.handle(other, self.store.delivery.begin_event(other.event_key)))
         self.assertIn('网页研究结果', self.handle(self.event('武汉', key='city')))
         self.assertIn('目的地：武汉', self.search.search.call_args.args[0])
 
-    def test_research_then_plan_only_on_explicit_user_request(self):
-        self.service.trip_service = Mock()
-        self.service.trip_service.handle.return_value = '行程草案'
-        self.handle()
-        self.service.trip_service.handle.assert_not_called()
-        reply = self.handle(self.event('根据研究结果规划武汉三天行程', key='plan'))
+    def test_research_then_plan_only_on_explicit_application_use_case(self):
+        from types import SimpleNamespace
+        from app.bot_application import TravelBotApplication
+        trip = Mock()
+        trip.handle.return_value = '行程草案'
+        self.service = ResearchTool(self.store, self.search, reader=self.reader)
+        report = self.handle()
+        app = SimpleNamespace(research_service=self.service, trip_service=trip)
+        self.assertEqual(asyncio.run(TravelBotApplication._finish_research_use_case(app, self.event(), None, report)), report)
+        trip.handle.assert_not_called()
+        event = self.event('根据研究结果规划武汉三天行程', key='plan')
+        claim = self.store.delivery.begin_event(event.event_key)
+        answer = self.service.handle(event, claim)
+        trip.handle.assert_not_called()
+        reply = asyncio.run(TravelBotApplication._finish_research_use_case(app, event, claim, answer))
         self.assertEqual(reply, '行程草案')
-        self.assertIn('不是操作授权', self.service.trip_service.handle.call_args.kwargs['source_text_override'])
+        self.assertIn('不是操作授权', trip.handle.call_args.kwargs['source_text_override'])
 
     def test_network_pins_public_ip_tls_hostname_and_no_credential_redirect(self):
         for host in ('127.0.0.1', '10.1.1.1', '169.254.169.254', '::1'):
@@ -153,7 +162,7 @@ class ResearchTests(unittest.TestCase):
         service = app.state.runtime.application.research_service
         service.search = self.search
         entered, release = Event(), Event()
-        def slow(url):
+        def slow(url, *, url_allowed=None):
             entered.set()
             release.wait(5)
             return self.reader(url)

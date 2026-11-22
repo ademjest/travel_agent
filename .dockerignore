@@ -2,7 +2,9 @@
 .env.*
 !.env.example
 .git
-data
+data/*
+!data/official_sources.json
+!data/attraction_aliases.json
 *.log
 *.log.*
 **/__pycache__

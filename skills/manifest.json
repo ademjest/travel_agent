@@ -1,0 +1,421 @@
+{
+  "schema_version": "application-skills-v1",
+  "stages": [
+    {
+      "id": "trip.answer",
+      "owner": "tools/trip/presentation.py",
+      "version": "trip-answer-v7-cultural-materials",
+      "purpose": "trip_answer_write",
+      "content": {
+        "fragments": "skills/trip/answer.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "requirements",
+        "changes",
+        "days",
+        "meals",
+        "transport",
+        "lodging"
+      ],
+      "output_contract_ref": "tools/trip/presentation.py:validate_answer",
+      "regression_refs": [
+        "tests/test_trip_presentation.py",
+        "tests/test_trip_presentation_lifecycle.py"
+      ]
+    },
+    {
+      "id": "intent.compile",
+      "owner": "agents/intent_compiler.py",
+      "version": "intent-ir-v32-select-before-lookup",
+      "purpose": "intent_parse",
+      "content": {
+        "fragments": "skills/intent/compile.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "message",
+        "context",
+        "research_repair",
+        "preference_fields",
+        "intent_repair"
+      ],
+      "output_contract_ref": "agents/intent_compiler.py:parse_intent_ir",
+      "regression_refs": [
+        "tests/test_request_router.py",
+        "tests/test_rail_query.py",
+        "tests/test_hotel_flow_state.py",
+        "tests/test_hotel_budget_recovery.py"
+      ]
+    },
+    {
+      "id": "agent.respond",
+      "owner": "agents/travel_agent.py",
+      "version": "travel-agent-v5-hotel-flow",
+      "purpose": "tool_reasoning",
+      "content": {
+        "fragments": "skills/agent/respond.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "decision",
+        "reference_time",
+        "catalog_version",
+        "history",
+        "user_message",
+        "tool_results"
+      ],
+      "output_contract_ref": "agents/travel_agent.py:AgentResult",
+      "regression_refs": [
+        "tests/test_travel_agent.py",
+        "tests/test_rail_query.py",
+        "tests/test_hotel_flow_state.py"
+      ]
+    },
+    {
+      "id": "research.search_plan",
+      "owner": "tools/research/tool.py",
+      "version": "research-search-plan-v1",
+      "purpose": "research_plan",
+      "content": {
+        "policy": "skills/travel-research/SKILL.md",
+        "fragments": "skills/travel-research/search_plan.json"
+      },
+      "resources": {
+        "sources": "skills/travel-research/sources.json"
+      },
+      "input_fields": [
+        "request",
+        "sources"
+      ],
+      "output_contract_ref": "tools/research/tool.py:ResearchSearchPlanner.plan",
+      "regression_refs": [
+        "tests/test_research_search_policy.py"
+      ]
+    },
+    {
+      "id": "research.targets",
+      "owner": "tools/research/tool.py",
+      "version": "research-targets-v3",
+      "purpose": "research_targets",
+      "content": {
+        "policy": "skills/travel-research/SKILL.md",
+        "fragments": "skills/travel-research/targets.json"
+      },
+      "resources": {
+        "sources": "skills/travel-research/sources.json"
+      },
+      "input_fields": [
+        "request",
+        "validated_fields",
+        "untrusted_plan",
+        "sources"
+      ],
+      "output_contract_ref": "tools/research/tool.py:ResearchSearchPlanner.plan_targets",
+      "regression_refs": [
+        "tests/test_research_day_grounding.py"
+      ]
+    },
+    {
+      "id": "research.facts",
+      "owner": "tools/research/tool.py",
+      "version": "research-facts-v1",
+      "purpose": "research_fact_synthesis",
+      "content": {
+        "fragments": "skills/travel-research/facts.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "targets",
+        "topics",
+        "sources",
+        "dates"
+      ],
+      "output_contract_ref": "tools/research/tool.py:ResearchTool._fact_synthesis",
+      "regression_refs": [
+        "tests/test_official_attraction_research.py"
+      ]
+    },
+    {
+      "id": "research.synthesis",
+      "owner": "tools/research/tool.py",
+      "version": "research-synthesis-v4",
+      "purpose": "research_synthesis",
+      "content": {
+        "fragments": "skills/travel-research/synthesis.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "request",
+        "preference_defaults",
+        "evidence"
+      ],
+      "output_contract_ref": "tools/research/tool.py:validate_research_items",
+      "regression_refs": [
+        "tests/test_research_evidence.py"
+      ]
+    },
+    {
+      "id": "research.write",
+      "owner": "tools/research/evidence.py",
+      "version": "travel-answer-v3-intro-practical",
+      "purpose": "travel_answer_write",
+      "content": {
+        "fragments": "skills/travel-research/write.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "request",
+        "rich",
+        "dates",
+        "snapshot",
+        "entries"
+      ],
+      "output_contract_ref": "tools/research/evidence.py:validate_written",
+      "regression_refs": [
+        "tests/test_travel_answer.py"
+      ]
+    },
+    {
+      "id": "trip.requirements",
+      "owner": "tools/trip/planner.py",
+      "version": "trip-requirements-v11-hotel-stay",
+      "purpose": "trip_requirement_extract",
+      "content": {
+        "fragments": "skills/trip/requirements.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "previous",
+        "message",
+        "documents"
+      ],
+      "output_contract_ref": "tools/trip/planner.py:TripPlanner.extract",
+      "regression_refs": [
+        "tests/test_trip_planner_contract.py",
+        "tests/test_intercity_planning.py"
+      ]
+    },
+    {
+      "id": "trip.plan",
+      "owner": "tools/trip/planner.py",
+      "version": "trip-plan-v8-structural-context-quotes-v1",
+      "purpose": "trip_plan",
+      "content": {
+        "fragments": "skills/trip/plan.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "requirements",
+        "places",
+        "previous_plan",
+        "edit_request"
+      ],
+      "output_contract_ref": "tools/trip/planner.py:TripPlanner.validate_plan",
+      "regression_refs": [
+        "tests/test_trips.py",
+        "tests/test_intercity_planning.py"
+      ]
+    },
+    {
+      "id": "trip.local_day",
+      "owner": "tools/trip/planner.py",
+      "version": "trip-local-day-v5-structural-context",
+      "purpose": "trip_plan",
+      "content": {
+        "fragments": "skills/trip/local_day.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "requirements",
+        "day",
+        "period",
+        "locked_poi_ids",
+        "places",
+        "request"
+      ],
+      "output_contract_ref": "tools/trip/planner.py:TripPlanner.validate_plan",
+      "regression_refs": [
+        "tests/test_trip_context_updates.py",
+        "tests/test_intercity_planning.py"
+      ]
+    },
+    {
+      "id": "reminder.personal",
+      "owner": "tools/reminders/tool.py",
+      "version": "reminder-intent-v1",
+      "purpose": "reminder_extract",
+      "content": {
+        "fragments": "skills/reminder/personal.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "message"
+      ],
+      "output_contract_ref": "tools/reminders/tool.py:ReminderIntentParser.parse",
+      "regression_refs": [
+        "tests/test_reminder_intent.py"
+      ]
+    },
+    {
+      "id": "reminder.booking",
+      "owner": "tools/reminders/tool.py",
+      "version": "booking-reminder-v1",
+      "purpose": "reminder_extract",
+      "content": {
+        "fragments": "skills/reminder/booking.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "message",
+        "require_date"
+      ],
+      "output_contract_ref": "tools/reminders/tool.py:RemindersTool._extract_booking",
+      "regression_refs": [
+        "tests/test_booking_policy.py"
+      ]
+    },
+    {
+      "id": "reminder.scheduled_query",
+      "owner": "tools/reminders/tool.py",
+      "version": "scheduled-query-v2",
+      "purpose": "intent_parse",
+      "content": {
+        "fragments": "skills/reminder/scheduled_query.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "message",
+        "previous"
+      ],
+      "output_contract_ref": "tools/reminders/tool.py:RemindersTool._extract_query",
+      "regression_refs": [
+        "tests/test_scheduled_queries.py"
+      ]
+    },
+    {
+      "id": "materials.summary",
+      "owner": "tools/materials.py",
+      "version": "document-summary-v1",
+      "purpose": "document_summary",
+      "content": {
+        "fragments": "skills/materials/summary.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "filename",
+        "original_chars",
+        "source"
+      ],
+      "output_contract_ref": "tools/materials.py:MaterialsTool.summarize_document",
+      "regression_refs": [
+        "tests/test_document_service.py"
+      ]
+    },
+    {
+      "id": "materials.image",
+      "owner": "tools/materials.py",
+      "version": "image-context-v1",
+      "purpose": "image_extract",
+      "content": {
+        "fragments": "skills/materials/image.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "message",
+        "image"
+      ],
+      "output_contract_ref": "tools/materials.py:MaterialsTool.analyze",
+      "regression_refs": [
+        "tests/test_image_context.py"
+      ]
+    },
+    {
+      "id": "reservation.image",
+      "owner": "tools/reservation/tool.py",
+      "version": "reservation-image-v2",
+      "purpose": "image_extract",
+      "content": {
+        "fragments": "skills/reservation/image.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "image",
+        "invalid_output"
+      ],
+      "output_contract_ref": "tools/reservation/tool.py:ImageVisionExtractor._parse",
+      "regression_refs": [
+        "tests/test_vision_service.py"
+      ]
+    },
+    {
+      "id": "memory.summary",
+      "owner": "app/conversation_context.py",
+      "version": "conversation-summary-v4",
+      "purpose": "conversation_summary",
+      "content": {
+        "system": "prompts/conversation_summary.md",
+        "fragments": "skills/memory/summary.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "previous_summary",
+        "new_turns",
+        "invalid_output",
+        "error"
+      ],
+      "output_contract_ref": "app/conversation_context.py:validate_items",
+      "regression_refs": [
+        "tests/test_summary_v4.py"
+      ]
+    },
+    {
+      "id": "trip.compare",
+      "owner": "tools/trip/alternatives.py",
+      "version": "trip-compare-v3-entity-bindings-quotes-v1",
+      "purpose": "trip_plan_compare",
+      "content": {
+        "fragments": "skills/trip/alternatives.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "requirements",
+        "amap_plan",
+        "wendao_plan",
+        "places"
+      ],
+      "output_contract_ref": "tools/trip/alternatives.py:Alternatives.generate",
+      "regression_refs": [
+        "tests/test_trip_alternatives.py",
+        "tests/test_intercity_planning.py"
+      ]
+    },
+    {
+      "id": "hotel.quote_extract",
+      "owner": "tools/hotel_prices/tool.py",
+      "version": "hotel-reference-evidence-v5",
+      "purpose": "hotel_quote_extract",
+      "content": {
+        "fragments": "skills/trip/hotel_quotes.json"
+      },
+      "resources": {},
+      "input_fields": [
+        "source",
+        "targets",
+        "stay",
+        "city"
+      ],
+      "output_contract_ref": "tools/hotel_prices/tool.py:HotelQuotes.lookup",
+      "regression_refs": [
+        "tests/test_hotel_quotes.py",
+        "tests/test_universal_hotel_prices.py",
+        "tests/test_hotel_flow_state.py",
+        "tests/test_hotel_candidate_continuation.py",
+        "tests/test_hotel_reference_evidence.py",
+        "tests/test_hotel_result_states.py",
+        "tests/test_hotel_budget_recovery.py",
+        "tests/test_hotel_response_formats.py"
+      ]
+    }
+  ]
+}

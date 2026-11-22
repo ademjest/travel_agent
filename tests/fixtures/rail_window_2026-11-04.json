@@ -1,0 +1,6549 @@
+{
+  "reference_time": "2026-11-04T13:14:21.726105+00:00",
+  "spec": {
+    "destination": "南京",
+    "start_date": "2026-11-07",
+    "end_date": "2026-11-09",
+    "day_count": 3,
+    "planning_window": {
+      "start": "2026-11-07",
+      "end": "2026-11-09",
+      "days": 3,
+      "start_text": "2026年11月7日",
+      "end_text": "9日",
+      "span": null,
+      "start_window": [
+        6,
+        10
+      ],
+      "end_window": [
+        12,
+        18
+      ],
+      "end_event": "departure",
+      "start_event": "arrival"
+    },
+    "city_windows": {
+      "arrival": {
+        "day_index": 1,
+        "time_text": "早上",
+        "source": "第一天早上到南京市区"
+      },
+      "departure": {
+        "day_index": 3,
+        "time_text": "下午",
+        "source": "第三天下午离开"
+      }
+    },
+    "must_visit": [
+      "六朝博物馆",
+      "总统府",
+      "玄武湖"
+    ],
+    "required_entities": {
+      "六朝博物馆": {
+        "requested_name": "六朝博物馆",
+        "status": "bound",
+        "candidate_ids": [
+          "B0019135C5"
+        ],
+        "poi_id": "B0019135C5",
+        "basis": "exact_name"
+      },
+      "总统府": {
+        "requested_name": "总统府",
+        "status": "bound",
+        "candidate_ids": [
+          "B00190BMRC"
+        ],
+        "poi_id": "B00190BMRC",
+        "basis": "exact_name"
+      },
+      "玄武湖": {
+        "requested_name": "玄武湖",
+        "status": "bound",
+        "candidate_ids": [
+          "B00190BBCZ"
+        ],
+        "poi_id": "B00190BBCZ",
+        "basis": "city_category_name"
+      }
+    },
+    "intercity_request": {
+      "scope": "round_trip",
+      "field_sources": {
+        "scope": "往返交通",
+        "origin": "上海",
+        "origin_scope": "上海"
+      },
+      "schema_version": 1,
+      "origin": "上海",
+      "origin_scope": "city",
+      "outbound": {
+        "date_text": "2026年11月7日",
+        "field_sources": {
+          "date_text": "2026年11月7日",
+          "arrival_window": "上午",
+          "time_reference": "上午到南京",
+          "destination": "南京",
+          "destination_scope": "南京",
+          "train_preference": "优先高铁",
+          "seat_class": "二等座",
+          "seat_requirement": "优先高铁二等座"
+        },
+        "arrival_window": "上午",
+        "time_reference": "arrival",
+        "destination": "南京",
+        "destination_scope": "city",
+        "train_preference": "high_speed",
+        "seat_class": "second_class",
+        "seat_requirement": "preferred",
+        "resolved_date": "2026-11-07",
+        "date_reference_time": "2026-11-04T13:14:21.723114+00:00"
+      },
+      "inbound": {
+        "date_text": "2026年11月9日",
+        "field_sources": {
+          "date_text": "2026年11月9日",
+          "arrival_before": "18点前",
+          "time_reference": "18点前回到上海",
+          "destination": "上海",
+          "destination_scope": "上海",
+          "train_preference": "优先高铁",
+          "seat_class": "二等座",
+          "seat_requirement": "优先高铁二等座"
+        },
+        "arrival_before": "18点前",
+        "time_reference": "arrival",
+        "destination": "上海",
+        "destination_scope": "city",
+        "train_preference": "high_speed",
+        "seat_class": "second_class",
+        "seat_requirement": "preferred",
+        "resolved_date": "2026-11-09",
+        "date_reference_time": "2026-11-04T13:14:21.723114+00:00"
+      }
+    }
+  },
+  "plan": {
+    "days": [
+      {
+        "day_index": 1,
+        "date": "2026-11-07",
+        "activities": [
+          {
+            "poi_id": "B0019135C5",
+            "period": "下午",
+            "reason": "文化参观"
+          }
+        ]
+      },
+      {
+        "day_index": 2,
+        "date": "2026-11-08",
+        "activities": [
+          {
+            "poi_id": "B00190BMRC",
+            "period": "上午",
+            "reason": "文化参观"
+          }
+        ]
+      },
+      {
+        "day_index": 3,
+        "date": "2026-11-09",
+        "activities": [
+          {
+            "poi_id": "B00190BBCZ",
+            "period": "上午",
+            "reason": "户外休闲"
+          }
+        ]
+      }
+    ]
+  },
+  "places": {
+    "B00190BMRC": {
+      "id": "B00190BMRC",
+      "name": "总统府",
+      "address": "长江路292号",
+      "location": "118.797398,32.044228",
+      "type": "风景名胜;风景名胜;国家级景点",
+      "tel": "025-84578716;025-84578888",
+      "adname": "玄武区",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "typecode": "110202",
+      "queried_at": "2026-11-04T13:12:03.615947+00:00",
+      "queried_keyword": "风景名胜",
+      "query_categories": [
+        "general"
+      ],
+      "visit_group_id": "B00190BMRC"
+    },
+    "B00190BBCZ": {
+      "id": "B00190BBCZ",
+      "name": "玄武湖景区",
+      "address": "玄武门路1号钟山风景名胜区西侧",
+      "location": "118.812688,32.069455",
+      "type": "风景名胜;风景名胜;国家级景点",
+      "tel": "025-83614286",
+      "adname": "玄武区",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "typecode": "110202",
+      "queried_at": "2026-11-04T13:12:04.644358+00:00",
+      "queried_keyword": "公园",
+      "query_categories": [
+        "general"
+      ],
+      "visit_group_id": "B00190BBCZ"
+    },
+    "B0019135C5": {
+      "id": "B0019135C5",
+      "name": "六朝博物馆",
+      "address": "长江路302号",
+      "location": "118.799124,32.042840",
+      "type": "科教文化服务;博物馆;博物馆",
+      "tel": "025-52326032",
+      "adname": "玄武区",
+      "pname": "江苏省",
+      "cityname": "南京市",
+      "typecode": "140100",
+      "parent": "B0FFHCCI7J",
+      "queried_at": "2026-11-04T13:12:02.581867+00:00",
+      "queried_keyword": "博物馆",
+      "query_categories": [
+        "general"
+      ],
+      "visit_group_id": "B0019135C5"
+    }
+  },
+  "queries": [
+    {
+      "request": {
+        "origin": "上海",
+        "destination": "南京",
+        "travel_date": "2026-11-07",
+        "limit": 6,
+        "train_preference": "high_speed",
+        "origin_scope": "city",
+        "destination_scope": "city",
+        "seat_class": "second_class",
+        "seat_requirement": "preferred",
+        "departure_window": [
+          0,
+          24
+        ]
+      },
+      "status": "ok",
+      "all_trains": [
+        {
+          "train_code": "G7032",
+          "origin_station": "上海",
+          "destination_station": "南京",
+          "departure_at": "2026-11-07T05:45+08:00",
+          "arrival_at": "2026-11-07T07:42+08:00",
+          "duration_minutes": 117,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 108,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 172,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 108,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1786",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:00+08:00",
+          "arrival_at": "2026-11-07T07:29+08:00",
+          "duration_minutes": 89,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 228,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 136,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 136,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "train_code": "G3124",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:06+08:00",
+          "arrival_at": "2026-11-07T08:13+08:00",
+          "duration_minutes": 127,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1970",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:09+08:00",
+          "arrival_at": "2026-11-07T07:36+08:00",
+          "duration_minutes": 87,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1802",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:13+08:00",
+          "arrival_at": "2026-11-07T07:40+08:00",
+          "duration_minutes": 87,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3176",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:19+08:00",
+          "arrival_at": "2026-11-07T07:55+08:00",
+          "duration_minutes": 96,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7080",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:19+08:00",
+          "arrival_at": "2026-11-07T08:33+08:00",
+          "duration_minutes": 134,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 449,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 206,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 128,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 128,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3054",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:27+08:00",
+          "arrival_at": "2026-11-07T08:38+08:00",
+          "duration_minutes": 131,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 509,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G532",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:31+08:00",
+          "arrival_at": "2026-11-07T08:03+08:00",
+          "duration_minutes": 92,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G548",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:32+08:00",
+          "arrival_at": "2026-11-07T08:40+08:00",
+          "duration_minutes": 128,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 463,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 217,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 136,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 136,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1772",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:35+08:00",
+          "arrival_at": "2026-11-07T08:23+08:00",
+          "duration_minutes": 108,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3230",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:42+08:00",
+          "arrival_at": "2026-11-07T08:59+08:00",
+          "duration_minutes": 137,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 449,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 206,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 128,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 282,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 128,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:43+08:00",
+          "arrival_at": "2026-11-07T07:58+08:00",
+          "duration_minutes": 75,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G464",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:48+08:00",
+          "arrival_at": "2026-11-07T08:08+08:00",
+          "duration_minutes": 80,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7002",
+          "origin_station": "上海",
+          "destination_station": "南京",
+          "departure_at": "2026-11-07T06:48+08:00",
+          "arrival_at": "2026-11-07T08:45+08:00",
+          "duration_minutes": 117,
+          "seats": [
+            {
+              "name": "特等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 225,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2784",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T06:55+08:00",
+          "arrival_at": "2026-11-07T09:04+08:00",
+          "duration_minutes": 129,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G4",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:00+08:00",
+          "arrival_at": "2026-11-07T08:11+08:00",
+          "duration_minutes": 71,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 585,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 268,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 167,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 167,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3390",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:04+08:00",
+          "arrival_at": "2026-11-07T09:11+08:00",
+          "duration_minutes": 127,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G986",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:05+08:00",
+          "arrival_at": "2026-11-07T08:26+08:00",
+          "duration_minutes": 81,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 547,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 262,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 158,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 158,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1974",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:16+08:00",
+          "arrival_at": "2026-11-07T08:36+08:00",
+          "duration_minutes": 80,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G550",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:22+08:00",
+          "arrival_at": "2026-11-07T08:50+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G566",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:27+08:00",
+          "arrival_at": "2026-11-07T09:05+08:00",
+          "duration_minutes": 98,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1468",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:31+08:00",
+          "arrival_at": "2026-11-07T09:44+08:00",
+          "duration_minutes": 133,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1212",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:32+08:00",
+          "arrival_at": "2026-11-07T09:16+08:00",
+          "duration_minutes": 104,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G598",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:38+08:00",
+          "arrival_at": "2026-11-07T09:12+08:00",
+          "duration_minutes": 94,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1952",
+          "origin_station": "上海松江",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:44+08:00",
+          "arrival_at": "2026-11-07T09:34+08:00",
+          "duration_minutes": 110,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 518,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 264,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 158,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 158,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1232",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:47+08:00",
+          "arrival_at": "2026-11-07T09:30+08:00",
+          "duration_minutes": 103,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G452",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T07:55+08:00",
+          "arrival_at": "2026-11-07T08:56+08:00",
+          "duration_minutes": 61,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 356,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7004",
+          "origin_station": "上海",
+          "destination_station": "南京",
+          "departure_at": "2026-11-07T08:00+08:00",
+          "arrival_at": "2026-11-07T09:43+08:00",
+          "duration_minutes": 103,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G8",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:00+08:00",
+          "arrival_at": "2026-11-07T09:00+08:00",
+          "duration_minutes": 60,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 592,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 271,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 372,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3272",
+          "origin_station": "练塘",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:04+08:00",
+          "arrival_at": "2026-11-07T10:38+08:00",
+          "duration_minutes": 154,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 573,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 267,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 167,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 167,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G600",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:05+08:00",
+          "arrival_at": "2026-11-07T09:38+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7268",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:05+08:00",
+          "arrival_at": "2026-11-07T09:58+08:00",
+          "duration_minutes": 113,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1952",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:10+08:00",
+          "arrival_at": "2026-11-07T09:34+08:00",
+          "duration_minutes": 84,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7036",
+          "origin_station": "上海",
+          "destination_station": "南京",
+          "departure_at": "2026-11-07T08:10+08:00",
+          "arrival_at": "2026-11-07T10:14+08:00",
+          "duration_minutes": 124,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 265,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G634",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:15+08:00",
+          "arrival_at": "2026-11-07T09:43+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7232",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:15+08:00",
+          "arrival_at": "2026-11-07T10:25+08:00",
+          "duration_minutes": 130,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 160,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 160,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G586",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:25+08:00",
+          "arrival_at": "2026-11-07T10:06+08:00",
+          "duration_minutes": 101,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3272",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:34+08:00",
+          "arrival_at": "2026-11-07T10:38+08:00",
+          "duration_minutes": 124,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 499,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 146,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 146,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7180",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:34+08:00",
+          "arrival_at": "2026-11-07T10:15+08:00",
+          "duration_minutes": 101,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7084",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:36+08:00",
+          "arrival_at": "2026-11-07T10:37+08:00",
+          "duration_minutes": 121,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1866",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:39+08:00",
+          "arrival_at": "2026-11-07T10:27+08:00",
+          "duration_minutes": 108,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G8387",
+          "origin_station": "上海南",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:45+08:00",
+          "arrival_at": "2026-11-07T14:45+08:00",
+          "duration_minutes": 360,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 1590,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 756,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 475,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 475,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G384",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:47+08:00",
+          "arrival_at": "2026-11-07T10:22+08:00",
+          "duration_minutes": 95,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 511,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 234,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 146,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 146,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7492",
+          "origin_station": "金山北",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:48+08:00",
+          "arrival_at": "2026-11-07T11:09+08:00",
+          "duration_minutes": 141,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 631,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 289,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 180,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 180,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "train_code": "G94",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T08:55+08:00",
+          "arrival_at": "2026-11-07T09:54+08:00",
+          "duration_minutes": 59,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G10",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:00+08:00",
+          "arrival_at": "2026-11-07T09:59+08:00",
+          "duration_minutes": 59,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 592,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 271,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 372,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7006",
+          "origin_station": "上海",
+          "destination_station": "南京",
+          "departure_at": "2026-11-07T09:00+08:00",
+          "arrival_at": "2026-11-07T10:44+08:00",
+          "duration_minutes": 104,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 265,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1236",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:04+08:00",
+          "arrival_at": "2026-11-07T10:39+08:00",
+          "duration_minutes": 95,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G8981",
+          "origin_station": "上海南",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:05+08:00",
+          "arrival_at": "2026-11-07T12:01+08:00",
+          "duration_minutes": 176,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 658,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 319,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 200,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 200,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1806",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:08+08:00",
+          "arrival_at": "2026-11-07T10:43+08:00",
+          "duration_minutes": 95,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "train_code": "G7372",
+          "origin_station": "上海松江",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:09+08:00",
+          "arrival_at": "2026-11-07T11:30+08:00",
+          "duration_minutes": 141,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 659,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 301,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 188,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 188,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "train_code": "G1214",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:13+08:00",
+          "arrival_at": "2026-11-07T10:51+08:00",
+          "duration_minutes": 98,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7492",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:14+08:00",
+          "arrival_at": "2026-11-07T11:09+08:00",
+          "duration_minutes": 115,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2194",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:19+08:00",
+          "arrival_at": "2026-11-07T10:47+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G668",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:26+08:00",
+          "arrival_at": "2026-11-07T11:09+08:00",
+          "duration_minutes": 103,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7372",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:26+08:00",
+          "arrival_at": "2026-11-07T11:30+08:00",
+          "duration_minutes": 124,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "train_code": "G1204",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:33+08:00",
+          "arrival_at": "2026-11-07T11:13+08:00",
+          "duration_minutes": 100,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7236",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:37+08:00",
+          "arrival_at": "2026-11-07T11:38+08:00",
+          "duration_minutes": 121,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3164",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:38+08:00",
+          "arrival_at": "2026-11-07T11:18+08:00",
+          "duration_minutes": 100,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "train_code": "G670",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:43+08:00",
+          "arrival_at": "2026-11-07T11:26+08:00",
+          "duration_minutes": 103,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 338,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1476",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:51+08:00",
+          "arrival_at": "2026-11-07T11:30+08:00",
+          "duration_minutes": 99,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7128",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T09:51+08:00",
+          "arrival_at": "2026-11-07T11:55+08:00",
+          "duration_minutes": 124,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 549,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 255,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 161,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 161,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G12",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:00+08:00",
+          "arrival_at": "2026-11-07T10:59+08:00",
+          "duration_minutes": 59,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 592,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 271,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G100",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:04+08:00",
+          "arrival_at": "2026-11-07T11:03+08:00",
+          "duration_minutes": 59,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7088",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:05+08:00",
+          "arrival_at": "2026-11-07T11:57+08:00",
+          "duration_minutes": 112,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 509,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7042",
+          "origin_station": "上海",
+          "destination_station": "南京",
+          "departure_at": "2026-11-07T10:13+08:00",
+          "arrival_at": "2026-11-07T12:12+08:00",
+          "duration_minutes": 119,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 265,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1948",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:16+08:00",
+          "arrival_at": "2026-11-07T11:38+08:00",
+          "duration_minutes": 82,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 356,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3318",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:20+08:00",
+          "arrival_at": "2026-11-07T11:42+08:00",
+          "duration_minutes": 82,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7136",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:20+08:00",
+          "arrival_at": "2026-11-07T12:12+08:00",
+          "duration_minutes": 112,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G676",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:25+08:00",
+          "arrival_at": "2026-11-07T11:47+08:00",
+          "duration_minutes": 82,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G8388",
+          "origin_station": "上海",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:27+08:00",
+          "arrival_at": "2026-11-07T12:35+08:00",
+          "duration_minutes": 128,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7764",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:31+08:00",
+          "arrival_at": "2026-11-07T11:55+08:00",
+          "duration_minutes": 84,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7172",
+          "origin_station": "上海虹桥",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:32+08:00",
+          "arrival_at": "2026-11-07T12:49+08:00",
+          "duration_minutes": 137,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 495,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 231,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G8388",
+          "origin_station": "上海西",
+          "destination_station": "南京南",
+          "departure_at": "2026-11-07T10:36+08:00",
+          "arrival_at": "2026-11-07T12:35+08:00",
+          "duration_minutes": 119,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 168,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 269,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 168,
+              "availability": "sold_out"
+            }
+          ]
+        }
+      ],
+      "candidate_truncated": true,
+      "retrieved_at": "2026-11-04T13:14:54.723531+00:00",
+      "provider": "12306-mcp"
+    },
+    {
+      "request": {
+        "origin": "南京",
+        "destination": "上海",
+        "travel_date": "2026-11-09",
+        "limit": 6,
+        "train_preference": "high_speed",
+        "origin_scope": "city",
+        "destination_scope": "city",
+        "seat_class": "second_class",
+        "seat_requirement": "preferred",
+        "departure_window": [
+          0,
+          24
+        ]
+      },
+      "status": "ok",
+      "all_trains": [
+        {
+          "train_code": "G7029",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T05:34+08:00",
+          "arrival_at": "2026-11-09T07:30+08:00",
+          "duration_minutes": 116,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 108,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 172,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 108,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7215",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T05:49+08:00",
+          "arrival_at": "2026-11-09T07:15+08:00",
+          "duration_minutes": 86,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 480,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 146,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 146,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7031",
+          "origin_station": "南京",
+          "destination_station": "上海西",
+          "departure_at": "2026-11-09T05:58+08:00",
+          "arrival_at": "2026-11-09T07:50+08:00",
+          "duration_minutes": 112,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 122,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 195,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 122,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7031",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T05:58+08:00",
+          "arrival_at": "2026-11-09T07:59+08:00",
+          "duration_minutes": 121,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 125,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 199,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 125,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7101",
+          "origin_station": "南京",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T06:07+08:00",
+          "arrival_at": "2026-11-09T08:19+08:00",
+          "duration_minutes": 132,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 125,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 199,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 125,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3059",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T06:14+08:00",
+          "arrival_at": "2026-11-09T07:29+08:00",
+          "duration_minutes": 75,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3059",
+          "origin_station": "南京南",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T06:14+08:00",
+          "arrival_at": "2026-11-09T07:46+08:00",
+          "duration_minutes": 92,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 512,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 261,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 156,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 156,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7179",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T06:20+08:00",
+          "arrival_at": "2026-11-09T07:49+08:00",
+          "duration_minutes": 89,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7035",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T06:28+08:00",
+          "arrival_at": "2026-11-09T08:35+08:00",
+          "duration_minutes": 127,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 225,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G203",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T06:32+08:00",
+          "arrival_at": "2026-11-09T07:53+08:00",
+          "duration_minutes": 81,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7037",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T06:48+08:00",
+          "arrival_at": "2026-11-09T08:59+08:00",
+          "duration_minutes": 131,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1509",
+          "origin_station": "南京南",
+          "destination_station": "金山北",
+          "departure_at": "2026-11-09T06:53+08:00",
+          "arrival_at": "2026-11-09T08:50+08:00",
+          "duration_minutes": 117,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 580,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 288,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 173,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 173,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1509",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T06:53+08:00",
+          "arrival_at": "2026-11-09T08:28+08:00",
+          "duration_minutes": 95,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7001",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T06:58+08:00",
+          "arrival_at": "2026-11-09T08:40+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 265,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7039",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T07:08+08:00",
+          "arrival_at": "2026-11-09T09:15+08:00",
+          "duration_minutes": 127,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 521,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7135",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T07:08+08:00",
+          "arrival_at": "2026-11-09T09:21+08:00",
+          "duration_minutes": 133,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 495,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 231,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7505",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T07:11+08:00",
+          "arrival_at": "2026-11-09T08:46+08:00",
+          "duration_minutes": 95,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7043",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T07:13+08:00",
+          "arrival_at": "2026-11-09T09:36+08:00",
+          "duration_minutes": 143,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7103",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T07:19+08:00",
+          "arrival_at": "2026-11-09T09:25+08:00",
+          "duration_minutes": 126,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7271",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T07:24+08:00",
+          "arrival_at": "2026-11-09T09:30+08:00",
+          "duration_minutes": 126,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7313",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T07:24+08:00",
+          "arrival_at": "2026-11-09T09:12+08:00",
+          "duration_minutes": 108,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7313",
+          "origin_station": "南京南",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T07:24+08:00",
+          "arrival_at": "2026-11-09T09:30+08:00",
+          "duration_minutes": 126,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 518,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 264,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 158,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 158,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7389",
+          "origin_station": "南京",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T07:32+08:00",
+          "arrival_at": "2026-11-09T09:43+08:00",
+          "duration_minutes": 131,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 492,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 225,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7349",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T07:37+08:00",
+          "arrival_at": "2026-11-09T09:07+08:00",
+          "duration_minutes": 90,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 325,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7003",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T07:58+08:00",
+          "arrival_at": "2026-11-09T09:40+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 265,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7041",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T08:07+08:00",
+          "arrival_at": "2026-11-09T10:03+08:00",
+          "duration_minutes": 116,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7041",
+          "origin_station": "仙林",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T08:21+08:00",
+          "arrival_at": "2026-11-09T10:03+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 142,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 228,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 142,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7507",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T08:24+08:00",
+          "arrival_at": "2026-11-09T10:09+08:00",
+          "duration_minutes": 105,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3379",
+          "origin_station": "南京",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T08:34+08:00",
+          "arrival_at": "2026-11-09T10:31+08:00",
+          "duration_minutes": 117,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7255",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T08:34+08:00",
+          "arrival_at": "2026-11-09T10:55+08:00",
+          "duration_minutes": 141,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7589",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T08:39+08:00",
+          "arrival_at": "2026-11-09T10:28+08:00",
+          "duration_minutes": 109,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 427,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 228,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 136,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 136,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7289",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T08:40+08:00",
+          "arrival_at": "2026-11-09T10:53+08:00",
+          "duration_minutes": 133,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 561.5,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 262,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 163,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 163,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7225",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T08:45+08:00",
+          "arrival_at": "2026-11-09T10:19+08:00",
+          "duration_minutes": 94,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "train_code": "G7569",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T08:48+08:00",
+          "arrival_at": "2026-11-09T10:42+08:00",
+          "duration_minutes": 114,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 427,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 205,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 122,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 122,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7259",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T08:55+08:00",
+          "arrival_at": "2026-11-09T09:59+08:00",
+          "duration_minutes": 64,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 585,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 268,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 167,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 167,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7005",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T08:58+08:00",
+          "arrival_at": "2026-11-09T10:40+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7147",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T08:59+08:00",
+          "arrival_at": "2026-11-09T10:50+08:00",
+          "duration_minutes": 111,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7113",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:06+08:00",
+          "arrival_at": "2026-11-09T11:02+08:00",
+          "duration_minutes": 116,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 514,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 240,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 151,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 151,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7113",
+          "origin_station": "南京南",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T09:06+08:00",
+          "arrival_at": "2026-11-09T11:22+08:00",
+          "duration_minutes": 136,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 264,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7175",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:10+08:00",
+          "arrival_at": "2026-11-09T10:13+08:00",
+          "duration_minutes": 63,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7107",
+          "origin_station": "南京",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:15+08:00",
+          "arrival_at": "2026-11-09T11:07+08:00",
+          "duration_minutes": 112,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 265,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7185",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:15+08:00",
+          "arrival_at": "2026-11-09T10:23+08:00",
+          "duration_minutes": 68,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7725",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:19+08:00",
+          "arrival_at": "2026-11-09T11:18+08:00",
+          "duration_minutes": 119,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7599",
+          "origin_station": "南京南",
+          "destination_station": "金山北",
+          "departure_at": "2026-11-09T09:20+08:00",
+          "arrival_at": "2026-11-09T11:12+08:00",
+          "duration_minutes": 112,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 550,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 279,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 167,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 167,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7599",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:20+08:00",
+          "arrival_at": "2026-11-09T10:48+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7431",
+          "origin_station": "南京南",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T09:23+08:00",
+          "arrival_at": "2026-11-09T11:21+08:00",
+          "duration_minutes": 118,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 588,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 280,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7431",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:23+08:00",
+          "arrival_at": "2026-11-09T10:59+08:00",
+          "duration_minutes": 96,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7291",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T09:29+08:00",
+          "arrival_at": "2026-11-09T11:09+08:00",
+          "duration_minutes": 100,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 509,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 255,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 152,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 152,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7045",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T09:31+08:00",
+          "arrival_at": "2026-11-09T11:39+08:00",
+          "duration_minutes": 128,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1667",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:33+08:00",
+          "arrival_at": "2026-11-09T11:36+08:00",
+          "duration_minutes": 123,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 146,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 146,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2661",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:34+08:00",
+          "arrival_at": "2026-11-09T11:12+08:00",
+          "duration_minutes": 98,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 228,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7787",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:39+08:00",
+          "arrival_at": "2026-11-09T11:08+08:00",
+          "duration_minutes": 89,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7591",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:42+08:00",
+          "arrival_at": "2026-11-09T11:54+08:00",
+          "duration_minutes": 132,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 338,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7791",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T09:47+08:00",
+          "arrival_at": "2026-11-09T11:43+08:00",
+          "duration_minutes": 116,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7007",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T09:58+08:00",
+          "arrival_at": "2026-11-09T11:46+08:00",
+          "duration_minutes": 108,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7221",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T09:59+08:00",
+          "arrival_at": "2026-11-09T12:15+08:00",
+          "duration_minutes": 136,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G937",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:01+08:00",
+          "arrival_at": "2026-11-09T11:19+08:00",
+          "duration_minutes": 78,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7205",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T10:04+08:00",
+          "arrival_at": "2026-11-09T12:05+08:00",
+          "duration_minutes": 121,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7511",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:05+08:00",
+          "arrival_at": "2026-11-09T11:54+08:00",
+          "duration_minutes": 109,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 427,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 217,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 129,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 297,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 129,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1763",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:07+08:00",
+          "arrival_at": "2026-11-09T11:57+08:00",
+          "duration_minutes": 110,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 427,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:15+08:00",
+          "arrival_at": "2026-11-09T11:24+08:00",
+          "duration_minutes": 69,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7109",
+          "origin_station": "南京",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:15+08:00",
+          "arrival_at": "2026-11-09T11:59+08:00",
+          "duration_minutes": 104,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 225,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7109",
+          "origin_station": "南京",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T10:15+08:00",
+          "arrival_at": "2026-11-09T12:18+08:00",
+          "duration_minutes": 123,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 156,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 249,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 156,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T10:19+08:00",
+          "arrival_at": "2026-11-09T11:33+08:00",
+          "duration_minutes": 74,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 585,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 268,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 167,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 367,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 167,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G75",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:23+08:00",
+          "arrival_at": "2026-11-09T11:38+08:00",
+          "duration_minutes": 75,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G455",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:29+08:00",
+          "arrival_at": "2026-11-09T11:31+08:00",
+          "duration_minutes": 62,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7071",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T10:34+08:00",
+          "arrival_at": "2026-11-09T12:28+08:00",
+          "duration_minutes": 114,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7299",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T10:39+08:00",
+          "arrival_at": "2026-11-09T12:21+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 480,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 146,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 146,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7159",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:41+08:00",
+          "arrival_at": "2026-11-09T12:45+08:00",
+          "duration_minutes": 124,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G531",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:45+08:00",
+          "arrival_at": "2026-11-09T12:04+08:00",
+          "duration_minutes": 79,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 427,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 205,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 122,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 122,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2365",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:47+08:00",
+          "arrival_at": "2026-11-09T13:02+08:00",
+          "duration_minutes": 135,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 545,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G547",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:50+08:00",
+          "arrival_at": "2026-11-09T12:11+08:00",
+          "duration_minutes": 81,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 228,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 136,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 136,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7009",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T10:58+08:00",
+          "arrival_at": "2026-11-09T12:40+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7375",
+          "origin_station": "南京南",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T10:58+08:00",
+          "arrival_at": "2026-11-09T12:45+08:00",
+          "duration_minutes": 107,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 582,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 277,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 168,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 168,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7375",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T10:58+08:00",
+          "arrival_at": "2026-11-09T12:20+08:00",
+          "duration_minutes": 82,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7595",
+          "origin_station": "南京南",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T11:03+08:00",
+          "arrival_at": "2026-11-09T13:04+08:00",
+          "duration_minutes": 121,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 548,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 273,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 164,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 164,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7595",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T11:03+08:00",
+          "arrival_at": "2026-11-09T12:42+08:00",
+          "duration_minutes": 99,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7075",
+          "origin_station": "南京南",
+          "destination_station": "上海西",
+          "departure_at": "2026-11-09T11:07+08:00",
+          "arrival_at": "2026-11-09T13:05+08:00",
+          "duration_minutes": 118,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 530,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 242,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 151,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 151,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7075",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T11:07+08:00",
+          "arrival_at": "2026-11-09T13:16+08:00",
+          "duration_minutes": 129,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3871",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T11:08+08:00",
+          "arrival_at": "2026-11-09T12:49+08:00",
+          "duration_minutes": 101,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        }
+      ],
+      "candidate_truncated": true,
+      "retrieved_at": "2026-11-04T13:14:56.169547+00:00",
+      "provider": "12306-mcp"
+    },
+    {
+      "request": {
+        "origin": "南京南站",
+        "destination": "上海虹桥站",
+        "travel_date": "2026-11-09",
+        "limit": 6,
+        "train_preference": "high_speed_only",
+        "departure_window": [
+          14.0,
+          16.0
+        ],
+        "origin_scope": "station",
+        "destination_scope": "station"
+      },
+      "status": "ok",
+      "all_trains": [
+        {
+          "train_code": "G643",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:03+08:00",
+          "arrival_at": "2026-11-09T15:20+08:00",
+          "duration_minutes": 77,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7571",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:03+08:00",
+          "arrival_at": "2026-11-09T16:08+08:00",
+          "duration_minutes": 125,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1727",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:08+08:00",
+          "arrival_at": "2026-11-09T15:47+08:00",
+          "duration_minutes": 99,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G693",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:23+08:00",
+          "arrival_at": "2026-11-09T15:56+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2811",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:26+08:00",
+          "arrival_at": "2026-11-09T15:59+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2787",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:29+08:00",
+          "arrival_at": "2026-11-09T16:22+08:00",
+          "duration_minutes": 113,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G23",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:34+08:00",
+          "arrival_at": "2026-11-09T15:37+08:00",
+          "duration_minutes": 63,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 592,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 271,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 372,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7195",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:37+08:00",
+          "arrival_at": "2026-11-09T16:06+08:00",
+          "duration_minutes": 89,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7127",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:43+08:00",
+          "arrival_at": "2026-11-09T16:49+08:00",
+          "duration_minutes": 126,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 495,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 231,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G995",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:47+08:00",
+          "arrival_at": "2026-11-09T16:31+08:00",
+          "duration_minutes": 104,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G8387",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:48+08:00",
+          "arrival_at": "2026-11-09T17:06+08:00",
+          "duration_minutes": 138,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G985",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:02+08:00",
+          "arrival_at": "2026-11-09T16:10+08:00",
+          "duration_minutes": 68,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 356,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7139",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:13+08:00",
+          "arrival_at": "2026-11-09T17:18+08:00",
+          "duration_minutes": 125,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1915",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:15+08:00",
+          "arrival_at": "2026-11-09T16:43+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G657",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:19+08:00",
+          "arrival_at": "2026-11-09T16:52+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3151",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:24+08:00",
+          "arrival_at": "2026-11-09T17:06+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 136,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 136,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1419",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:28+08:00",
+          "arrival_at": "2026-11-09T17:33+08:00",
+          "duration_minutes": 125,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 499,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 146,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 146,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G733",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:30+08:00",
+          "arrival_at": "2026-11-09T16:59+08:00",
+          "duration_minutes": 89,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G15",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:36+08:00",
+          "arrival_at": "2026-11-09T16:38+08:00",
+          "duration_minutes": 62,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 592,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 271,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G4461",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:40+08:00",
+          "arrival_at": "2026-11-09T17:13+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3251",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:43+08:00",
+          "arrival_at": "2026-11-09T17:27+08:00",
+          "duration_minutes": 104,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 228,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7143",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:44+08:00",
+          "arrival_at": "2026-11-09T17:44+08:00",
+          "duration_minutes": 120,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7385",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:48+08:00",
+          "arrival_at": "2026-11-09T17:18+08:00",
+          "duration_minutes": 90,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G737",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:54+08:00",
+          "arrival_at": "2026-11-09T17:22+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G735",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:59+08:00",
+          "arrival_at": "2026-11-09T17:38+08:00",
+          "duration_minutes": 99,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 338,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        }
+      ],
+      "candidate_truncated": false,
+      "retrieved_at": "2026-11-04T13:17:43.650376+00:00",
+      "provider": "12306-mcp"
+    },
+    {
+      "request": {
+        "origin": "南京",
+        "destination": "上海",
+        "travel_date": "2026-11-09",
+        "limit": 6,
+        "train_preference": "high_speed",
+        "departure_window": [
+          14.0,
+          16.0
+        ],
+        "origin_scope": "city",
+        "destination_scope": "city",
+        "seat_class": "second_class",
+        "seat_requirement": "preferred"
+      },
+      "status": "ok",
+      "all_trains": [
+        {
+          "train_code": "G643",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:03+08:00",
+          "arrival_at": "2026-11-09T15:20+08:00",
+          "duration_minutes": 77,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7571",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:03+08:00",
+          "arrival_at": "2026-11-09T16:08+08:00",
+          "duration_minutes": 125,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1727",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:08+08:00",
+          "arrival_at": "2026-11-09T15:47+08:00",
+          "duration_minutes": 99,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3821",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T14:15+08:00",
+          "arrival_at": "2026-11-09T16:16+08:00",
+          "duration_minutes": 121,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G693",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:23+08:00",
+          "arrival_at": "2026-11-09T15:56+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2811",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:26+08:00",
+          "arrival_at": "2026-11-09T15:59+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G2787",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:29+08:00",
+          "arrival_at": "2026-11-09T16:22+08:00",
+          "duration_minutes": 113,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G23",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:34+08:00",
+          "arrival_at": "2026-11-09T15:37+08:00",
+          "duration_minutes": 63,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 592,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 271,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 372,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7195",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:37+08:00",
+          "arrival_at": "2026-11-09T16:06+08:00",
+          "duration_minutes": 89,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7117",
+          "origin_station": "南京",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:38+08:00",
+          "arrival_at": "2026-11-09T16:44+08:00",
+          "duration_minutes": 126,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7127",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:43+08:00",
+          "arrival_at": "2026-11-09T16:49+08:00",
+          "duration_minutes": 126,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 495,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 231,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 145,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 145,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7127",
+          "origin_station": "南京南",
+          "destination_station": "上海松江",
+          "departure_at": "2026-11-09T14:43+08:00",
+          "arrival_at": "2026-11-09T17:11+08:00",
+          "duration_minutes": 148,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 548,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 255,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 160,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 160,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G995",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:47+08:00",
+          "arrival_at": "2026-11-09T16:31+08:00",
+          "duration_minutes": 104,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G8387",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T14:48+08:00",
+          "arrival_at": "2026-11-09T17:06+08:00",
+          "duration_minutes": 138,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7017",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T14:57+08:00",
+          "arrival_at": "2026-11-09T16:40+08:00",
+          "duration_minutes": 103,
+          "seats": [
+            {
+              "name": "特等座",
+              "price_cny": 298,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 265,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 166,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 166,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G985",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:02+08:00",
+          "arrival_at": "2026-11-09T16:10+08:00",
+          "duration_minutes": 68,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 356,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7139",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:13+08:00",
+          "arrival_at": "2026-11-09T17:18+08:00",
+          "duration_minutes": 125,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1915",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:15+08:00",
+          "arrival_at": "2026-11-09T16:43+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G657",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:19+08:00",
+          "arrival_at": "2026-11-09T16:52+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3151",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:24+08:00",
+          "arrival_at": "2026-11-09T17:06+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 237,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 136,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 136,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G1419",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:28+08:00",
+          "arrival_at": "2026-11-09T17:33+08:00",
+          "duration_minutes": 125,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 499,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 233,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 146,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 146,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G733",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:30+08:00",
+          "arrival_at": "2026-11-09T16:59+08:00",
+          "duration_minutes": 89,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7767",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T15:31+08:00",
+          "arrival_at": "2026-11-09T17:50+08:00",
+          "duration_minutes": 139,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G15",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:36+08:00",
+          "arrival_at": "2026-11-09T16:38+08:00",
+          "duration_minutes": 62,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 592,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 271,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 170,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 170,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7263",
+          "origin_station": "南京南",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T15:36+08:00",
+          "arrival_at": "2026-11-09T17:23+08:00",
+          "duration_minutes": 107,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 599,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 274,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 171,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 171,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G4461",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:40+08:00",
+          "arrival_at": "2026-11-09T17:13+08:00",
+          "duration_minutes": 93,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 260,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 162,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 162,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G3251",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:43+08:00",
+          "arrival_at": "2026-11-09T17:27+08:00",
+          "duration_minutes": 104,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 458,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 228,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 141,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 141,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7143",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:44+08:00",
+          "arrival_at": "2026-11-09T17:44+08:00",
+          "duration_minutes": 120,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 539,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 247,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 154,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 154,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7385",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:48+08:00",
+          "arrival_at": "2026-11-09T17:18+08:00",
+          "duration_minutes": 90,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 528,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "sold_out"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G737",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:54+08:00",
+          "arrival_at": "2026-11-09T17:22+08:00",
+          "duration_minutes": 88,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 567,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 253,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 153,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 153,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G7019",
+          "origin_station": "南京",
+          "destination_station": "上海",
+          "departure_at": "2026-11-09T15:58+08:00",
+          "arrival_at": "2026-11-09T17:40+08:00",
+          "duration_minutes": 102,
+          "seats": [
+            {
+              "name": "二等座",
+              "price_cny": 149,
+              "availability": "available"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 239,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 149,
+              "availability": "sold_out"
+            }
+          ]
+        },
+        {
+          "train_code": "G735",
+          "origin_station": "南京南",
+          "destination_station": "上海虹桥",
+          "departure_at": "2026-11-09T15:59+08:00",
+          "arrival_at": "2026-11-09T17:38+08:00",
+          "duration_minutes": 99,
+          "seats": [
+            {
+              "name": "商务座",
+              "price_cny": 488,
+              "availability": "sold_out"
+            },
+            {
+              "name": "一等座",
+              "price_cny": 246,
+              "availability": "available"
+            },
+            {
+              "name": "二等座",
+              "price_cny": 147,
+              "availability": "available"
+            },
+            {
+              "name": "优选一等座",
+              "price_cny": 338,
+              "availability": "available"
+            },
+            {
+              "name": "无座",
+              "price_cny": 147,
+              "availability": "sold_out"
+            }
+          ]
+        }
+      ],
+      "candidate_truncated": false,
+      "retrieved_at": "2026-11-04T13:19:52.227465+00:00",
+      "provider": "12306-mcp"
+    }
+  ]
+}

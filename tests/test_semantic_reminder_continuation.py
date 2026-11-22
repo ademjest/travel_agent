@@ -10,9 +10,9 @@ from agents.intent_compiler import IntentCompiler
 from app.group_trigger_policy import GroupTriggerPolicy
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
-from services.personal_reminder_service import PersonalReminderService
-from services.reminder_time import is_time_answer
-from services.semantic_task_service import SemanticTaskService, semantic_candidate
+from tools.reminders.tool import RemindersTool
+from core.time_input import is_time_answer
+from app.request_router import RequestRouter, semantic_candidate
 
 
 class Client:
@@ -32,10 +32,10 @@ class SemanticReminderContinuationTests(unittest.TestCase):
         self.addCleanup(self.folder.cleanup)
         self.store = MemoryStore(Path(self.folder.name) / 'test.db')
         self.now = datetime(2030, 9, 9, 2, tzinfo=timezone.utc)
-        self.reminders = PersonalReminderService(self.store, clock=lambda: self.now)
+        self.reminders = RemindersTool(self.store, clock=lambda: self.now)
         self.client = Client()
         self.compiler = IntentCompiler(self.client, 'test')
-        self.service = SemanticTaskService(self.store, self.compiler, reminder_service=self.reminders,
+        self.service = RequestRouter(self.store, self.compiler, reminder_service=self.reminders,
                                            clock=lambda: self.now)
 
     def event(self, text, key, owner='owner'):
@@ -43,12 +43,12 @@ class SemanticReminderContinuationTests(unittest.TestCase):
 
     def start(self, text='明天提醒我预约陕西历史博物馆', key='start', owner='owner'):
         event = self.event(text, key, owner)
-        self.reminders.handle(event, self.store.begin_event(event.event_key))
+        self.reminders.handle_personal(event, self.store.delivery.begin_event(event.event_key))
 
     def answer(self, text, value, key='reply'):
         self.client.value = value
         event = self.event(text, key)
-        return self.service.handle(event, self.store.begin_event(event.event_key))
+        return self.service.handle(event, self.store.delivery.begin_event(event.event_key))
 
     def continuation(self, source, time_text='', *, disposition='answer', index=1):
         operation = {'domain':'reminder', 'operation':'continue_pending',

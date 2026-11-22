@@ -11,17 +11,29 @@ PURPOSE_MODEL_ENV = {
     'research_targets': 'LLM_RESEARCH_MODEL_ID',
     'research_fact_synthesis': 'LLM_RESEARCH_MODEL_ID',
     'research_synthesis': 'LLM_RESEARCH_MODEL_ID',
+    'travel_answer_write': 'LLM_RESEARCH_MODEL_ID',
     'image_extract': 'LLM_VISION_MODEL_ID',
+}
+PURPOSE_ROLES = {
+    'hotel_quote_extract':'regular',
+    'intent_parse':'basic', 'conversation_summary':'basic', 'reminder_extract':'basic',
+    'trip_plan':'complex', 'trip_plan_repair':'complex', 'trip_plan_compare':'complex',
+    'travel_answer_write':'complex', 'image_extract':'vision',
+    'trip_answer_write':'regular',
 }
 
 PURPOSE_OUTPUTS = {
+    'hotel_quote_extract':(4096,4096,4096),
+    'trip_answer_write':(1536,2048,3072),
+    'trip_plan_compare': (4096,6144,8192),
     'intent_parse': (768, 1024, 1536),
     'reminder_extract': (768, 1024, 1536),
     'tool_reasoning': (1024, 2048, 4096),
     'tool_answer': (768, 1536, 3072),
     'trip_requirement_extract': (1024, 1536, 2048),
-    'trip_plan': (3072, 4096, 6144),
-    'trip_plan_repair': (3072, 4096, 6144),
+    'trip_plan': (4096, 6144, 8192),
+    'trip_plan_repair': (4096, 6144, 8192),
+    'travel_answer_write': (4096, 6144, 8192),
     'research_plan': (1024, 1536, 2048),
     'research_targets': (2048, 4096, 6144),
     'research_fact_synthesis': (2048, 3072, 4096),
