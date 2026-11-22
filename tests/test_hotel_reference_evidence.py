@@ -1,5 +1,6 @@
 """A faithful source amount is visible without becoming a verified POI/budget offer."""
 from copy import deepcopy
+from datetime import datetime,timedelta,timezone
 from pathlib import Path
 import json
 import unittest
@@ -93,6 +94,8 @@ class ReferenceProjectionStoreTests(unittest.TestCase):
     setUp=fixtures.QuoteLookupTests.setUp
 
     def test_future_extraction_saves_one_fact_output_and_projects_one_layer(self):
+        # Keep this historical fixture future-dated relative to its test clock.
+        self.service.clock=lambda:datetime.fromisoformat(DATA['stay']['check_in']).replace(tzinfo=timezone.utc)-timedelta(days=1)
         self.transport.return_value=(RAW.encode(),ENDPOINT,'text/markdown')
         self.service.client=FakeClient([model_response(DATA['constructed_extraction'])])
         event=self.event
