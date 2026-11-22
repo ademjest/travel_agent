@@ -123,7 +123,7 @@ class WebRepository:
                         hashlib.sha256(data).hexdigest(), timestamp()))
         return self.upload(identity)
 
-    def accept(self, conversation_id, content, upload_ids, request_id, confirmation=None, trip_edit=None, *, priority=0, quoted_message_id=None,rail_query=None,draft_action=None,hotel_action=None):
+    def accept(self, conversation_id, content, upload_ids, request_id, confirmation=None, trip_edit=None, *, priority=0, quoted_message_id=None,rail_query=None,draft_action=None,hotel_action=None,trip_continuation=None):
         self.conversation(conversation_id)
         body = {'content': content, 'upload_ids': upload_ids, 'confirmation': confirmation}
         if trip_edit is not None:
@@ -134,6 +134,7 @@ class WebRepository:
             body['rail_query']=rail_query
         if draft_action is not None:body['draft_action']=draft_action
         if hotel_action is not None:body['hotel_action']=hotel_action
+        if trip_continuation is not None:body['trip_continuation']=trip_continuation
         digest = hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         event_key = f'web:group:{conversation_id}:{request_id}'
         now = timestamp()
@@ -154,10 +155,15 @@ class WebRepository:
             if quoted_message_id is not None:
                 reference=self.message_reference(conversation_id,quoted_message_id)
                 reply_to_id=reference.get('native_id','')
+            from core.trip_binding import capture
+            event=ChatEvent('web','group',request_id,conversation_id,OWNER,content,
+                message_reference=reference,occurred_at=datetime.fromisoformat(now))
+            try:trip_context=capture(self.store,event,trip_continuation)
+            except ValueError as error:raise WebConflict(str(error)) from None
             uploads = [self.upload(item, conversation_id) for item in upload_ids]
             payload = {'version': 1, 'conversation_id': conversation_id, 'request_id': request_id,
                        'content': content, 'upload_ids': upload_ids, 'time': now, 'confirmation': confirmation,
-                       'trip_edit':trip_edit}
+                       'trip_edit':trip_edit,'trip_context':trip_context}
             if reply_to_id:
                 payload['reply_to_id']=reply_to_id
             if reference:
@@ -179,6 +185,19 @@ class WebRepository:
                        (now, '新的旅行', (content or uploads[0]['filename'])[:30], conversation_id))
         self.store.diagnostics.record('request',{'event_key':event_key,'status':'received'})
         return {'job_id': job['id'], 'status': 'accepted'}
+
+    def end_trip_operation(self,identity,task_id,version):
+        self.conversation(identity)
+        with self.store._connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute("SELECT * FROM travel_tasks WHERE task_id=? AND platform='web' AND scope_id=? AND owner_id=?",
+                (task_id,'web:'+identity,OWNER)).fetchone()
+            if not row or row['version']!=version or row['status']!='collecting' or not json.loads(row['slots_json']).get('trip_binding'):
+                raise WebConflict('本次操作已变化或结束，请查看当前方案。')
+            value={'task_id':task_id,'version':version,'status':'closed'}
+            db.execute('INSERT OR IGNORE INTO event_tool_results VALUES (?,?,?,?,?,?)',
+                (f'trip-operation-close:{task_id}:{version}',row['last_event_id'],'trip_operation','{}',json.dumps(value),timestamp()))
+        return value
 
     def message_reference(self,identity,message_id):
         """Freeze an owned message and existing immutable evidence, never a newer task's slots."""

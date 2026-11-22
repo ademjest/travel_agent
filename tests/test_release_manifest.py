@@ -63,7 +63,6 @@ class ReleaseManifestTests(unittest.TestCase):
         self.assertEqual([r['path'] for r in first['source_files']],
                          sorted(r['path'] for r in first['source_files']))
 
-
     def test_equivalent_root_alias_keeps_paths_and_source_identity(self):
         alias = self.root / 'equivalent-root' / '..'
         alias.parent.mkdir()

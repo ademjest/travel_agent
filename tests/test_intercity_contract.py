@@ -210,6 +210,31 @@ class IntercityWorkflowTests(WorkflowHarness, unittest.TestCase):
         self.assertEqual(len(client.completions.requests), 2)
         self.assertEqual(self.web.store.trips.get(self.web.event(''), self.saved['trip_id']), self.saved)
 
+    def test_reschedule_after_saved_transport_through_web_queue(self):
+        text=f'请将整体行程顺延一天，改为{self.year}年11月8日到{self.year}年11月10日。'
+        client=self.use_compiler([intent(text=self.request,year=self.year),
+            {'schema_version':1,'action':'update','operations':[{'domain':'trip','operation':'edit','request_text':text}],
+             'source_spans':[text]}])
+        self.web.send(self.request,'traffic-before-shift');self.assertTrue(self.web.run_job())
+        saved=self.save(self.context()['confirmations'][0],'save-traffic-before-shift')
+        for rows in self.rail_rows.values():
+            for row in rows:
+                for field in ('departure_at','arrival_at'):
+                    row[field]=row[field].replace('-11-07T','-11-08T').replace('-11-09T','-11-10T')
+        self.web.send(text,'reschedule');self.assertTrue(self.web.run_job())
+        self.assertTrue(self.context()['confirmations'],self.web.messages()[-1]['content'])
+        candidate=self.candidate()
+        self.assertEqual([d['date'] for d in candidate['plan']['days']],
+                         [f'{self.year}-11-08',f'{self.year}-11-09',f'{self.year}-11-10'])
+        self.assertEqual([q['travel_date'] for q in self.rail_calls[-2:]],[f'{self.year}-11-08',f'{self.year}-11-10'])
+        self.assertEqual(candidate['plan']['intercity']['inbound']['selected']['arrival_at'][:10],f'{self.year}-11-10')
+        self.assertEqual(candidate['spec']['budgets'],saved['spec']['budgets'])
+        self.assertEqual(self.web.store.trips.get(self.web.event(''),saved['trip_id']),saved)
+        after=self.save(self.context()['confirmations'][0],'save-rescheduled')
+        self.assertEqual(after['version'],saved['version']+1)
+        self.assertEqual(after['plan'],candidate['plan'])
+        self.assertEqual(len(self.rail_calls),4);self.assertEqual(len(client.completions.requests),2)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,6 +4,19 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {TripView} from './TripView';
 import type {Trip,RailTrain} from './api';
 afterEach(cleanup);
+it('keeps same-city plans distinct and compares displayed content without submitting',()=>{
+ const fill=vi.fn(),start=vi.fn(),quote=vi.fn();
+ const a:Trip={trip_id:'TR-111111aaaaaa',version:1,editing_message_id:'d:1',is_preview:true,
+  spec:{destination:'同名城',day_count:2,start_date:'2030-10-01'},sources:{},plan:{days:[]},facts:[]};
+ const b:Trip={...a,trip_id:'TR-222222bbbbbb',editing_message_id:'d:2'};
+ render(<TripView trips={[a,b]} onFill={fill} onStart={start} onQuote={quote}/>);
+ expect(screen.getAllByText('#aaaaaa').length).toBeGreaterThan(0);expect(screen.getAllByText('#bbbbbb').length).toBeGreaterThan(0);
+ fireEvent.change(screen.getByLabelText('对比方案1'),{target:{value:a.trip_id}});
+ fireEvent.change(screen.getByLabelText('对比方案2'),{target:{value:b.trip_id}});
+ expect(screen.getByRole('table',{hidden:true})).toBeTruthy();expect(fill).not.toHaveBeenCalled();expect(quote).not.toHaveBeenCalled();
+ fireEvent.click(screen.getAllByText('继续修改此方案')[1]);expect(quote).toHaveBeenCalledWith('d:2',expect.any(String));
+ fireEvent.click(screen.getByText('新建独立方案'));expect(start).toHaveBeenCalledOnce();
+});
 it('shows server-projected unverified price evidence without making a query',()=>{
  const fill=vi.fn();
  const value:Trip={trip_id:'reference',version:1,spec:{destination:'测试城'},sources:{},plan:{days:[],hotel_quotes:{

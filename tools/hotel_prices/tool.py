@@ -13,17 +13,25 @@ from infrastructure.skill_manager import skill_text, skill_request
 from infrastructure.wendao_client import WendaoError
 
 from tools.hotel_prices.quotes import (VERSION, EVIDENCE_VERSION, STAY_FIELDS, fingerprint, normalized, store_name, public_stay,
-    validate_quote_facts, project_quote, reusable, evaluate, amount, lodging_target, target_key, target_matches, unique_targets, unique_places,candidate_choices)
+    validate_quote_facts, project_quote, reusable, evaluate, amount, lodging_target, target_key, target_matches, unique_targets, unique_places,candidate_choices,hotel_candidate_groups)
 from core.hotel_contract import (evidenced_request, resolve_stay, missing_request, leaves, LABELS, HotelEvidenceError,
-    merge_hotel_state, candidate_transition, date_proposal, short_proposal_reply, selection_number, stay_text, hotel_task_views, history_field_matches,NEW_RUN_COMMAND,RUN_LIMIT_CODES)
+    merge_hotel_state, candidate_transition, date_proposal, short_proposal_reply, selection_number, stay_text, hotel_task_views, history_field_matches,NEW_RUN_COMMAND,RUN_LIMIT_CODES,adult_counts)
 from core.tool_result import ToolResult
 from core.time_input import NUMBER
 
 def reference_text(snapshot):
     """Show compact source-backed clues; long source text belongs to explicit reading."""
     clues=snapshot.get('reference_clues',[])
+    summaries=snapshot.get('price_summaries',[])
+    if summaries and not clues:
+        lines=['价格来源：携程问道回答，仅供参考。保留原文的起价、床位价和约价口径，不保证指定房型、税费或成交价。',
+               '', '| 酒店 | 原文参考价格 |', '| --- | --- |']
+        for row in summaries:
+            value='；'.join(row['prices']) if row['status']=='reference' else ('未查到价格（本次问道回答未提供可展示的房价）' if row['status']=='not_found' else '原文价格对应关系待核对，可查看原文')
+            lines.append('| '+row['hotel_name'].replace('|',r'\|')+' | '+value.replace('|',r'\|').replace('\n',' ')+' |')
+        return '\n'.join(lines)
     if clues:
-        lines=['问道参考价格（价格口径、门店或产品条件待核对，不用于预算通过或可订判断）：']
+        lines=['源于携程问道回答，仅供参考（价格口径、门店或产品条件待核对，不用于预算通过或可订判断）：']
         def cell(value):return str(value or '未明确').replace('|',r'\|').replace('\n',' ')
         for hotel in dict.fromkeys(c['hotel_name'] for c in clues):
             lines.extend(['\n**'+cell(hotel)+'**','', '| 房型 | 原文参考价格 | 早餐 | 退改 |', '| --- | --- | --- | --- |'])
@@ -40,6 +48,8 @@ def reference_text(snapshot):
         if any(c.get('taxes_and_fees_status')!='included' for c in clues):lines.append('税费及完整应付金额待确认。')
         lines.append('以上仅为供应商参考，不保证库存或成交价；完整条款可从“查看原文”读取。')
         if snapshot.get('unavailable_note'):lines.extend(['',snapshot['unavailable_note']])
+        remaining=[r for r in summaries if r['requested_target_ref'] not in {c['requested_target_ref'] for c in clues}]
+        if remaining:lines.extend(['',reference_text({'price_summaries':remaining})])
         return '\n'.join(lines)
     if snapshot.get('unavailable_note'):return snapshot['unavailable_note']
     if snapshot.get('raw_text'):
@@ -58,6 +68,8 @@ def quote_text(spec,snapshot,now=None,*,places=None):
     lines.append('问道参考报价 · 查询时间 '+stamp+'（北京时间；不保证库存或成交价）')
     if snapshot.get('note'):lines.append(snapshot['note'])
     if snapshot.get('is_trial'):lines.append('按本次查询条件试算，不代表已完成预订或更改行程。')
+    if snapshot.get('reference_only'):
+        lines.append('本次只收集酒店展示参考价；未推定未明确的入住日期、房间数或儿童情况，住宿条件未写入行程。')
     stay=snapshot.get('stay',{})
     children=stay.get('children_ages')
     children_text='无儿童' if children==[] else '、'.join(str(age)+'岁' for age in children) if isinstance(children,list) else '尚未明确'
@@ -76,16 +88,19 @@ def quote_text(spec,snapshot,now=None,*,places=None):
         conclusion='适用已列入住条件，未据此判定预算达标' if item['status']=='reference_available' else '完整口径参考价在预算范围，仍需下单前核对'
         lines.append('- '+item['hotel_name']+' · '+item['room_name']+'：'+prices+'；'+'；'.join(item['issues'] or [conclusion]))
     references=snapshot.get('reference_clues',[])
-    if references:lines.append('\n'+reference_text(snapshot)+'\n')
-    elif not offers and snapshot.get('raw_text') and snapshot['result_note']!=snapshot.get('note'):lines.append(snapshot['result_note'])
-    elif snapshot.get('unavailable_note'):lines.append(snapshot['unavailable_note'])
-    covered={o['amap_poi_id'] for o in offers}|{c['requested_target_ref'] for c in references}|{p['requested_target_ref'] for p in snapshot.get('unavailable_prices',[])}
+    priced={o['amap_poi_id'] for o in offers}|{c['requested_target_ref'] for c in references}
+    summaries=[r for r in snapshot.get('price_summaries',[]) if r['requested_target_ref'] not in priced]
+    if references:lines.append('\n'+reference_text({**snapshot,'price_summaries':[]})+'\n')
+    if summaries:lines.append('\n'+reference_text({'price_summaries':summaries})+'\n')
+    elif not offers and not references and snapshot.get('raw_text') and snapshot['result_note']!=snapshot.get('note'):lines.append(snapshot['result_note'])
+    if not references and snapshot.get('unavailable_note') and snapshot['unavailable_note'] not in lines:lines.append(snapshot['unavailable_note'])
+    covered=priced|{r['requested_target_ref'] for r in summaries}|{p['requested_target_ref'] for p in snapshot.get('unavailable_prices',[])}
     missing_names=[name for pid,name in snapshot.get('requested_hotels',{}).items() if pid not in covered]
     if missing_names:lines.append('仍待核对门店或产品：'+'、'.join(missing_names)+'。')
     if snapshot.get('rejected'):
-        if not references:lines.append('核对说明：'+'；'.join(list(dict.fromkeys(r['reason'] for r in snapshot['rejected']))[:3]))
+        if not references and not summaries:lines.append('核对说明：'+'；'.join(list(dict.fromkeys(r['reason'] for r in snapshot['rejected']))[:3]))
     if offers and not any(o['status'] in {'reference_match','reference_available'} for o in offers):lines.append('当前没有可用于完整预算匹配的已核实报价；不表示没有房源，也不代表其他未返回产品。')
-    if not offers and snapshot.get('source_record_id'):lines.append('完整原文已保存，可从“查看原文”读取，不会重新查询。')
+    if not offers and not summaries and snapshot.get('source_record_id'):lines.append('完整原文已保存，可从“查看原文”读取，不会重新查询。')
     return '\n'.join(lines)
 
 
@@ -129,7 +144,8 @@ class HotelQuotes:
                     'candidate_set_id':state['candidate_set_id'],'candidate_set_version':state['candidate_set_version'],
                     'candidate_id':p['id'],'selectable':lodging_target(p)})
         proposal=date_proposal(state.get('hotel_date_proposal'))
-        if proposal.get('status')=='proposed' and proposal.get('presented'):
+        if (proposal.get('status')=='proposed' and proposal.get('presented') and
+                not all(state.get('hotel_request',{}).get('stay',{}).get(k) for k in ('check_in','check_out'))):
             for kind,label in (('accept_dates','使用这组日期'),('reject_dates','修改日期')):
                 actions.append({**common,'kind':kind,'label':label,'proposal_id':proposal['proposal_id'],'proposal_version':proposal['version']})
         if 'history_record' in task.missing_slots:
@@ -240,7 +256,76 @@ class HotelQuotes:
         except ValueError as error:return str(error)
         return '已保存的问道原文（历史资料，本次未联网）\n'+data['text']+f"\n第{page}页 · 共{data['total_chars']}字符"+('；引用本条回复后可发送“查看酒店报价原文 第'+str(page+1)+'页”。' if data['next_cursor'] is not None else '；原文已读完。')
 
+    def trip_reference(self,event,reference):
+        """Adapt an owned immutable itinerary receipt, never the mutable current trip."""
+        from tools.research.sources import planning_policy
+        with self.store._connect() as db:
+            if event.platform=='web' and getattr(self.store,'web_lifecycle',None):
+                self.store.web_lifecycle.check(event.scope_id,db)
+            row=db.execute('''SELECT r.result_text,t.task_id,e.task_version FROM event_tool_results r
+                JOIN task_event_results e ON e.event_id=r.event_id JOIN travel_tasks t ON t.task_id=e.task_id
+                WHERE r.event_id=? AND r.tool_name='trip_presentation' AND t.task_type='itinerary'
+                AND t.platform=? AND t.scope_id=? AND t.owner_id=?''',
+                (reference.get('event_id'),event.platform,event.storage_scope_id,event.sender_id)).fetchone()
+            if not row:raise ValueError('引用的行程资料不存在或不属于当前会话，请重新引用。')
+            trip=json.loads(row['result_text'])['trip']
+            state=self.store.trips.draft_state(db,event,row['task_id'],captured_version=row['task_version'],now=self.clock())
+        lifecycle=state['view']['state']
+        if lifecycle not in {'ready','expired','saved'} or lifecycle=='saved' and (
+                not state['current'] or state['current']['status']!='active' or state['current']['version']!=trip['version']):
+            raise ValueError('引用的草案已放弃、被替代或版本已变化，请引用需要核价的最新草案；未修改原行程。')
+        identity={'event_id':reference['event_id'],'trip_id':trip['trip_id'],'trip_version':trip['version'],
+                  'draft_id':row['task_id'],'draft_version':row['task_version']}
+        if any(key in reference and reference[key]!=value for key,value in identity.items()):
+            raise ValueError('引用的草案版本不匹配，请重新引用。')
+        spec,plan,places=trip['spec'],trip['plan'],trip['sources']
+        rows=plan.get('hotel_recommendations',[])
+        ids=list(dict.fromkeys([r['poi_id'] for _,group in hotel_candidate_groups(rows) for r in group] if rows else plan.get('hotel_ids',[])))
+        if not ids or len(ids)>12 or any(pid not in places or not lodging_target(places[pid]) for pid in ids):
+            raise ValueError('引用草案没有可明确绑定的住宿候选，请引用含具体酒店名单的草案。')
+        bound={pid:deepcopy(places[pid]) for pid in ids}
+        targets=[{'name':p['name'],'city':spec['destination'],**({'address_hint':p['address']} if p.get('address') else {})} for p in bound.values()]
+        stay={k:v for k,v in spec.get('hotel_stay',{}).items() if k in STAY_FIELDS}
+        counts=adult_counts('；'.join(spec.get('preferences',[])))
+        if 'adults' not in stay and len(counts)==1 and 1<=next(iter(counts))<=20:stay['adults']=next(iter(counts))
+        request={'targets':targets,'stay':stay}
+        budget=spec.get('budgets',{}).get('accommodation',{})
+        if budget.get('value'):request['budget']={k:v for k,v in budget.items() if k in {'value','unit_text','source'}}
+        dates={k:spec.get(field) for k,field in (('check_in','start_date'),('check_out','end_date'))}
+        proposal=date_proposal({**dates,'presented':False,'source_kind':'trip_snapshot'},source_version=identity) if (
+            not spec.get('date_is_tentative') and all(dates.values()) and dates['check_out']>dates['check_in']
+            and not any(k in stay for k in dates)) else {}
+        return {'hotel_request':request,'hotel_targets':bound,'hotel_trip_reference':identity,'hotel_date_proposal':proposal,
+                'source_context':{'provider_policy':planning_policy(spec,'',automatic=True)},
+                'field_provenance':{path:{'event_id':identity['event_id'],'source_kind':'trip_snapshot','source':value}
+                                    for path,value in leaves(request)}}
+
     def execute_result(self,name,arguments,context):
+        event=context.event;data=context.execution_data or {}
+        quoted=(event.message_reference or {}) if event else {}
+        sources=[r.get('payload',{}).get('trip_reference') for r in quoted.get('tool_results',[])
+                 if r.get('action')=='query_hotel_prices' and isinstance(r.get('payload'),dict) and r['payload'].get('trip_reference')]
+        reference=({'event_id':quoted.get('event_id')} if quoted.get('trip') else sources[0] if len(sources)==1 else None) if quoted else data.get('hotel_trip_reference')
+        if data.get('accommodation_goal'):reference=None  # The goal already bound its owned immutable version.
+        if reference:
+            try:seed=self.trip_reference(event,reference)
+            except (ValueError,LookupError) as error:
+                return ToolResult('needs_input',name,data=str(error),missing_fields=('reference',),payload={'request':data.get('hotel_request',{})})
+            if data.get('hotel_trip_reference')!=seed['hotel_trip_reference']:
+                data={**seed,'reference_time':data.get('reference_time') or event.occurred_at or self.clock()}
+            context=replace(context,execution_data=data)
+        result=self._execute_result(name,arguments,context)
+        if reference and isinstance(result.payload,dict):
+            result=replace(result,payload={**result.payload,'trip_reference':{} if result.status=='completed' else seed['hotel_trip_reference'],
+                'source_policy':result.payload.get('source_policy',seed['source_context']['provider_policy'])})
+            if quoted.get('trip'):
+                request=result.payload.get('request',{});budget=request.get('budget',{})
+                note='已读取引用草案中的酒店候选：'+'、'.join(t['name'] for t in request.get('targets',[]))+'。'
+                if budget:note+='预算沿用 '+budget['value']+' '+budget.get('unit_text','')+'。'
+                result=replace(result,data=note+'本轮仅核价，不保存或预订。\n'+result.data)
+        return result
+
+    def _execute_result(self,name,arguments,context):
         from tools.research.sources import planning_policy
         from core.commands import social_message
         event=context.event
@@ -274,9 +359,10 @@ class HotelQuotes:
             else:known={**known,'stay':{k:v for k,v in known.get('stay',{}).items() if k not in {'check_in','check_out'}}}
         reference=event.message_reference or {};source_event=reference.get('event_id','')
         linked=self.store.research.hotel_quotes_for_event(event,source_event) if source_event else []
-        quoted=linked[0] if len(linked)==1 else None
+        quoted=linked[0] if len(linked)==1 and not data.get('hotel_trip_reference') else None
         prior=[r['payload'] for r in reference.get('tool_results',[]) if r.get('action')=='query_hotel_prices'
                and isinstance(r.get('payload'),dict) and isinstance(r['payload'].get('request'),dict)]
+        if data.get('hotel_trip_reference'):prior=[]
         if arguments.get('reference') and not quoted and len(prior)==1 and prior[0].get('target_candidates'):
             old=prior[0]
             if not data.get('hotel_candidates'):
@@ -300,7 +386,7 @@ class HotelQuotes:
             known={**prior[0]['request'],**known,'stay':{**prior[0]['request'].get('stay',{}),**known.get('stay',{})}}
             data={**data,'hotel_targets':data.get('hotel_targets',prior[0].get('resolved_targets',{}))}
             if not data.get('hotel_collecting'):known.pop('mode',None)
-        if source_event and not quoted and not prior and arguments.get('reference'):
+        if source_event and not quoted and not prior and arguments.get('reference') and not data.get('hotel_trip_reference'):
             return ToolResult('needs_input',name,data='引用中没有可访问的酒店资料，请提供门店或引用相应报价。',missing_fields=('targets',))
         bound=deepcopy(data.get('hotel_targets',{}))
         if quoted:
@@ -355,6 +441,8 @@ class HotelQuotes:
         if mode=='saved' and quoted:
             reference_time=quoted.get('field_provenance',{}).get('stay.check_in',{}).get('reference_time') or quoted.get('recorded_at') or quoted.get('retrieved_at') or reference_time
         request['stay']=resolve_stay(request.get('stay',{}),reference_time,event.content,anchor)
+        if proposal.get('status')=='proposed' and all(request['stay'].get(k) for k in ('check_in','check_out')):
+            proposal['status']='accepted' if all(request['stay'][k]==proposal[k] for k in ('check_in','check_out')) else 'replaced'
         if policy.get('offline') and mode=='refresh':
             return ToolResult('failed',name,error_code='source_restricted',data='当前不允许联网，尚未重新查价。',payload={'request':request,'source_policy':policy})
         if mode=='saved' or policy.get('offline'):
@@ -504,7 +592,8 @@ class HotelQuotes:
                     for keyword in [b['name'] for b in brands][:2] or ['酒店']:
                         rows=self.amap.search_places(city,discovery.get('area','')+' '+keyword);map_calls+=1
                         for place in rows:
-                            if (lodging_target(place) and place.get('address') and normalized(place.get('cityname','')).removesuffix('市')==normalized(city).removesuffix('市')
+                            attempted={r['poi_id'] for r in data.get('accommodation_goal',{}).get('attempted',[]) if r['stay']==fingerprint(request['stay'])}
+                            if (place.get('id') not in attempted and lodging_target(place) and place.get('address') and normalized(place.get('cityname','')).removesuffix('市')==normalized(city).removesuffix('市')
                                     and (not brands or match_hotel_brand(place['name'],brands))):bound[place['id']]=place
                     bound=dict(list(bound.items())[:3])
             except Exception as error:
@@ -513,6 +602,9 @@ class HotelQuotes:
         pending=[target for target in requested if target_key(target) not in bindings]
         payload.update(resolved_targets=bound,target_bindings=bindings,map_calls=map_calls)
         if pending or not bound:
+            if data.get('accommodation_goal') and not requested and not bound:
+                return ToolResult('completed',name,data='本次检索没有未尝试且可唯一绑定的酒店；可在剩余轮次内调整检索区域或方向，未重复提交旧酒店核价。',
+                    payload={**payload,'offers':[],'search_exhausted':True})
             text=('门店未能唯一绑定，请选择具体分店：\n'+'\n'.join(f"{i}. {p['name']} · {p.get('address','地址未知')}" for i,p in enumerate(candidates[:12],1))) if candidates else '未找到可选酒店，请补充完整门店名、城市或地址限定；尚未提交房价查询。'
             return ToolResult('needs_input',name,data=text,missing_fields=('targets',),payload=payload)
         if not all(lodging_target(p) for p in bound.values()):
@@ -524,7 +616,8 @@ class HotelQuotes:
         mapping=[{'input_index':i,'target':t,'poi_id':bindings.get(target_key(t))} for i,t in enumerate(items)]
         snapshot=self.lookup(event,{'city':city,'stay':request['stay'],'budget':request.get('budget'),'field_provenance':provenance,
             'request_coverage':coverage,'input_mapping':mapping,
-            'unfinished':[t['name'] for t in request.get('targets',[])[3:]]},targets=bound,policy=policy,refresh=mode=='refresh')
+            'unfinished':[t['name'] for t in request.get('targets',[])[3:]]},targets=bound,policy=policy,refresh=mode=='refresh',
+            step_binding=data.get('accommodation_goal',{}).get('binding'),run_key=data.get('budget_run_key',''))
         snapshot.update(targets=bound,query_request=request,map_calls=map_calls,
             unfinished=[t['name'] for t in request.get('targets',[])[3:]])
         result=self._result(name,request,snapshot)
@@ -586,14 +679,16 @@ class HotelQuotes:
             +('；仅展示最近20条，可引用对应历史消息读取更早原文。' if len(snapshots)>20 else '')) if snapshots else '当前会话没有可访问的酒店原文记录。'
 
     @skill_request
-    def lookup(self,event,request,*,targets,policy,refresh=False,allow_query=True):
+    def lookup(self,event,request,*,targets,policy,refresh=False,allow_query=True,step_binding=None,run_key='',reference_only=False):
         now=self.clock();requested=list(targets)[:3];targets={pid:targets[pid] for pid in requested}
         spec={'destination':request.get('city',''),'hotel_stay':{k:v for k,v in request.get('stay',{}).items() if k in STAY_FIELDS},
               'budgets':{'accommodation':request['budget']} if request.get('budget') else {}}
         missing=missing_request({'targets':[{'name':p['name'],'city':spec['destination']} for p in targets.values()], 'stay':spec['hotel_stay']},now)
+        if reference_only:missing=[field for field in missing if field not in STAY_FIELDS]
         base={'schema_version':1,'provider':'ctrip_wendao','contract_version':VERSION,'city':spec.get('destination'),
               'offers':[],'stay':deepcopy(spec.get('hotel_stay',{})),'provider_policy':policy,
               'is_trial':bool(request.get('is_trial')),'source_trip_id':request.get('source_trip_id'),'note':''}
+        if reference_only:base.update(reference_only=True,reference_dates=request.get('reference_dates',{}))
         if policy.get('source_restricted') or policy.get('offline'):return {**base,'note':'当前来源限制不使用问道报价；保留酒店与预算要求，房价待核对。','error_code':'source_restricted'}
         if missing:return {**base,'note':('请一并补充：' if allow_query else '指定日期报价尚缺：')+'、'.join(LABELS.get(k,k) for k in missing)
             +('。补充后继续核价，不直接保存行程。' if allow_query else '。需要查价时可补充，不默认采用1间房、1名成人。'),'missing_fields':missing}
@@ -603,7 +698,10 @@ class HotelQuotes:
         if any(not p.get('address') or normalized(p.get('cityname','')).removesuffix('市')!=normalized(spec['destination']).removesuffix('市') for p in targets.values()):
             return {**base,'note':'门店城市或地址尚未核对，未提交报价查询。'}
         key=fingerprint({'version':VERSION,'city':spec['destination'],'stay':{k:base['stay'].get(k) for k in sorted(STAY_FIELDS)},
+                         **({'reference_only':True,'reference_dates':base['reference_dates']} if reference_only else {}),
                          'targets':{pid:{k:p.get(k) for k in ('name','address','cityname','location')} for pid,p in targets.items()}})
+        step_key=fingerprint([event.event_key,key,step_binding]) if step_binding is not None else ''
+        identity={'step_key':step_key} if step_key else {}
         if not refresh:
             latest=self.saved(event,{'targets':[{'name':p['name']} for p in targets.values()],'stay':base['stay']})
             if latest and not allow_query:return {**latest,'reused':True}
@@ -616,13 +714,21 @@ class HotelQuotes:
         if not self.enabled or not self.wendao or not self.wendao.configured or not policy['requested']:
             return {**base,'note':'酒店报价未启用、问道不可用或来源限制不允许；保留候选，房价待核对。','error_code':'not_available'}
         query='只查询酒店参考报价，不预订不下单。以下是公开住宿条件，不要推断缺失字段。每家最多两个产品，分别列明确适用的入住退房日期、人数房数、每晚日期价格及币种单位、总价是否含全部税费、早餐退改及会员优惠限制、完整门店名地址和携程链接；未知明确写未知。不要计算预算是否达标。\n'+json.dumps(
-            {'city':spec['destination'],'stay':public_stay(base['stay']),'hotels':[{'target_id':pid,'name':p['name'],'address':p['address']} for pid,p in targets.items()]},ensure_ascii=False)
-        try:result=self.wendao.query(event,self.store.research,query,purpose='hotel_quotes',fingerprint=key)
-        except (WendaoError,ValueError) as error:return {**base,'note':str(error),'error_code':'provider_rejected'}
-        snapshot={**base,'request_fingerprint':key,'request_id':fingerprint([event.event_key,'hotel_quotes']),
+            {'city':spec['destination'],'stay':public_stay(base['stay']),'hotels':[{'target_id':pid,'name':targets[pid]['name'],'address':targets[pid]['address']} for pid in sorted(targets)]},ensure_ascii=False,sort_keys=True)
+        if reference_only:
+            query='查询以下酒店已有的展示参考房价，不要求预订报价，不推断未明确的房间数、入住退房或儿童情况。逐家使用完整酒店名称标题，列出“每晚价格”或“起价/均价”，保留币种、每间/每床/每晚等原始口径和约价限定；没有价格就明确写未知，早餐/押金等不能当房价。不得计算预算达标。旅行日期仅作参考，不等于已确认住宿日期。\n'+json.dumps(
+                {'city':spec['destination'],'known_stay':public_stay(base['stay']),'travel_dates':base['reference_dates'],
+                 'hotels':[{'name':p['name'],'address':p['address']} for p in targets.values()]},ensure_ascii=False)
+        try:result=self.wendao.query(event,self.store.research,query,purpose='hotel_quotes',fingerprint=key,
+            **({**identity,'run_key':run_key} if step_key else {}))
+        except (WendaoError,ValueError) as error:
+            blocked=getattr(error,'code','')=='run_provider_limit'
+            return {**base,'note':str(error)+(' 可明确回复“'+NEW_RUN_COMMAND+'”，新运行继续受日/月限额约束。' if blocked else ''),
+                'error_code':error.code if blocked else 'provider_rejected',**({'budget_block':{'code':error.code,'details':{}}} if blocked else {})}
+        snapshot={**base,'request_fingerprint':key,'request_id':fingerprint([event.event_key,'hotel_quotes',step_key] if step_key else [event.event_key,'hotel_quotes']),'step_key':step_key,
                   'targets':deepcopy(targets),'query_request':deepcopy(request),'unfinished':request.get('unfinished',[]),
                   'field_provenance':request.get('field_provenance',{}),
-                  'source_event_id':event.event_key,'content_hash':result.get('content_hash'),'retrieved_at':result.get('retrieved_at'),
+                  'source_event_id':event.event_key+('#hotel-step-'+step_key if step_key else ''),'content_hash':result.get('content_hash'),'retrieved_at':result.get('retrieved_at'),
                   'recorded_at':result.get('submitted_at'),
                   'requested_poi_ids':requested,'requested_hotels':{pid:p['name'] for pid,p in targets.items()},
                   'input_mapping':request.get('input_mapping',[]),
@@ -631,21 +737,26 @@ class HotelQuotes:
             status='submission_unknown' if result['status'] in {'submitted','result_unknown'} else result['status']
             snapshot.update(note='问道未完成：'+status+'；不自动重试。',error_code=status,submission_status=status)
             if not result.get('reused'):
-                self.store.research.hotel_extraction(event,result={'status':'not_run','snapshot':snapshot})
+                self.store.research.hotel_extraction(event,result={'status':'not_run','snapshot':snapshot},**identity)
             return snapshot
         raw=result['text'];snapshot['raw_text']=raw
         snapshot['submission_status']='completed'
         from core.tool_result import AgentToolContext
         snapshot['source_record_id']=self.store.tool_artifacts.save(
             AgentToolContext(event.platform,event.scope_id,event.sender_id,event.event_key),'hotel_quotes',raw)
-        previous,_=self.store.research.hotel_extraction(event)
+        previous,_=self.store.research.hotel_extraction(event,**identity)
         if previous:return previous.get('snapshot',{**snapshot,'note':'报价提取结果未知，未自动重复调用模型。'})
+        if reference_only:
+            snapshot=project_quote({**snapshot,'extraction_status':'reference_only','evidence_version':EVIDENCE_VERSION})
+            snapshot['coverage']['returned']=sum(normalized(p['name']) in normalized(raw) for p in targets.values())
+            self.store.research.hotel_extraction(event,result={'status':'reference_only','snapshot':snapshot},**identity)
+            return snapshot
         if not self.client or len(raw)>24000:
             snapshot['extraction_status']='not_run'
             snapshot['note']='模型不可用或原文超过提取输入上限，保留原文但不确认报价。'
-            self.store.research.hotel_extraction(event,result={'status':'not_run','snapshot':snapshot})
+            self.store.research.hotel_extraction(event,result={'status':'not_run','snapshot':snapshot},**identity)
             return snapshot
-        _,reserved=self.store.research.hotel_extraction(event,reserve=True)
+        _,reserved=self.store.research.hotel_extraction(event,reserve=True,**identity)
         if not reserved:return {**snapshot,'note':'报价提取已执行或结果未知，未重复调用。'}
         try:
             with model_call_context('hotel_quote_extract',stage_id='hotel.quote_extract',prompt_version=EVIDENCE_VERSION):
@@ -664,5 +775,5 @@ class HotelQuotes:
                 error_code=error.code,budget_block={'code':error.code,'details':error.details},extraction_status='budget_blocked')
         except Exception as error:snapshot.update(note='报价提取或证据校验未完成；保留原文，未再次调用问道。',error_type=type(error).__name__,extraction_status='failed')
         ensure_execution_active()
-        self.store.research.hotel_extraction(event,result={'status':snapshot.get('extraction_status','failed'),'snapshot':snapshot})
+        self.store.research.hotel_extraction(event,result={'status':snapshot.get('extraction_status','failed'),'snapshot':snapshot},**identity)
         return snapshot

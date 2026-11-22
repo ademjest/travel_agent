@@ -10,6 +10,7 @@ from core.tool_result import TOOLS_BY_NAME, READ_TOOL_ARTIFACT_TOOL, CURRENT_WEA
 from tools.legacy_names import LEGACY_NAMES
 from core.tool_result import RAIL_CATALOG, COMPACT_RAIL_CATALOG, CATALOG_VERSIONS, TRAIN_TICKETS_TOOL
 from core.tool_result import (HOTEL_CATALOG, COMPACT_HOTEL_CATALOG, HOTEL_STATE_CATALOG, COMPACT_HOTEL_STATE_CATALOG, HOTEL_CATALOGS, RAIL_CATALOGS, COMPACT_CATALOGS)
+from core.tool_result import ACCOMMODATION_CATALOG,COMPACT_ACCOMMODATION_CATALOG
 
 WEATHER_PERIODS = {'current': CURRENT_WEATHER_TOOL, 'forecast': WEATHER_FORECAST_TOOL}
 ROUTE_MODES = {'driving': DRIVING_ROUTE_TOOL, 'walking': WALKING_ROUTE_TOOL, 'transit': TRANSIT_ROUTE_TOOL}
@@ -30,6 +31,8 @@ def normalize_tool_call(name, arguments, catalog_version=DEFAULT_CATALOG):
     if type(arguments) is not dict:
         raise ValueError('工具参数必须是对象。')
     values = dict(arguments)
+    if name=='preview_accommodation_candidates' and catalog_version not in {ACCOMMODATION_CATALOG,COMPACT_ACCOMMODATION_CATALOG}:
+        raise ValueError('历史目录不包含住宿预览，请重新发起请求。')
     if name == TRAIN_TICKETS_TOOL and catalog_version not in RAIL_CATALOGS:
         raise ValueError('历史目录不包含铁路动作，请重新发起查询。')
     if name=='query_hotel_prices' and catalog_version not in HOTEL_CATALOGS:
@@ -102,7 +105,8 @@ def catalog_schemas(allowed_actions=None, catalog_version=DEFAULT_CATALOG):
     if catalog_version in (CATALOG_VERSIONS-COMPACT_CATALOGS):
         return [_catalog_schema(name,catalog_version) for name in names if name in TOOLS_BY_NAME
                 and (name!=TRAIN_TICKETS_TOOL or catalog_version in RAIL_CATALOGS)
-                and (name!='query_hotel_prices' or catalog_version in HOTEL_CATALOGS)]
+                and (name!='query_hotel_prices' or catalog_version in HOTEL_CATALOGS)
+                and (name!='preview_accommodation_candidates' or catalog_version in {ACCOMMODATION_CATALOG,COMPACT_ACCOMMODATION_CATALOG})]
     if catalog_version not in COMPACT_CATALOGS:
         raise ValueError('Unknown tool catalog version')
     schemas = []
@@ -137,11 +141,12 @@ def catalog_schemas(allowed_actions=None, catalog_version=DEFAULT_CATALOG):
         parameters['required'] = ['target_kind', 'target_code']
         schemas.append(cancel)
     for name in ('search_travel_places', 'list_reservation_plans', 'confirm_reservation_plan',
-                 'request_missing_input', 'read_tool_artifact', 'query_official_website', 'continue_official_websites', TRAIN_TICKETS_TOOL, 'query_hotel_prices'):
+                 'request_missing_input', 'read_tool_artifact', 'query_official_website', 'continue_official_websites', TRAIN_TICKETS_TOOL, 'query_hotel_prices','preview_accommodation_candidates'):
         if name in allowed:
             if name==TRAIN_TICKETS_TOOL and catalog_version not in RAIL_CATALOGS:
                 continue
             if name=='query_hotel_prices' and catalog_version not in HOTEL_CATALOGS:continue
+            if name=='preview_accommodation_candidates' and catalog_version not in {ACCOMMODATION_CATALOG,COMPACT_ACCOMMODATION_CATALOG}:continue
             schemas.append(_catalog_schema(name,catalog_version))
     return schemas
 
@@ -215,6 +220,7 @@ def request_input(name, arguments, context):
 
 # Public names and canonical operation identities are explicit, never plugin-scanned.
 TOOL_LAYOUT = (
+    ('preview_accommodation_candidates','accommodation','write',True,''),
     ('query_hotel_prices', 'hotel_prices', 'read', True, ''),
     (TRAIN_TICKETS_TOOL, 'travel_query', 'read', True, ''),
     ('continue_official_websites', 'search', 'read', True, ''),
@@ -253,10 +259,11 @@ def repeatable_tool(name):
     return bool(definition and definition.repeatable)
 
 
-def build_registry(*, travel_query, reservation, artifact, search=None, hotel_prices=None):
+def build_registry(*, travel_query, reservation, artifact, search=None, hotel_prices=None,accommodation=None):
     handlers = {'travel_query': travel_query, 'reservation': reservation,
                 'tool_artifacts': artifact, 'conversation': request_input,
                 'hotel_prices':hotel_prices or (lambda name,args,context: ToolResult('failed',name,error_code='not_available',data='酒店查价服务暂不可用。')),
+                'accommodation':accommodation or (lambda name,args,context: ToolResult('failed',name,error_code='not_available',data='住宿预览服务暂不可用。')),
                 'search': search or (lambda name,args,context: ToolResult('failed',name,error_code='not_available',data='官网搜索暂不可用。'))}
     return ToolRegistry(replace(definition, handler=handlers[definition.owner])
                         for definition in TOOL_DEFINITIONS.values())
@@ -270,7 +277,8 @@ class AgentToolRouter:
         self.delivery_repository = delivery_repository
         self.registry = build_registry(travel_query=self._read_result, reservation=reservation_tool.execute_result,
                                        artifact=self._artifact_result, search=search_tool.execute_result if search_tool else None,
-                                       hotel_prices=self._hotel_result)
+                                       hotel_prices=self._hotel_result,accommodation=self._accommodation_result)
+        self.trip_tool=None
         if search_tool is not None:
             search_tool.executor = self.execute_result
 
@@ -313,6 +321,10 @@ class AgentToolRouter:
         if not getattr(self.travel_service,'hotel_prices',None):
             return ToolResult('failed',name,error_code='not_available',data='酒店查价服务暂不可用。')
         return self.travel_service.hotel_prices.execute_result(name,arguments,context)
+
+    def _accommodation_result(self,name,arguments,context):
+        if self.trip_tool is None:return ToolResult('failed',name,error_code='not_available',data='住宿预览服务暂不可用。')
+        return self.trip_tool.preview_accommodation_candidates(arguments,context)
 
     def _read_result(self, name, arguments, context):
         result = self.travel_service.execute_scoped_result(name, arguments, context)

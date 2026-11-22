@@ -248,8 +248,7 @@ class QuoteLookupTests(unittest.TestCase):
     def test_disabled_missing_and_source_restrictions_never_submit(self):
         for text in ('只用高德查询酒店','不联网，只看已有资料','只用官网'):
             self.assertIn('限制',lookup_hotel_quotes(self.service,replace(self.event,content=text),trip(),refresh=True)['note'])
-        t=trip();t['spec'].pop('hotel_stay')
-        self.assertIn('一并补充',lookup_hotel_quotes(self.service,self.event,t)['note'])
+        self.assertIn('一并补充',self.service.lookup(self.event,{'city':'测试城','stay':{}},targets=TARGET,policy={'requested':True})['note'])
         self.transport.assert_not_called()
 
     def test_failed_extraction_and_unknown_submission_never_retry(self):
@@ -313,7 +312,7 @@ class QuoteWorkflowTests(WorkflowHarness,unittest.TestCase):
             text='酒店我想住云泽酒店'
             changes={'accommodation':{'value':'云泽酒店','source':text,'preferred_brands':['云泽'],'brand_mode':'required'}}
         self.patch(changes,text,'stay')
-        self.assertEqual(self.transport.call_count,0 if missing else 1)
+        self.assertEqual(self.transport.call_count,1)
         if not missing:self.action(self.context()['confirmations'][0],'revalidate','adopt-hotel-material')
         return self.candidate()
 
@@ -374,19 +373,20 @@ class QuoteWorkflowTests(WorkflowHarness,unittest.TestCase):
     def test_legacy_no_budget_missing_conditions_continue_without_explicit_price_command(self):
         first=self.setup_quotes(budget=False,missing=True,formal=True)
         self.assertFalse(first['spec'].get('budgets',{}).get('accommodation'))
-        self.assertIn('请一并补充',first['plan']['hotel_quotes']['note'])
-        self.assertFalse(self.transport.called)
+        self.assertTrue(first['plan']['hotel_quotes']['reference_only'])
+        self.assertEqual(self.transport.call_count,1)
+        self.assertFalse(self.extraction.completions.requests)
         formal=self.web.store.trips.list_for_owner(self.web.event(''))
         text='2030年10月1日入住，2030年10月3日退房，1间房，2名成人，无儿童'
         values={**STAY,'check_in':'2030-10-01','check_out':'2030-10-03'}
         reply=self.patch({'hotel_stay':{'value':values,'source':text,'field_sources':{k:text for k in values}}},text,'complete-stay')
-        self.assertEqual(self.transport.call_count,1)
+        self.assertEqual(self.transport.call_count,2)
         self.assertTrue(self.candidate()['plan']['hotel_quotes']['offers'])
         self.assertFalse(self.candidate()['spec'].get('budgets',{}).get('accommodation'))
         self.assertEqual(self.web.store.trips.list_for_owner(self.web.event('')),formal)
         self.assertIn('399',reply)
         self.context();self.context()
-        self.assertEqual(self.transport.call_count,1)
+        self.assertEqual(self.transport.call_count,2)
 
     def test_stale_quote_is_refreshed_for_an_unchanged_lodging_request(self):
         first=self.setup_quotes(budget=False)

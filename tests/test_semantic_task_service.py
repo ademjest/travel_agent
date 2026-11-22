@@ -73,7 +73,7 @@ class SemanticTaskServiceTests(unittest.TestCase):
             'missing_fields': ['地点'], 'requires_confirmation': True, 'source_spans': ['10月2日'], 'confidence': .8}
         second = {'schema_version': 1, 'action': 'update', 'operations': [
             {'domain': 'trip', 'operation': 'remove_activity', 'activity': {'name': '湖北省博物馆', 'date_text': '10月2日'}}],
-            'missing_fields': [], 'requires_confirmation': True, 'source_spans': ['10月2日', '湖北省博物馆'], 'confidence': .9}
+            'missing_fields': [], 'requires_confirmation': True, 'source_spans': ['湖北省博物馆'], 'confidence': .9}
         class QueueCompiler:
             def __init__(self): self.values = [first, second]
             def try_compile(self, text, **kwargs): return __import__('core.intent_ir', fromlist=['parse_intent_ir']).parse_intent_ir(self.values.pop(0), text)

@@ -25,7 +25,7 @@ class ToolCatalogTests(unittest.TestCase):
         return ToolRegistry(replace(row, handler=execute) for row in TOOL_DEFINITIONS.values())
 
     def test_catalog_counts_and_default(self):
-        self.assertEqual(DEFAULT_CATALOG, 'legacy-v4')
+        self.assertEqual(DEFAULT_CATALOG, 'legacy-v5')
         self.assertEqual(catalog_schemas(), list(TOOLS_BY_NAME.values()))
         compact = catalog_schemas(catalog_version=COMPACT_CATALOG)
         self.assertEqual(len(compact), 12)

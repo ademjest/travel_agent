@@ -11,6 +11,7 @@ import re
 import os
 import logging
 from core.intent_ir import IntentIR, IntentOperation, to_jsonable, parse_intent_ir, TRIP_READ_OPERATIONS
+from core.trip_binding import operation_binding, continuation, source_snapshot, reference_required, legacy_copy_task, TARGETS
 from tools.preferences import PreferencesTool, preference_request
 
 
@@ -20,7 +21,7 @@ def hotel_quote_request(trip,names=()):
     spec,plan,places=trip['spec'],trip['plan'],trip['sources']
     selection={**spec,'budgets':{k:v for k,v in spec.get('budgets',{}).items() if k!='accommodation'}}
     eligible=[r['poi_id'] for r in assess_hotels(selection,{k:v for k,v in plan.items() if k!='hotel_quotes'},places) if r['status']!='conflict']
-    selected=[pid for pid in (plan.get('hotel_ids') or plan.get('hotel_quotes',{}).get('requested_poi_ids',[])) if pid in eligible]
+    selected=[pid for pid in (plan.get('hotel_ids') or [r['poi_id'] for r in plan.get('hotel_investigation',[])] or plan.get('hotel_quotes',{}).get('requested_poi_ids',[])) if pid in eligible]
     targets={pid:places[pid] for pid in selected or eligible if HOTEL_PATTERN.search(str(places[pid].get('type','')))
              and (not names or places[pid]['name'] in names)}
     return {'city':spec.get('destination',''),'stay':deepcopy(spec.get('hotel_stay',{})),
@@ -31,11 +32,14 @@ def hotel_quote_request(trip,names=()):
 def lookup_hotel_quotes(service,event,trip,*,refresh=False,names=(),allow_query=True):
     from tools.research.sources import planning_policy
     from tools.trip.constraints import missing_stay
+    from tools.hotel_prices.quotes import LABELS
     request,targets=hotel_quote_request(trip,names)
     missing=missing_stay(trip['spec'],service.clock())
-    if missing:return {'offers':[],'stay':request['stay'],'note':'请一并补充：'+'、'.join(missing)+'。补充后继续核价，先给预览，不直接保存。','missing_fields':missing}
+    invalid=[reason for reason in missing if reason not in LABELS.values()]
+    if invalid:return {'offers':[],'stay':request['stay'],'note':'请先核对：'+'、'.join(invalid)+'。','missing_fields':missing}
+    if missing:request['reference_dates']={k:trip['spec'].get(k) for k in ('start_date','end_date','date_is_tentative')}
     result=service.lookup(event,request,targets=targets,policy=planning_policy(trip['spec'],event.content,automatic=True),
-        refresh=refresh,allow_query=allow_query)
+        refresh=refresh,allow_query=allow_query,**({'reference_only':True} if missing else {}))
     if not allow_query and not result.get('request_id') and trip['plan'].get('hotel_quotes'):
         return deepcopy(trip['plan']['hotel_quotes'])
     return result
@@ -46,7 +50,7 @@ from tools.trip.constraints import record_sources, trip_diff, render_diff
 from tools.trip.planner import TripPlanError
 from core.tasks import TaskUpdate, utc_now
 from core.commands import location_answer
-from tools.trip.constraints import apply_constraints, transport_only, MODES, PACE, BUDGET_SCOPES, budget_default_note
+from tools.trip.constraints import apply_constraints, transport_only, MODES, PACE, BUDGET_SCOPES, budget_default_note, missing_budget_units
 from tools.reminders.tool import DATE_PATTERN, change_plan
 from tools.reminders.policy import BookingPolicyResolver, PolicyUnavailable
 from core.time_input import number, parse_reminder_time
@@ -954,6 +958,9 @@ class TripTool:
 
     def _question(self, task, event, claim, slots, missing, reply, *, trip=None, expected_trip=None,
                   expected_draft=None, expected_artifact=None, supersede_request='',draft_action=None,draft_guard=None):
+        if slots.get('trip_id') and not slots.get('trip_binding'):
+            slots={**slots,'trip_binding':operation_binding(event,None,
+                operation='update' if expected_trip else 'create_fresh')}
         if task and task.task_type=='itinerary' and task.is_expired(self.clock()):
             trip_id=slots.get('trip_id') or task.slots.get('trip_id')
             expected_draft=expected_draft or (trip_id,task.task_id,task.version)
@@ -1086,7 +1093,9 @@ class TripTool:
         if stale_draft:candidate=self.planner.reconcile_candidate(candidate,rebased)
         candidate['version']=expected_version+1
         if stale_draft:summary.insert(0,'已对比基础版、草案与当前正式版，保留无冲突修改；本轮明确选择优先')
-        slots = {}
+        slots = {'trip_binding':operation_binding(event,current,
+            previous=(semantic_task.slots.get('trip_binding') if semantic_task else
+                      draft['task'].slots.get('trip_binding') if draft else None))}
         if requested_checks:slots['price_check_text']=self.price_check_text(base,requested_checks)
         if preference_update is None and draft and not stale_draft:
             preference_update = draft['task'].slots.get('preference_update')
@@ -1100,6 +1109,70 @@ class TripTool:
             expected_draft=(trip_id,*draft_key),supersede_request=event.content,answer_base=base,
             quote_requested=bool(changes.keys() & {'accommodation','hotel_stay'}))
 
+
+    def create_from_reference(self,event,claim,ir,*,pending=None,source_text=None):
+        pending=pending or continuation(self.store,event)
+        if pending and (pending.task_type!='semantic' or
+                pending.slots.get('trip_binding',{}).get('operation')!='create_reference'):
+            pending=None
+        values=ir.operations[0].values
+        previous=pending.slots.get('trip_binding') if pending else None
+        binding=operation_binding(event,None,operation='create_reference',previous=previous)
+        legacy=legacy_copy_task(self.store,event) if not previous else None
+        if legacy:
+            binding['replaces_task']={'task_id':legacy.task_id,'version':legacy.version}
+        binding.setdefault('target',{'trip_id':self.store.trips.new_id(event.event_key),'version':0,
+            'draft_id':'','draft_version':0})
+        text=source_text or ((pending.slots.get('source_text',pending.initial_request)+'\n用户补充：') if pending else '')+event.content
+        if legacy:text=legacy.initial_request+'\n用户本轮要求：'+text
+        changes=values.get('changes',{})
+        if pending:
+            from tools.trip.constraints import merge_constraint_changes
+            ops=pending.slots.get('semantic_ir',{}).get('operations',[])
+            if len(ops)==1:changes=merge_constraint_changes(ops[0].get('changes',{}),changes)
+        ir=replace(ir,operations=(IntentOperation('trip','create',{'request_text':event.content,
+            'basis':'reference','changes':changes}),))
+        source=source_snapshot(self.store,event,binding)
+        if not source:
+            return self._save_clarification(event,claim,replace(ir,missing_fields=('source_reference',)),
+                '请引用本会话中要作为基础的历史方案；已保留另建目标与本轮修改要求，不会从空白创建。',
+                task=pending,source_text=text,binding=binding)
+        from tools.trip.constraints import food_budget_conflicts
+        try:
+            conflicts=food_budget_conflicts(source['spec'],changes,text)
+            spec=apply_constraints(source['spec'],changes,text)[0] if changes else source['spec']
+        except ValueError as error:return str(error)
+        missing=[f for f in ir.missing_fields if f not in {'source_reference','trip_ref','meal_policy'}]
+        if missing_budget_units(spec,changes):missing=list(dict.fromkeys([*missing,'budget_unit']))
+        else:missing=[f for f in missing if f!='budget_unit']
+        if conflicts or missing:
+            question=('原方案保留了'+ '、'.join(conflicts)+'的单餐例外。请说明保留这些例外，还是所有餐次统一并清除例外。'
+                if conflicts else values.get('question') or '请补充本轮尚不明确的预算或计价单位；已有城市、日期及景点保留。')
+            return self._save_clarification(event,claim,replace(ir,missing_fields=('meal_policy',) if conflicts else tuple(missing)),
+                question,task=pending,source_text=text,binding=binding)
+        if legacy and legacy.slots.get('spec',{}).get('budget_text') and not changes.keys() & {'budget','budgets'}:
+            return self._save_clarification(event,claim,replace(ir,missing_fields=('copy_changes',)),
+                '已找到同一来源的未完成另建要求：'+legacy.slots['spec']['budget_text']+
+                '。请确认其预算适用范围；历史城市、日期和景点已关联，不会使用旧补问中的默认日期。',
+                task=pending,source_text=text,binding=binding)
+        # Only business fields cross identities. Never copy task state, confirmation or writing caches.
+        base={k:deepcopy(source[k]) for k in ('title','spec','plan','sources')}
+        base.update(trip_id=binding['target']['trip_id'],version=1,status='active')
+        base['spec']={k:v for k,v in base['spec'].items() if not k.startswith('_')}
+        base['spec']['remind_booking']=False
+        for key in ('reminder_entities','policy_sources'):base['spec'].pop(key,None)
+        base['plan'].pop('_local_patch',None)
+        try:
+            candidate,summary=self._edit_candidate(event,base,changes,text) if changes else (base,[])
+            self.planner.validate_plan(candidate['plan'],candidate['spec'],candidate['sources'])
+        except TripPlanError as error:
+            return self._save_clarification(event,claim,replace(ir,missing_fields=('copy_changes',)),
+                str(error)+'\n来源与本轮修改已保留，请补充后继续另建。',task=pending,source_text=text,binding=binding)
+        slots={'trip_binding':binding}
+        if pending:slots['semantic_task']={'task_id':pending.task_id,'version':pending.version}
+        prefix=f"基于 {source['title']}（{source['trip_id']}）版本 {source.get('version',1)} 创建独立方案。原提醒未复制。\n"
+        if summary:prefix+='；'.join(summary)+'\n'
+        return self._preview_candidate(event,claim,candidate,slots=slots,prefix=prefix,answer_base=base)
 
     def create_from_artifact(self,event,claim,artifact,days,changes,*,source_text='',semantic_task=None):
         if artifact.get('status')!='active' or type(days) is not int or not 1<=days<=14:
@@ -1140,28 +1213,13 @@ class TripTool:
 
 
     def _select_trip(self, event, task, tasks):
-        ids = re.findall(TRIP_ID, event.content)
-        if ids:
-            if len(set(ids)) != 1:
-                raise TripPlanError('请一次选择一份行程。')
-            trip = self.store.trips.get(event, ids[0])
-            if not trip or trip['status'] != 'active':
-                raise TripPlanError('没有找到你在本群拥有的这份有效行程。')
-            return trip
-        if task and task.slots.get('trip_id'):
-            trip = self.store.trips.get(event, task.slots['trip_id'])
-            if trip and trip['status'] == 'active':
-                return trip
-        if event.reply_to_id:
-            for recent in tasks:
-                if recent.task_type == 'itinerary' and recent.slots.get('trip_id'):
-                    trip = self.store.trips.get(event, recent.slots['trip_id'])
-                    if trip and trip['status'] == 'active':
-                        return trip
-        trips = self.store.trips.list_for_owner(event)
-        if len(trips) == 1:
-            return trips[0]
-        return None
+        trips,context=trip_context(self.store,event,task)
+        if context.get('trip_binding_error'):raise TripPlanError(context['trip_binding_error'])
+        index=context.get('current_trip_index')
+        selected=trips[index-1] if index else None
+        if selected and selected.get('_reference_stale'):
+            raise TripPlanError('行程或草案已变化，请选择最新方案后继续；本轮未覆盖新版本。')
+        return self.store.trips.get(event,selected['trip_id']) if selected and not selected.get('_new_trip') else None
 
     def _reminder_changes(self, event, trip, *, force_refresh=False):
         from tools.research.sources import planning_policy
@@ -1201,14 +1259,27 @@ class TripTool:
 
     def _preview_candidate(self, event, claim, candidate, *, current=None, task=None, slots=None,
                            force_refresh=False, expected_draft=None, prefix='', supersede_request='',answer_base=None,
-                           write_answer=True,draft_action=None,draft_guard=None,quote_requested=False):
+                           write_answer=True,draft_action=None,draft_guard=None,quote_requested=False,accommodation_ready=False):
         base=answer_base or (task.slots.get('candidate_trip') if task else None) or current
+        from tools.trip.constraints import missing_stay
+        if (not accommodation_ready and getattr(self,'travel_agent',None) and candidate['status']=='active'
+                and candidate['spec'].get('hotel_requested') and candidate['spec'].get('budgets',{}).get('accommodation')
+                and not missing_stay(candidate['spec'],self.clock())
+                and (base is None or quote_requested)):
+            from tools.trip.accommodation import prepare
+            binding={'trip_id':candidate['trip_id'],'trip_version':current['version'] if current else 0,
+                **({'draft_id':task.task_id,'draft_version':task.version} if task else {})}
+            return prepare(self,event,claim,{'request_text':event.content,'allow_preview':True},
+                task=task if task and task.slots.get('accommodation_goal') else None,
+                initial=(candidate,current,task,binding))
         if not candidate['spec'].get('hotel_requested'):
             candidate['plan'].pop('hotel_quotes',None)
         elif base and base['spec'].get('destination')==candidate['spec'].get('destination'):
             if not candidate['plan'].get('hotel_quotes') and base['plan'].get('hotel_quotes'):
                 candidate['plan']['hotel_quotes']=deepcopy(base['plan']['hotel_quotes'])
-        if self.hotel_quotes and candidate['status']=='active' and candidate['spec'].get('hotel_requested'):
+        copying=(slots or {}).get('trip_binding',{}).get('operation')=='create_reference'
+        if (not accommodation_ready and self.hotel_quotes and candidate['status']=='active' and candidate['spec'].get('hotel_requested')
+                and not (copying and not quote_requested)):
             previous=deepcopy(candidate)
             candidate['plan']['hotel_quotes']=lookup_hotel_quotes(self.hotel_quotes,event,candidate,
                 allow_query=base is None or quote_requested)
@@ -1218,6 +1289,9 @@ class TripTool:
         if force_refresh and not changes and not errors:
             return '已核查行程预约规则，没有需要调整的关联提醒。\n' + '\n'.join(notes)
         slots = deepcopy(slots or {})
+        prior=slots.get('trip_binding') or (task.slots.get('trip_binding') if task else None)
+        slots['trip_binding']=operation_binding(event,current,
+            operation=prior.get('operation','update') if prior else 'update' if current else 'create_fresh',previous=prior)
         price_check_text=slots.pop('price_check_text','')
         previous=answer_base or (task.slots.get('candidate_trip') if task else None) or current
         narrative_changes=trip_diff(previous,candidate)['changes'] if previous else []
@@ -1247,13 +1321,21 @@ class TripTool:
             reply += '\n关联提醒尚未变更：\n' + '\n'.join([*notes,*errors])
         if slots.get('preference_update'):
             reply += '\n确认时同时保存长期偏好：' + self.store.preferences.describe(slots['preference_update']['values'])
-        reply = price_check_text + (prefix if not write_answer or not candidate.get('answer') else '') + reply + '\n核对后可保存这版行程；确认后才保存行程和关联提醒。'
+        reply = price_check_text + (prefix if copying or not write_answer or not candidate.get('answer') else '') + reply + '\n核对后可保存这版行程；确认后才保存行程和关联提醒。'
         artifact = slots.get('source_artifact')
         return self._question(task,event,claim,slots,('confirmation',),reply,
             expected_trip=(current['trip_id'],current['version']) if current else None,
             expected_draft=expected_draft, supersede_request=supersede_request,
             expected_artifact=(artifact['artifact_id'],artifact['version']) if artifact else None,
             draft_action=draft_action,draft_guard=draft_guard)
+
+    def prepare_accommodation(self,event,claim,values,*,task=None,mode='execute'):
+        from tools.trip.accommodation import prepare
+        return prepare(self,event,claim,values,task=task,mode=mode)
+
+    def preview_accommodation_candidates(self,arguments,context):
+        from tools.trip.accommodation import preview
+        return preview(self,arguments,context)
 
     def remove_activity(self, event, claim, current, day_index, name):
         if current.get('_new_trip'):
@@ -1379,12 +1461,14 @@ class TripTool:
 
 
     def apply_text_intent(self,event,claim,ir,*,mode='execute',tasks=None):
-        if (len(ir.operations)!=1 or ir.operations[0].values.keys()!={'request_text'}
+        if (len(ir.operations)!=1 or ir.operations[0].values.keys()-{'request_text','basis','changes','question'}
                 or ir.operations[0].values['request_text']!=event.content or not ir.source_spans
                 or ir.operations[0].operation not in {'create','edit'}):
             return '行程规划必须对应本轮完整请求，请重新说明目的地和要求。'
         if mode!='execute':
             return '已识别行程规划请求；当前仅解析预览，尚未生成草稿。'
+        if ir.operations[0].operation=='create' and ir.operations[0].values.get('basis')=='reference':
+            return self.create_from_reference(event,claim,ir)
         return self.handle(event,claim,tasks=tasks,operation=ir.operations[0].operation)
 
     def handle(self, event, claim, source_text_override='', *, command=None, tasks=None, operation=None):
@@ -1401,7 +1485,7 @@ class TripTool:
             if text in TRIP_COMMANDS or operation=='edit':
                 if reference_context.get('trip_reference_unavailable') or any(t.get('_reference_stale') for t in targets if t['trip_id']==source_id):
                     return '所引用版本已取消或已有新的修改。请引用最新草案继续，或明确基于历史内容重新规划。'
-        task = trip_continuation(text, tasks)
+        task = None if operation=='create' else trip_continuation(text, tasks)
         resuming_failure=bool(task and task.slots.get('planning_failure') and text in {'继续规划','重新生成行程预览'})
         if resuming_failure:
             text=task.initial_request
@@ -1579,22 +1663,16 @@ class TripTool:
                     str(target_day['day_index']): len(target_day['activities'])})
             candidate['plan'] = self.planner.validate_plan(candidate['plan'], spec, candidate['sources'])
         elif base and (pending_date or reference_answer or re.search(r'行程.{0,15}(?:改到|改成|改为)', text)) and re.search(DATE_PATTERN, text):
-            raw = re.search(DATE_PATTERN, text)[0]
-            parsed = parse_reminder_time(raw, event.occurred_at or self.clock())
-            if not parsed.day or parsed.error:
-                raise TripPlanError(parsed.error or '请提供明确的行程开始日期。')
-            spec.update(start_date=parsed.day, start_date_text=raw)
-            spec.pop('tour_start_date',None)
-            confirm_planning_date(spec)
-            spec.setdefault('field_sources', {})['start_date'] = 'user'
-            spec.setdefault('fact_sources', {})['start_date'] = {'event_id':event.event_key,'source':raw,'origin':'user'}
-            if spec.get('end_date'):
-                spec['end_date'] = (date.fromisoformat(parsed.day) + timedelta(days=spec['day_count']-1)).isoformat()
-                spec['end_date_text'] = ''
+            from tools.trip.constraints import reschedule_dates
+            from tools.research.sources import planning_policy
+            try:spec=reschedule_dates(spec,text,event.occurred_at or self.clock())
+            except ValueError as error:raise TripPlanError(str(error),code='calendar_conflict',path='spec') from error
+            spec.setdefault('fact_sources', {})['start_date'] = {'event_id':event.event_key,'source':text,'origin':'user'}
             for day in candidate['plan']['days']:
-                day['date'] = (date.fromisoformat(parsed.day) + timedelta(days=day['day_index']-1)).isoformat()
+                day['date'] = (date.fromisoformat(spec['start_date']) + timedelta(days=day['day_index']-1)).isoformat()
             if spec.get('intercity_request',{}).get('origin'):
-                traffic=self._intercity(event,spec,candidate['plan'].get('intercity'))
+                traffic=self._intercity(event,spec,candidate['plan'].get('intercity'),
+                    allowed=planning_policy(spec,event.content)['rail_allowed'],previous_plan=candidate['plan'])
                 if traffic:
                     self.planner.connect_transport(candidate['plan'],spec,candidate['sources'],traffic)
                     candidate['plan']['intercity']=traffic
@@ -1973,16 +2051,21 @@ class TripTool:
             return '请明确要采用哪次酒店报价，本次未修改行程。'
         values=ir.operations[0].values;reference=values.get('reference',{})
         ordinal=reference.get('ordinal') if isinstance(reference,dict) else None
-        if (values.keys()-{'reference'} or not isinstance(reference,dict) or reference.keys()-{'selection','ordinal'}
+        record_ordinal=reference.get('record_ordinal') if isinstance(reference,dict) else None
+        if (values.keys()-{'reference'} or not isinstance(reference,dict) or reference.keys()-{'selection','ordinal','record_ordinal'}
                 or not isinstance(reference.get('selection'),str) or reference['selection'] not in event.content
                 or type(ordinal) is not int or not any(number(n)==ordinal for n in re.findall(r'第('+NUMBER+r')(?:家|个)',event.content))):
             return '请用引用消息及酒店序号明确选择；本次未修改行程。'
+        if record_ordinal is not None and (type(record_ordinal) is not int or not any(number(n)==record_ordinal for n in re.findall(r'第('+NUMBER+r')(?:批|份)',event.content))):
+            return '报价记录序号缺少本轮原话，请明确第几份资料。'
         source=(event.message_reference or {}).get('event_id','')
         if not source:
             refs={t.slots['last_result_ref'] for t in tasks if t.task_type=='hotel' and t.status=='completed' and t.slots.get('last_result_ref')}
             if len(refs)!=1:return '请引用要采用的那条酒店报价，避免多份名单串用；本次未修改行程。'
             source=next(iter(refs))
-        quote=self.store.research.hotel_quote_for_event(event,source)
+        records=self.store.research.hotel_quotes_for_event(event,source)
+        if len(records)>1 and record_ordinal is None:return '引用中有多份酒店报价，请同时说明第几份资料及第几家酒店，避免采用错步骤。'
+        quote=records[(record_ordinal or 1)-1] if 1<=(record_ordinal or 1)<=len(records) else None
         targets=list((quote or {}).get('targets',{}).values())
         if not quote or not 1<=ordinal<=len(targets):return '引用中的酒店名单已不可用或序号超出范围，请重新选择。'
         current=self._select_trip(event,None,tasks)
@@ -2018,6 +2101,13 @@ class TripTool:
         if len(ir.operations) != 1 or ir.action not in {'read','update','clarify'} or ir.action=='read' and not reading or not ir.source_spans:
             return '行程调整的动作或依据不明确，未修改行程。请分别说明其他操作。'
         values = dict(ir.operations[0].values)
+        explicit=(event.message_reference or {}).get('trip',{}).get('trip_id')
+        ids=re.findall(TRIP_ID,event.content)
+        if len(set(ids))==1:explicit=ids[0]
+        if pending and explicit:
+            previous=pending.slots.get('trip_binding',{}).get('target') or pending.slots.get('constraint_trip',{})
+            if previous.get('trip_id') and previous['trip_id']!=explicit:
+                pending=None;source_text=event.content
         if pending and not reading:
             from tools.trip.constraints import merge_constraint_changes
             operations=pending.slots.get('semantic_ir',{}).get('operations',[])
@@ -2029,10 +2119,15 @@ class TripTool:
             return '行程调整包含不支持的字段，未修改行程。'
         if 'question' in values and (not isinstance(values['question'],str) or len(values['question'])>400):
             return '模型返回的追问无效，原行程未修改，请重新说明这次调整。'
-        if values.get('target_ref', 'current_trip') != 'current_trip':
+        if values.get('target_ref', 'current_trip') not in TARGETS:
             return '行程目标引用无效，未修改行程。请说明要调整哪份已保存行程。'
-        if not trips:
-            trips,context=trip_context(self.store,event,pending)
+        trips,context=trip_context(self.store,event,pending,selection=values,prepared=trips)
+        if not reading and (context.get('trip_binding_error') or
+                values.get('target_ref')=='message_reference' and not context.get('reference_bound') or
+                values.get('target_ref')=='bound_operation' and not context.get('trip_operation')):
+            return self._save_clarification(event,claim,replace(ir,missing_fields=('trip_ref',)),
+                context.get('trip_binding_error') or '请引用或选择本会话中要修改的方案；本轮要求已保留。',
+                task=pending,source_text=source_text)
         if reading and (event.message_reference or {}).get('trip') and (values.get('requested_checks') or values.get('include_trip')) and not values.get('changes') and not values.get('save_preference_text'):
             return self._trip_read_reply(event,event.message_reference['trip'],values.get('requested_checks',[]),values.get('include_trip',False),claim,pending)
         if context.get('trip_reference_unavailable'):
@@ -2056,21 +2151,11 @@ class TripTool:
                     return self.adopt_intent(event,claim,converted,artifacts,pending,source_text,mode=mode)
             return '当前会话还没有已保存行程，请先规划行程；本轮未创建交通查询。'
         index = context.get('current_trip_index')
-        if not reading and pending and pending.slots.get('constraint_trip'):
-            previous = pending.slots['constraint_trip']
+        if not reading and not context.get('explicit_target') and pending and (pending.slots.get('trip_binding',{}).get('target') or pending.slots.get('constraint_trip')):
+            previous = pending.slots.get('trip_binding',{}).get('target') or pending.slots['constraint_trip']
             target = next((t for t in trips if t['trip_id'] == previous['trip_id']), None)
-            if not target or target['version'] != previous['version']:
+            if not target or (0 if target.get('_new_trip') else target['version']) != previous['version']:
                 return '之前待补充的行程已经变化，请查看最新行程后重新提出调整；未应用旧要求。'
-        requested = values.get('trip_index')
-        reference = values.get('trip_reference', '')
-        if requested is not None and (index is None or requested != index):
-            matches = [i for i,t in enumerate(trips,1) if reference and reference in (
-                t['trip_id'], t.get('title',''), t.get('spec',{}).get('destination',''))]
-            if (type(requested) is int and isinstance(reference,str) and reference in event.content
-                    and matches == [requested]):
-                index = requested
-            else:
-                index = None
         if index is None:
             logger.info('Trip constraint clarification: event=%s reason=ambiguous_target',event.event_key)
             question = ('要查看哪一份行程？' if reading else '要调整哪一份行程？') + '请回复行程编号或唯一的城市/标题：\n' + '\n'.join(
@@ -2092,9 +2177,7 @@ class TripTool:
         budget_changes = ([values['changes']['budget']] if values['changes'].get('budget') else [])
         if isinstance(values['changes'].get('budgets'), list):
             budget_changes.extend(values['changes']['budgets'])
-        needs_budget_unit = any(not (candidate_spec['budgets'][budget['scope']].get('meals',{}).get(
-            f"{budget['scopes'][0]['day_index']}:{budget['scopes'][0]['meal']}",{}) if budget.get('scopes') else
-            candidate_spec['budgets'][budget['scope']]).get('unit_text') for budget in budget_changes)
+        needs_budget_unit = missing_budget_units(candidate_spec,values['changes'])
         if needs_budget_unit:
             ir = replace(ir, missing_fields=tuple(dict.fromkeys([*ir.missing_fields,'budget_unit'])))
         elif budget_changes:
@@ -2148,6 +2231,8 @@ class TripTool:
             reference=event.message_reference or {}
             if reference.get('trip'):return self.format_trip(reference['trip'],preview=reference.get('is_preview',False))
             return self.view(event,trip) if trip else self.list_trips(event)
+        if context.get('trip_binding_error'):
+            return self._save_clarification(event,claim,ir,context['trip_binding_error'])
         if trip is None:
             if not trips:
                 return '还没有找到你在本群创建的行程，请先规划或查看行程。'
@@ -2190,47 +2275,60 @@ class TripTool:
             return '已识别删除行程活动；当前仅解析预览，尚未生成或保存草稿。'
         return self.remove_activity(event, claim, trip, matches[0], name)
 
-    def _save_clarification(self, event, claim, ir, question, *, source_text=None, task=None, trip=None):
+    def _save_clarification(self, event, claim, ir, question, *, source_text=None, task=None, trip=None,binding=None):
         if not hasattr(self.store, 'tasks'):
             return question
         slots = {'semantic_ir': to_jsonable(ir), 'source_text': source_text or event.content}
-        if trip:
-            slots['constraint_trip'] = {'trip_id':trip['trip_id'],'version':trip['version']}
+        bound=continuation(self.store,event,task)
+        slots['trip_binding']=binding or operation_binding(event,trip,previous=bound.slots.get('trip_binding') if bound else None)
         update = TaskUpdate('semantic', 'collecting', task.initial_request if task else event.content,
                             slots, tuple(ir.missing_fields or ('semantic_input',)),
                             task.task_id if task else '', task.version if task else None)
         self.store.tasks.prepare_result(event, claim, update, question)
         return question
 
-def trip_context(store, event, pending=None):
+def trip_context(store, event, pending=None, *, selection=None, prepared=None):
     repo = getattr(store, 'trips', None)
     ids = re.findall(TRIP_ID,event.content)
     target=''
     if len(set(ids))==1:target=ids[0]
     elif not ids:target=(event.message_reference or {}).get('trip',{}).get('trip_id','')
-    trips = tuple(repo.list_for_owner(event)) if repo else ()
-    if target and repo and not any(t['trip_id']==target for t in trips):
-        saved=repo.get(event,target)
-        if saved and saved['status']=='active':trips=(*trips,saved)
-    if target:trips=tuple(t for t in trips if t['trip_id']==target)
-    if hasattr(repo, 'draft_history'):
-        enriched = []
+    if prepared is not None:
+        trips=prepared
+    else:
+        trips = tuple(repo.list_for_owner(event)) if repo else ()
+        if target and repo and not any(t['trip_id']==target for t in trips):
+            saved=repo.get(event,target)
+            if saved and saved['status']=='active':trips=(*trips,saved)
+        if hasattr(repo, 'draft_history'):
+            enriched = []
+            for trip in trips:
+                draft = TripTool.read_draft(store, event, trip)
+                trip = {**trip, '_draft_key': (draft['task'].task_id,draft['task'].version) if draft else ('',0)}
+                if draft and draft['task'].slots.get('expected_trip_version') == trip['version']:
+                    trip.update({key:draft['candidate'][key] for key in ('spec','plan','sources')})
+                    trip['_draft_applied']=True
+                enriched.append(trip)
+            trips = tuple(enriched)
+        drafts=repo.current_drafts(event,trip_id=target) if repo and hasattr(repo,'current_drafts') else ()
+        known={trip['trip_id'] for trip in trips}
+        for task in drafts:
+            candidate=task.slots['candidate_trip']
+            if candidate['trip_id'] not in known:
+                trips=(*trips,{**deepcopy(candidate),'_new_trip':True,'_draft_task':task,
+                              '_draft_key':(task.task_id,task.version)})
+                known.add(candidate['trip_id'])
+    frozen=event.trip_context
+    if frozen is not None:
+        captured={t['trip_id']:t for t in frozen.get('targets',[])}
+        current={t['trip_id']:t for t in trips}
+        trips=tuple(current[tid] for tid in captured if tid in current)
         for trip in trips:
-            draft = TripTool.read_draft(store, event, trip)
-            trip = {**trip, '_draft_key': (draft['task'].task_id,draft['task'].version) if draft else ('',0)}
-            if draft and draft['task'].slots.get('expected_trip_version') == trip['version']:
-                trip.update({key:draft['candidate'][key] for key in ('spec','plan','sources')})
-                trip['_draft_applied']=True
-            enriched.append(trip)
-        trips = tuple(enriched)
-    drafts=repo.current_drafts(event,trip_id=target) if repo and hasattr(repo,'current_drafts') else ()
-    known={trip['trip_id'] for trip in trips}
-    for task in drafts:
-        candidate=task.slots['candidate_trip']
-        if candidate['trip_id'] not in known:
-            trips=(*trips,{**deepcopy(candidate),'_new_trip':True,'_draft_task':task,
-                          '_draft_key':(task.task_id,task.version)})
-            known.add(candidate['trip_id'])
+            expected=captured[trip['trip_id']]
+            key=trip.get('_draft_key',('',0))
+            if ((0 if trip.get('_new_trip') else trip['version'])!=expected['version'] or
+                    key!=(expected.get('draft_id',''),expected.get('draft_version',0))):
+                trip['_reference_stale']=True
     candidates = []
     for index, trip in enumerate(trips, 1):
         spec = trip.get('spec', {})
@@ -2238,25 +2336,63 @@ def trip_context(store, event, pending=None):
             'city': spec.get('destination', ''), 'start_date': spec.get('start_date', ''),
             'end_date': spec.get('end_date', ''), 'date_is_tentative': spec.get('date_is_tentative', False),
             'days': spec.get('day_count'), 'version': trip.get('version',1)+int(bool(trip.get('_draft_applied'))),'is_preview':bool(trip.get('_new_trip') or trip.get('_draft_applied'))})
+    bound=continuation(store,event,pending)
+    binding=bound.slots.get('trip_binding',{}) if bound else {}
     selected = trips[0] if len(trips) == 1 else None
+    error=''
+    requested=(selection or {}).get('trip_index')
+    reference=(selection or {}).get('trip_reference','')
+    named=[t for i,t in enumerate(trips,1) if type(requested) is int and i==requested
+        and isinstance(reference,str) and reference and reference in event.content and reference in
+        (t['trip_id'],t['trip_id'][-6:],t.get('title',''),t.get('spec',{}).get('destination',''))]
+    unique_reference=[t for t in trips if reference and reference in
+        (t['trip_id'],t['trip_id'][-6:],t.get('title',''),t.get('spec',{}).get('destination',''))]
+    named=named if len(unique_reference)==1 else []
     ids = re.findall(r'TR-[a-f0-9]{12}', event.content)
     if ids:
         selected = next((t for t in trips if len(set(ids)) == 1 and t['trip_id'] == ids[0]), None)
+        source=(event.message_reference or {}).get('trip')
+        if source and (len(set(ids))!=1 or ids[0]!=source['trip_id']):
+            selected=None;error='本轮引用与指定编号指向不同方案，请明确要修改哪一份；本轮要求已保留。'
+    elif requested is not None:
+        selected=named[0] if named else None
+        source=(event.message_reference or {}).get('trip')
+        if source and selected and source['trip_id']!=selected['trip_id']:
+            selected=None;error='本轮引用与指定对象指向不同方案，请明确要修改哪一份；本轮要求已保留。'
     elif event.message_reference:
         reference=event.message_reference;source=reference.get('trip')
         if source:selected=next((t for t in trips if t['trip_id']==source['trip_id']),None)
         elif reference.get('trip_snapshot_missing'):selected=None
-        if selected and source:
-            key=selected.get('_draft_key',('',0));quoted=reference.get('draft',{})
-            selected['_reference_stale']=(any(selected.get(k)!=source.get(k) for k in ('spec','plan')) or
-                selected.get('version',1)+int(bool(selected.get('_draft_applied')))!=source.get('version',1) or
-                bool(key[0] and key!=(quoted.get('task_id'),quoted.get('version'))))
     elif event.reply_to_id and hasattr(repo, 'referenced'):
         referenced = repo.referenced(event)
         selected = next((t for t in trips if referenced and t['trip_id'] == referenced['trip_id']), selected)
+    elif binding.get('target'):
+        expected=binding['target']
+        selected=next((t for t in trips if t['trip_id']==expected['trip_id']),None)
+        if not selected or ((0 if selected.get('_new_trip') else selected['version'])!=expected['version'] or
+                selected.get('_draft_key',('',0))!=(expected.get('draft_id',''),expected.get('draft_version',0))):
+            error='之前绑定的方案或旧预览已经变化，请选择最新方案继续；本轮未覆盖新版本。'
     elif pending and pending.slots.get('constraint_trip'):
         selected = next((t for t in trips if t['trip_id'] == pending.slots['constraint_trip']['trip_id']), None)
+    if ids and not selected and not error:
+        error='没有找到你在本会话拥有的这份有效行程，请重新选择。'
     context = {'trips': candidates}
+    source=(event.message_reference or {}).get('trip')
+    if selected and source and selected['trip_id']==source['trip_id']:
+        key=selected.get('_draft_key',('',0));quoted=event.message_reference.get('draft',{})
+        selected['_reference_stale']=bool(selected.get('_reference_stale')) or (
+            any(selected.get(k)!=source.get(k) for k in ('spec','plan')) or
+            selected.get('version',1)+int(bool(selected.get('_draft_applied')))!=source.get('version',1) or
+            bool(key[0] and key!=(quoted.get('task_id'),quoted.get('version'))))
+    context['explicit_target']=bool(ids or requested is not None or (event.message_reference or {}).get('trip'))
+    reference_bound=bool((event.message_reference or {}).get('trip') or ids or named or binding.get('origin') in {'message_reference','selection'})
+    if reference_required(event.content) and not reference_bound:
+        selected=None;error='没有可验证的引用或续接目标，请引用或选择本会话的方案；本轮要求已保留。'
+    if frozen and frozen.get('continuation') and not bound and not event.message_reference and not ids:
+        selected=None;error='编辑目标已变化或结束，请选择当前方案继续；本轮要求已保留。'
+    if error:context['trip_binding_error']=error
+    context['reference_bound']=reference_bound
+    if binding:context['trip_operation']={k:v for k,v in binding.items() if k in {'operation','origin','status'}}
     if event.message_reference and (event.message_reference.get('trip') or event.message_reference.get('trip_snapshot_missing')) and not selected and not ids:
         context['trip_reference_unavailable']=True
     if selected:

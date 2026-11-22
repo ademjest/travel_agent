@@ -84,10 +84,11 @@ def read_task_continuation(content, tasks):
     # These cues only bind context. The semantic contract still decides whether to execute.
     hotel_followup=bool(re.search(r'入住|退房|房价|报价|第.+家|下一批|原文|\d+间|[一二两三四五六七八九十]+间|成人|儿童|孩子|\d+岁',content)
         or is_time_answer(content) or re.fullmatch(r'(?:是|对|可以)[，,].{1,100}',content))
-    hotel_tasks=[task for task in tasks if task.task_type=='hotel' and task.status in {'collecting','completed','failed'}]
-    for task in tasks:
-        if task.task_type!='read_batch' or task.status!='collecting':continue
-        hotel_tasks.extend(hotel_task_views(task))
+    hotel_tasks=[view for task in tasks for view in hotel_task_views(task) if view.status in {'collecting','completed','failed'}]
+    from core.hotel_contract import hotel_task_conflicts
+    goals=[t for t in hotel_tasks if t.status=='collecting' and t.slots.get('accommodation_goal')]
+    if content.strip() in {'继续','继续核价','继续筛选'} and len(goals)==1 and not hotel_task_conflicts(goals[0],tasks):
+        return goals[0],read_query_message(goals[0])+'\n用户本轮补充：'+content
     named=[]
     for task in hotel_tasks:
         if task.status!='collecting' or 'targets' not in task.missing_slots:continue
@@ -404,12 +405,17 @@ def bind_request(store,event):
             tasks=(*tasks,*store.tasks.recoverable_hotels(event.platform,event.storage_scope_id,event.sender_id))
         eligible=[view for t in tasks for view in hotel_task_views(t) if view.status=='collecting'
             and view.slots.get('model_budget_block',{}).get('code') in RUN_LIMIT_CODES]
-        task=eligible[0] if len(eligible)==1 and not any(t.status=='collecting' and t.task_id!=eligible[0].task_id for t in tasks) else None
+        from core.hotel_contract import hotel_task_conflicts
+        task=eligible[0] if len(eligible)==1 and not hotel_task_conflicts(eligible[0],tasks) else None
         key=hashlib.sha256(event.event_key.encode()).hexdigest()
         if task:
             parent={'run_key':task.slots.get('_read_batch',{}).get('budget_run_key') or task.slots.get('budget_run_key'),
                 'task_id':task.task_id,'source_event_id':task.last_event_id}
             slots={**task.slots,'budget_run_key':key,'model_budget_block':{},'budget_run_parent':parent,'budget_run_started_by':event.event_key}
+            original=store.tasks.owned(event,task.task_id) if task.slots.get('accommodation_goal') else None
+            if original and original.task_type=='itinerary':
+                slots['accommodation_goal']={**slots['accommodation_goal'],'binding':{
+                    **slots['accommodation_goal']['binding'],'draft_id':original.task_id,'draft_version':original.version}}
             if '_read_batch' in slots:slots['_read_batch']={**slots['_read_batch'],'budget_run_key':key,'budget_run_parent':parent,'budget_run_started_by':event.event_key}
             if task.is_expired(event.occurred_at or datetime.now(timezone.utc)):
                 task=replace(task,task_id='',version=0);slots['hotel_expired']=True
@@ -611,6 +617,9 @@ class RequestRouter:
         hotel=getattr(self.read_only_service,'hotel_prices',None)
         if text in {'继续','继续核价'} and binding.read_context.task and binding.read_context.task.slots.get('model_budget_block'):
             return '原模型预算阻断仍在生效，请按受限回复中的原因处理；可先查看已保存资料，普通继续不会重建运行。'
+        if (text in {'继续','继续核价','继续筛选'} and binding.read_context.task
+                and binding.read_context.task.slots.get('accommodation_goal')):
+            return self._hotel_action(event,claim,binding.read_context.task,{})
         if text==NEW_RUN_COMMAND:
             task=binding.read_context.task
             if hotel and task and task.slots.get('budget_run_started_by')==event.event_key:
@@ -730,6 +739,9 @@ class RequestRouter:
         return None
 
     def _hotel_action(self,event,claim,task,values):
+        if task.slots.get('accommodation_goal'):
+            return self._dispatch('accommodation',self.trip_service.prepare_accommodation,event,claim,
+                {'hotel_query':values},task=task,mode=self.mode)
         context=bind_read_context(event,(),task=task)
         ir=IntentIR(1,'read',(IntentOperation('hotel','query',values),),source_spans=(event.content,))
         return self._dispatch('hotel_action',self.read_only_service.prepare,event,claim,ir,context,source='hotel_action')
@@ -781,6 +793,9 @@ class RequestRouter:
             if self.mode=='shadow':return None
             if error.budget_code and binding and binding.read_context.task and binding.read_context.task.task_type=='hotel' and claim is not None:
                 task=binding.read_context.task
+                owned=self.store.tasks.owned(event,task.task_id) if task.task_id else None
+                if owned and owned.task_type=='itinerary' and task.slots.get('accommodation_goal'):
+                    task=replace(owned,slots=task.slots)
                 reply=error.detail+(' 酒店条件已保留；可明确回复“'+NEW_RUN_COMMAND+'”，建立关联的新一轮核价。' if error.budget_code in RUN_LIMIT_CODES else '')
                 slots={**binding.read_context.slots,'model_budget_block':{'code':error.budget_code,'details':error.budget_details},
                     'budget_pending_request':{'text':event.content,'event_key':event.event_key,'occurred_at':(event.occurred_at or datetime.now(timezone.utc)).isoformat()}}
@@ -795,6 +810,10 @@ class RequestRouter:
                     task_id=task.task_id,expected_version=task.version),reply)
                 return reply
             if error.detail:return error.detail
+            if error.code in {'output_truncated','content_filter'}:
+                return ('需求解析输出达到长度上限，一次有界恢复仍未完成。' if error.code=='output_truncated' else
+                    '需求解析输出被模型服务过滤，未自动重发。')+'本次未执行，完整请求已保留，无需改写。'
+            if error.code=='invalid_json':return '需求解析未返回有效 JSON，本次未执行。完整请求已保留。'
             reason={'timeout':'模型服务响应超时','connection':'模型服务连接未成功',
                 'authentication':'模型服务鉴权未通过','rate_limit':'模型服务当前限流',
                 'upstream_error':'模型服务暂时不可用','invalid_request':'模型服务请求未被接受，请核对模型及接口配置',
@@ -819,6 +838,11 @@ class RequestRouter:
                 return resumed
         binding = bind_request(self.store,event)
         pending = binding.pending_semantic
+        if (event.trip_context or {}).get('focus_disabled') and not event.message_reference and pending and pending.slots.get('trip_binding'):
+            pending=None
+        from core.trip_binding import continuation
+        bound_trip=continuation(self.store,event,pending)
+        if bound_trip and bound_trip.task_type=='semantic':pending=bound_trip
         reminders = binding.pending_reminders
         if self.mode == 'execute' and not pending and not reminders and self.trip_service is not None:
             trip_task = trip_continuation(event.content.strip(), binding.tasks)
@@ -899,10 +923,18 @@ class RequestRouter:
         context['lodging_context']=lodging_context(self.store,event) if not (read_context.task and read_context.task.task_type=='hotel') else {}
         context['hotel_tasks']=[{'index':i,**task_projection(t)} for i,t in enumerate(read_tasks,1)
             if t.task_type=='hotel' and (not read_context.task or t.task_id!=read_context.task.task_id)]
+        from core.context_contract import hotel_state_projection
+        context['accommodation_tasks']=[hotel_state_projection(t.slots) for t in read_tasks
+            if t.status=='collecting' and t.slots.get('accommodation_goal')]
         if event.message_reference:
             from core.context_contract import reference_projection
             context['message_reference']=reference_projection(event.message_reference,
                 text_limit=800 if pending or event.message_reference.get('trip') else 4000)
+            from core.trip_binding import legacy_copy_task
+            legacy_copy=legacy_copy_task(self.store,event)
+            if legacy_copy:
+                context['pending_reference_creation']={'request':legacy_copy.initial_request,
+                    'requirements':legacy_copy.slots.get('spec',{})}
         if read_context.task is not None or read_context.slots.get('reference_event_id'):
             from core.context_contract import hotel_state_projection
             context['read_task'] = {'type': read_context.task.task_type if read_context.task else 'rail', 'slots': hotel_state_projection(read_context.slots) if read_context.task and read_context.task.task_type=='hotel' else read_context.slots,
@@ -910,8 +942,7 @@ class RequestRouter:
         if rule and rule.ir and read_context.task is None:
             ir = rule.ir
         elif context:
-            continuing_trip = pending and pending.slots.get('constraint_trip')
-            ir = self.compiler.try_compile(event.content if reminders and not continuing_trip else compile_text,
+            ir = self.compiler.try_compile(event.content,
                                            context=json.dumps(context, ensure_ascii=False))
         else:
             ir = self.compiler.try_compile(compile_text)
@@ -926,6 +957,7 @@ class RequestRouter:
                 if len(value.operations)>1:return False
                 operation=value.operations[0]
                 if operation.domain!='trip':return True
+                if operation.operation=='prepare_accommodation':return False
                 if operation.operation in TRIP_READ_OPERATIONS:
                     checks=operation.values.get('requested_checks',[])
                     return not (checks and (operation.operation=='view_current_trip'
@@ -945,6 +977,24 @@ class RequestRouter:
                 return None
             return ('这次未能可靠解析你的补充，提醒尚未完成设置。请再说明要补充的时间、事项，或明确结束设置。'
                     if reminders else '未能可靠识别完整请求，本次未执行。请补充或重新说明需求。')
+        if (pending and pending.slots.get('trip_binding',{}).get('operation')=='create_reference'
+                and len(ir.operations)==1 and ir.operations[0].domain=='trip'
+                and ir.operations[0].operation=='update_constraints' and ir.action in {'update','clarify'}
+                and (ir.operations[0].values.get('target_ref')=='bound_operation' or not (
+                    (event.message_reference or {}).get('trip') or re.search(TRIP_ID,event.content)
+                    or ir.operations[0].values.get('trip_index') is not None))):
+            return self._dispatch('trip',self.trip_service.create_from_reference,event,claim,ir,
+                pending=pending,source_text=compile_text)
+        goals=[t for t in binding.tasks if t.status=='collecting' and t.slots.get('accommodation_goal')]
+        from core.hotel_contract import hotel_task_conflicts
+        selected_goal=read_context.task if read_context.task and read_context.task.slots.get('accommodation_goal') else (
+            goals[0] if len(goals)==1 and not hotel_task_conflicts(goals[0],binding.tasks) else None)
+        if len(ir.operations)==1 and ir.operations[0].domain=='trip' and ir.operations[0].operation=='prepare_accommodation':
+            return self._dispatch('accommodation',self.trip_service.prepare_accommodation,event,claim,
+                ir.operations[0].values,task=selected_goal,mode=self.mode)
+        if selected_goal and len(ir.operations)==1 and ir.operations[0].domain=='hotel':
+            return self._dispatch('accommodation',self.trip_service.prepare_accommodation,event,claim,
+                {'hotel_query':ir.operations[0].values},task=selected_goal,mode=self.mode)
         if (ir.action in {'read','clarify'} and ir.operations and
                 all(op.domain=='trip' and op.operation in TRIP_READ_OPERATIONS for op in ir.operations)):
             if self.trip_service is None:return '行程服务暂不可用。'

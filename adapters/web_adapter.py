@@ -45,7 +45,8 @@ class WebAdapter:
                          payload.get('content', ''), reply_to_id=payload.get('reply_to_id',''), attachments=tuple(attachments), occurred_at=datetime.fromisoformat(payload['time']),
                          trip_edit=payload.get('trip_edit'),rail_query=payload.get('rail_query'),
                          message_reference=payload.get('message_reference'),draft_action=payload.get('draft_action'),
-                         confirmation=payload.get('confirmation'),hotel_action=payload.get('hotel_action'))
+                         confirmation=payload.get('confirmation'),hotel_action=payload.get('hotel_action'),
+                         trip_context=payload.get('trip_context'))
 
     async def handle(self, payload):
         event = self.input_event(payload)

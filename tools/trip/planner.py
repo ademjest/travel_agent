@@ -21,7 +21,7 @@ from infrastructure.place_resolution import bind_visit_entities
 from tools.hotel_prices.catalog import hotel_brand_targets, match_hotel_brand
 
 ACTIVITY_PERIODS = {'上午': (540, 720), '下午': (780, 1020), '晚上': (1080, 1260)}
-HOTEL_POLICY_VERSION = 'hotel-v2-budget-brand-evidence'
+HOTEL_POLICY_VERSION = 'hotel-v3-budget-admission'
 
 
 def planning_context(spec, places, previous=None):
@@ -424,7 +424,10 @@ def assess_hotels(spec, plan, places):
             matched=[q for q in quotes if q['status'] in {'reference_match','reference_available'}]
             pending=[q for q in quotes if q['status']!='excluded']
             chosen=(matched or pending or quotes)[0]
-            price_status=('reference_in_budget' if matched and matched[0]['status']=='reference_match' else 'not_requested' if matched else 'reference_over_budget' if not pending else 'unknown')
+            outside={q['numeric_comparison'] for q in quotes if q['status']=='excluded'}
+            price_status=('reference_in_budget' if matched and matched[0]['status']=='reference_match' else 'not_requested' if matched else
+                'reference_over_budget' if not pending and outside=={'over'} else
+                'reference_below_budget' if not pending and outside=={'below'} else 'unknown')
             price_issues=list(chosen['issues'])
             if not pending:price_issues.append('仅本批已列产品不匹配，未证明该酒店其他房型均不匹配')
         elif plan.get('hotel_quotes'):
@@ -454,6 +457,8 @@ def assess_hotels(spec, plan, places):
         # Compare other evidence within 2 km bands; metre-level differences should not decide alone.
         distance_band=(int(distance['worst_day_meters']//2000) if distance['worst_day_meters'] is not None else 10**6) if preferences.get('near_itinerary',True) else 0
         candidates.append({'poi_id': poi_id, 'status': status, 'reasons': reasons, 'issues': issues,
+                           'recommendation_eligible':not hard_failure and (not _budget_range(spec,'accommodation') or
+                               any(q['status']=='reference_match' for q in quotes)),
                            'rating': current_rating, 'price_info': price_info,'lodging_type':lodging_type,
                            'category_stars':category_stars,'category_basis':'amap_classification',
                            'price_status': price_status, 'distance': distance,'brand_match':matched_brand,
@@ -478,7 +483,7 @@ def assess_hotels(spec, plan, places):
 
 
 def rank_hotels(spec, plan, places):
-    return [row for row in assess_hotels(spec,plan,places) if row['status']!='conflict'][:3]
+    return [row for row in assess_hotels(spec,plan,places) if row['recommendation_eligible']][:3]
 
 
 def _meal_anchors(day, places, meal):
@@ -628,6 +633,8 @@ def apply_recommendations(spec, plan, places):
                                                    if spec.get('restaurant_requested') else ([], []))
     plan['hotel_recommendations'] = hotel_recommendations
     plan['hotel_ids'] = [item['poi_id'] for item in hotel_recommendations]
+    plan['hotel_investigation']=[{'poi_id':row['poi_id'],'price_status':row['price_status'],'issues':row['issues']}
+        for row in assess_hotels(spec,plan,places) if not row['recommendation_eligible']] if spec.get('hotel_requested') else []
     plan['hotel_recommendation_policy']=HOTEL_POLICY_VERSION
     plan.pop('hotel_review_note',None)
     plan['restaurant_recommendations'] = restaurant_recommendations
@@ -1270,7 +1277,7 @@ class TripPlanner:
             updated['dining_options']=sorted(meals.values(),key=lambda m:(m['day_index'],MEALS.index(m['meal'])))
         keys = []
         if 'hotel' in categories:
-            keys += ['hotel_ids','hotel_recommendations','hotel_recommendation_policy']
+            keys += ['hotel_ids','hotel_recommendations','hotel_recommendation_policy','hotel_investigation']
         if 'dining' in categories:
             keys += ['restaurant_ids','restaurant_recommendations','dining_options']
         for key in keys:

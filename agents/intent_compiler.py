@@ -10,7 +10,7 @@ from core.preference_contract import preference_fields
 from core.execution_scope import ExecutionRevoked
 from core.model_budget import model_call_context,ModelBudgetExceeded
 from core.model_policy import model_for_purpose
-from core.context_contract import complete_json, response_text
+from core.context_contract import complete_json, response_text, IncompleteModelResponse
 from core.research_contract import ResearchRequestError, SCHEMA_VERSION, REQUEST_FIELDS, TOPICS
 from infrastructure.execution_diagnostics import SEARCH_TRACE
 from infrastructure.model_client import model_failure_metadata
@@ -25,6 +25,10 @@ class IntentCompilationError(RuntimeError):
         self.detail=detail
         self.budget_code=budget_code
         self.budget_details=budget_details or {}
+
+
+class InvalidIntentJSON(ValueError):
+    pass
 
 def _intent_prompt():
     prompt = skill_text('intent.compile', 'protocol')
@@ -47,13 +51,14 @@ class IntentCompiler:
 
     @skill_request
     def compile(self, text: str, *, context: str = '', force_default_model: bool = False,
-                research_repair: str = '', intent_repair: str = '') -> IntentIR:
+                research_repair: str = '', intent_repair: str = '', expand_output: bool = False) -> IntentIR:
         payload={'message':text,'context':context}
         if intent_repair:
             payload['contract_error']=intent_repair
-        with model_call_context('intent_parse', prompt_version='intent-ir-v30-hotel-flow-state',
-                                context_policy_version='intent-context-v4-hotel-state',
+        with model_call_context('intent_parse', prompt_version='intent-ir-v34-trip-binding',
+                                context_policy_version='intent-context-v5-trip-binding',
                                 repair_attempt=int(bool(research_repair or intent_repair)),
+                                output_multiplier=2 if expand_output else 1,
                                 fallback_from=(model_for_purpose(self.model, 'intent_parse')
                                                if force_default_model else ''),
                                 force_default_model=force_default_model, stage_id='intent.compile'):
@@ -61,17 +66,27 @@ class IntentCompiler:
                 {'role': 'system', 'content': (_intent_prompt() + ((((((((skill_text('intent.compile', 'system') + research_repair) + skill_text('intent.compile', 'system_2')) + SCHEMA_VERSION) + skill_text('intent.compile', 'system_3')) + ','.join(sorted(REQUEST_FIELDS))) + skill_text('intent.compile', 'system_4')) + ','.join(TOPICS)) if research_repair else ''))},
                 {'role': 'user', 'content': complete_json(payload, 22000,purpose='intent')},
             ])
-        raw = response_text(response)
+        try:
+            raw = response_text(response)
+        except IncompleteModelResponse as error:
+            if self.diagnostics:self.diagnostics.record('routing',{'status':'intent_failed','error_code':error.code,
+                'repair_attempt':int(bool(research_repair or intent_repair))})
+            if error.code!='output_truncated' or research_repair or intent_repair:raise
+            return self.compile(text,context=context,force_default_model=force_default_model,
+                intent_repair='上次输出达到长度上限。简洁表达目标和授权，不展开后续工具步骤。',expand_output=True)
         if SEARCH_TRACE.get() is not None:
             SEARCH_TRACE.get().record('intent-results',{'raw':raw,'repair':bool(research_repair)})
         try:
             value = json.loads(raw)
         except (TypeError, json.JSONDecodeError) as exc:
-            raise ValueError('语义解析结果不是有效 JSON。') from exc
+            error=InvalidIntentJSON('语义解析结果不是有效 JSON。')
+            error.intent_recovery_used=bool(research_repair or intent_repair)
+            raise error from exc
         try:
             return parse_intent_ir(value, text)
         except ResearchRequestError as error:
             if research_repair or intent_repair:
+                error.intent_recovery_used=True
                 raise
             if self.diagnostics:
                 self.diagnostics.record('routing',{'status':'research_repair','schema_version':SCHEMA_VERSION,
@@ -83,11 +98,14 @@ class IntentCompiler:
                 raise
             except ModelBudgetExceeded:
                 raise
+            except (IncompleteModelResponse,IntentCompilationError):
+                raise
             except Exception as exc:
                 raise ResearchRequestError('repair_failed') from exc
         except ValueError as error:
             validation=({'validation':{'code':error.code,'path':error.path}} if isinstance(error,IntercityContractError) else {})
             if research_repair or intent_repair:
+                error.intent_recovery_used=True
                 if validation and self.diagnostics:
                     self.diagnostics.record('routing',{'status':'intent_failed','error_code':'invalid_response',
                         'repair_attempt':1,**validation})
@@ -102,6 +120,10 @@ class IntentCompiler:
             return self.compile(text, context=context)
         except ExecutionRevoked:
             raise
+        except IntentCompilationError:
+            raise
+        except IncompleteModelResponse as exc:
+            raise IntentCompilationError(exc.code) from exc
         except ModelBudgetExceeded as exc:
             projection=exc.details.get('code')=='input_projection_limit'
             if projection and self.diagnostics:self.diagnostics.record('routing',{'status':'intent_failed','error_code':'context_too_large',
@@ -126,17 +148,20 @@ class IntentCompiler:
             logger.warning('Intent compiler rejected result: error_type=%s', type(exc).__name__)
             if not isinstance(exc,ValueError):raise IntentCompilationError('internal_error') from exc
             configuration=getattr(self.client,'configuration',None)
-            if (configuration is None or configuration.legacy) and model_for_purpose(self.model, 'intent_parse') != self.model:
+            if (not getattr(exc,'intent_recovery_used',False) and (configuration is None or configuration.legacy)
+                    and model_for_purpose(self.model, 'intent_parse') != self.model):
                 try:
-                    return self.compile(text, context=context, force_default_model=True)
+                    return self.compile(text, context=context, force_default_model=True,intent_repair='仅修复上次解析合同，不增加其他操作。')
                 except ExecutionRevoked:
                     raise
                 except ModelBudgetExceeded as fallback_exc:
                     raise IntentCompilationError('budget_exceeded',str(fallback_exc),budget_code=fallback_exc.code,
                         budget_details=fallback_exc.details) from fallback_exc
+                except IncompleteModelResponse as fallback_exc:
+                    raise IntentCompilationError(fallback_exc.code) from fallback_exc
                 except Exception as fallback_exc:
                     failure=model_failure_metadata(fallback_exc)
                     if failure:raise IntentCompilationError(failure['error_code']) from fallback_exc
                     logger.warning('Intent compiler fallback rejected result: error_type=%s',type(fallback_exc).__name__)
                     if not isinstance(fallback_exc,ValueError):raise IntentCompilationError('internal_error') from fallback_exc
-            raise IntentCompilationError('invalid_response') from exc
+            raise IntentCompilationError('invalid_json' if isinstance(exc,InvalidIntentJSON) else 'invalid_response') from exc

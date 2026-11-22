@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { api, ApiError, bootstrap, emptyContext } from "./api";
-import type { Bootstrap, Conversation, Context, Message, MessagePage, Notice, Upload } from "./api";
+import type { Bootstrap, Conversation, Context, Message, MessagePage, Notice, Upload, TripOperation } from "./api";
 
 export type DraftFile = {
   key: string;
@@ -22,6 +22,8 @@ export function useConversation(setSidebar: Dispatch<SetStateAction<boolean>>) {
   const [noticeToast, setNoticeToast] = useState<Notice | null>(null);
   const [draft, setDraft] = useState("");
   const [quotedMessage, setQuotedMessage] = useState<{ id: string; label: string } | null>(null);
+  const [tripOperation, setTripOperation] = useState<TripOperation | null>(null);
+  const operationReceipt = useRef<string | null>(null);
   const [files, setFiles] = useState<DraftFile[]>([]);
   const [error, setError] = useState("");
   const [online, setOnline] = useState(true);
@@ -67,6 +69,7 @@ export function useConversation(setSidebar: Dispatch<SetStateAction<boolean>>) {
       setFiles([]);
       setDraft("");
       setQuotedMessage(null);
+      setTripOperation(null);
       setRenaming(false);
       setHasMore(false);
       setNewMessages(false);
@@ -85,6 +88,8 @@ export function useConversation(setSidebar: Dispatch<SetStateAction<boolean>>) {
     setFiles([]);
     setDraft(localStorage.getItem(`travel-draft:${identity}`) || "");
     setQuotedMessage(null);
+    setTripOperation(null);
+    operationReceipt.current = null;
     setSidebar(false);
     setError("");
     setHasMore(false);
@@ -139,6 +144,11 @@ export function useConversation(setSidebar: Dispatch<SetStateAction<boolean>>) {
         : page.items,
     );
     setContext(ctx);
+    const receipt=JSON.stringify(ctx.operation_receipt || null);
+    if(operationReceipt.current!==null && receipt!==operationReceipt.current)
+      setTripOperation(ctx.current_operation || null);
+    else setTripOperation(old=>old ? (ctx.trip_operations || []).find(op=>op.task_id===old.task_id && op.version===old.version && !op.expired) || null : null);
+    operationReceipt.current=receipt;
     setConversations(list.filter((item) => !deletedIds.current.has(item.id)));
     receiveNotices(notifications);
     setOnline(true);
@@ -260,7 +270,7 @@ export function useConversation(setSidebar: Dispatch<SetStateAction<boolean>>) {
       report(reason);
     }
   }
-  return { config, conversations, setConversations, active, activeRef, messages, context, notices, noticeToast, setNoticeToast, draft, setDraft, quotedMessage, setQuotedMessage, files, setFiles, error, setError, online, ready, deletedIds, renaming, setRenaming, titleDraft, setTitleDraft, hasMore, newMessages, setNewMessages, feed, nearBottom, report, forgetConversation, choose, refresh, ensureConversation, loadOlder };
+  return { config, conversations, setConversations, active, activeRef, messages, context, notices, noticeToast, setNoticeToast, draft, setDraft, quotedMessage, setQuotedMessage, tripOperation, setTripOperation, files, setFiles, error, setError, online, ready, deletedIds, renaming, setRenaming, titleDraft, setTitleDraft, hasMore, newMessages, setNewMessages, feed, nearBottom, report, forgetConversation, choose, refresh, ensureConversation, loadOlder };
 }
 
 export type ConversationState = ReturnType<typeof useConversation>;

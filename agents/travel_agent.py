@@ -62,6 +62,7 @@ class AgentResult:
     answer_status: str = 'not_checked'
     answer_reasons: tuple[str, ...] = ()
     answer_facts_hash: str = ''
+    budget_block: dict | None = None
 
 
 @dataclass
@@ -77,6 +78,7 @@ class AgentLoopState:
     invoked_steps: dict = field(default_factory=dict)
     executed_tools: set = field(default_factory=set)
     repeated_read_results: set = field(default_factory=set)
+    executor_override: ToolExecutor | None = None
 
     def stopped(self, reason):
         committed = any(receipt.effect_status == 'committed' for receipt in self.receipts)
@@ -84,7 +86,7 @@ class AgentLoopState:
         return AgentResult('\n'.join(dict.fromkeys([
             *([prefix] if prefix else []), *(receipt.data for receipt in self.receipts), reason,
             *(failure.data for failure in self.failures[-1:])])), tuple(self.traces),
-            status='partial' if committed else 'failed', receipts=tuple(self.receipts))
+            status='partial' if committed else 'failed', receipts=tuple(self.receipts),answer_reasons=(reason,))
 
 
 @skill_request
@@ -133,7 +135,8 @@ class TravelAgent:
             history: Sequence[Any] | AgentContext = (),
             knowledge_context: str = "",
             tool_context: AgentToolContext | None = None,
-            *, read_request: TravelReadRequest | None = None, decision_override: TravelDecision | None = None) -> AgentResult:
+            *, read_request: TravelReadRequest | None = None, decision_override: TravelDecision | None = None,
+            executor_override: ToolExecutor | None = None) -> AgentResult:
         if isinstance(history, AgentContext) and history.summary_information_incomplete:
             return AgentResult('近期更新尚未完整纳入可用上下文，无法可靠确认当前约束。请重新说明本次需要使用的最新要求。',
                                (), 'needs_input', missing_slots=('conversation_context',))
@@ -146,7 +149,7 @@ class TravelAgent:
         decision, reference_time = read_turn_policy(read_request, decision, reference_time)
         result = self._run(resolved_message, history, knowledge_context, tool_context,
                            decision_override=decision,
-                           reference_time=reference_time,read_request=read_request)
+                           reference_time=reference_time,read_request=read_request,executor_override=executor_override)
         return finish_read_turn(result, decision, task, read_request, resolved_message, reference_time)
 
     def _run(
@@ -157,7 +160,7 @@ class TravelAgent:
             tool_context: AgentToolContext | None = None,
             decision_override: TravelDecision | None = None,
             reference_time: str = '',
-            read_request: TravelReadRequest | None = None) -> AgentResult:
+            read_request: TravelReadRequest | None = None,executor_override: ToolExecutor | None = None) -> AgentResult:
         if len(user_message) > MAX_USER_MESSAGE_CHARS:
             return AgentResult(
                 reply="消息正文超过 8000 字符限制，请精简后重试。",
@@ -181,14 +184,14 @@ class TravelAgent:
             allowed_tools.add(ASK_USER_TOOL)
             names.append(ASK_USER_TOOL)
         tool_definitions = catalog_schemas(names, catalog_version)
-        state = AgentLoopState(messages, allowed_tools, tool_definitions, catalog_version=catalog_version)
+        state = AgentLoopState(messages, allowed_tools, tool_definitions, catalog_version=catalog_version,executor_override=executor_override)
 
         for step_index in range(1, MAX_AGENT_STEPS + 1):
             started_at = time.monotonic()
             try:
                 response = self._request_model(state, read_request)
             except ModelBudgetExceeded as exc:
-                return state.stopped(str(exc))
+                return replace(state.stopped(str(exc)),budget_block={'code':exc.code,'details':exc.details})
             except ExecutionRevoked:
                 raise
             except Exception:
@@ -217,7 +220,7 @@ class TravelAgent:
             tool_calls = list(assistant.tool_calls or [])
 
             if not tool_calls:
-                result = self._finish_answer(assistant, state, decision, step_index)
+                result = self._finish_answer(assistant, state, decision, step_index,tool_context)
                 if result is not None:
                     return result
                 continue
@@ -302,7 +305,12 @@ class TravelAgent:
                 **request,
             )
 
-    def _finish_answer(self, assistant, state, decision, step_index):
+    def _finish_answer(self, assistant, state, decision, step_index,tool_context=None):
+        runtime=(tool_context.execution_data or {}).get('accommodation_runtime') if tool_context else None
+        if runtime and not runtime.get('goal_verified') and not runtime.get('halted') and runtime['slots']['accommodation_goal']['allow_preview']:
+            if step_index>=MAX_AGENT_STEPS:return state.stopped('本轮住宿目标未完成，已保留查询结果和继续点。')
+            state.messages.append({'role':'system','content':skill_text('agent.respond','accommodation_continue')})
+            return None
         requested_actions = set(decision.action_resources)
         reply = (assistant.content or "").strip()
         if unexecuted_read_clarification(decision, state.executed_tools, reply):
@@ -367,6 +375,8 @@ class TravelAgent:
         return normalized_calls, surface_names, normalization_errors
 
     def _execute_tool_calls(self, tool_calls, assistant, state, decision, tool_context, read_request, step_index):
+        if decision.intent=='accommodation' and sum(c.function.name=='query_hotel_prices' for c in tool_calls)>1:
+            return state.stopped('酒店核价步骤有前后依赖，必须读取前一步回执后再决定下一步；本轮未执行这组调用，目标保留。')
         requested_actions = set(decision.action_resources)
         state.messages.append({
             "role": "assistant",
@@ -378,7 +388,7 @@ class TravelAgent:
 
         for call in tool_calls:
             parsed, parse_error = self._parse_arguments(call.function.arguments)
-            key = (call.function.name, json.dumps(parsed, ensure_ascii=False, sort_keys=True))
+            key = self._tool_key(call.function.name,parsed,tool_context)
             if (not repeatable_tool(call.function.name) and not parse_error
                     and key in state.invoked_steps and state.invoked_steps[key] < step_index):
                 return state.stopped('同一工具调用在状态未变化时重复出现，已停止继续尝试。请补充信息或稍后重试。')
@@ -424,13 +434,13 @@ class TravelAgent:
                         return AgentResult(question, tuple(state.traces), status='needs_input',
                                            missing_slots=tuple(dict.fromkeys(result.missing_fields)))
             else:
-                cache_key = (name, json.dumps(arguments, ensure_ascii=False, sort_keys=True))
+                cache_key = self._tool_key(name,arguments,call_context)
                 state.invoked_steps[cache_key] = step_index
                 if not repeatable_tool(name) and cache_key in state.tool_cache:
                     result = state.tool_cache[cache_key]
                 else:
                     try:
-                        raw_result = parallel_results[cache_key] if cache_key in parallel_results else self._invoke_tool(name, arguments, call_context)
+                        raw_result = parallel_results[cache_key] if cache_key in parallel_results else self._invoke_tool(name, arguments, call_context,state.executor_override)
                     except ExecutionRevoked:
                         raise
                     except Exception:
@@ -451,6 +461,10 @@ class TravelAgent:
             stopped = self._record_receipt(state, name, tool_call.id, result)
             if stopped is not None:
                 return stopped
+            runtime=(call_context.execution_data or {}).get('accommodation_runtime') if call_context else None
+            if runtime and runtime.get('preview') is not None:
+                return AgentResult(runtime['preview'],tuple(state.traces),receipts=tuple(state.receipts))
+            if runtime and runtime.get('halted'):return state.stopped('住宿目标已暂停；原文和已查结果保留，未自动重发。')
 
         writes = [receipt for receipt in state.receipts if receipt.effect_status == 'committed'
                   and not repeatable_tool(receipt.action)]
@@ -461,6 +475,21 @@ class TravelAgent:
                                if not repeatable_tool(receipt.action))),tuple(state.traces),receipts=tuple(state.receipts))
 
         return None
+
+    @staticmethod
+    def _tool_key(name,arguments,context):
+        data=context.execution_data or {} if context else {}
+        if data.get('accommodation_goal'):
+            from core.hotel_contract import merge_request
+            request=merge_request(data.get('hotel_request',{}),arguments) if name=='query_hotel_prices' else arguments
+            if name=='preview_accommodation_candidates':
+                request={'arguments':arguments,'price_receipts':data['accommodation_goal'].get('receipt_refs',[])}
+            request.pop('source_spans',None)
+            if name=='query_hotel_prices':request.setdefault('mode','lookup')
+            if 'discovery' in arguments:request.pop('targets',None);request.pop('reference',None)
+            elif 'targets' in arguments:request.pop('discovery',None)
+            return name,json.dumps([request,data['accommodation_goal']['binding']],ensure_ascii=False,sort_keys=True)
+        return name,json.dumps(arguments,ensure_ascii=False,sort_keys=True)
 
     def _validate_tool_call(self, name, arguments, parse_error, state, requested_actions, read_request):
         definition = TOOL_DEFINITIONS.get(name)
@@ -498,8 +527,8 @@ class TravelAgent:
 
         return None
 
-    def _invoke_tool(self, name, arguments, context):
-        result = self.tool_executor(name, arguments, context)
+    def _invoke_tool(self, name, arguments, context,executor=None):
+        result = (executor or self.tool_executor)(name, arguments, context)
         if not isinstance(result, ToolResult) or result.action != name:
             raise TypeError('Tool executors must return their own ToolResult.')
         if (TOOL_DEFINITIONS[name].mode == 'write'

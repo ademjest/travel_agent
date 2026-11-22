@@ -6,6 +6,18 @@ import type { ConversationState } from "./useConversation";
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
+it("sends only the server task credential and closes automatic focus when absent",async()=>{
+ const state={...conversation(),tripOperation:{task_id:"T-bound",version:3,label:"方案A",expired:false,operation:"update"}};
+ const fetch=vi.fn(async()=>({ok:true,json:async()=>({})}));vi.stubGlobal("fetch",fetch);
+ const {result,rerender}=renderHook(()=>useMessageSubmission(state as unknown as ConversationState,{current:null}));
+ await act(async()=>{await result.current.send();});
+ const first=JSON.parse(String((fetch.mock.calls[0] as unknown as [string,RequestInit])[1].body));
+ expect(first.trip_continuation).toEqual({task_id:"T-bound",version:3});
+ (state as unknown as {tripOperation:null}).tripOperation=null;rerender();
+ await act(async()=>{await result.current.send();});
+ expect(JSON.parse(String((fetch.mock.calls[1] as unknown as [string,RequestInit])[1].body)).trip_continuation).toBe(false);
+});
+
 function conversation() {
   return {
     active: "first", activeRef: { current: "first" }, ready: true, draft: "第一会话的草稿", files: [],

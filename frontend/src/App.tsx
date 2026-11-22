@@ -518,7 +518,7 @@ export default function App() {
                           ))}
                         </div>
                       )}
-                      {message.trip_presentation ? <TripMessage presentation={message.trip_presentation} onFill={fill} onQuote={()=>quoteMessage(message.id)}/> : message.rail_results?.length ? message.rail_results.map(result => (
+                      {message.trip_presentation ? <TripMessage presentation={message.trip_presentation} onFill={fill} onQuote={()=>quoteMessage(message.id)} onCopy={()=>{quoteMessage(message.id);conversation.setTripOperation(null);fill("基于我引用的这版历史方案，新建独立方案，保留已有要求。");}}/> : message.rail_results?.length ? message.rail_results.map(result => (
                         <RailResultCard key={result.id} conversationId={active} result={result} disabled={sending || busy}
                           onQueryQueued={() => refresh(active)} />
                       )) : message.kind === "progress" ? (
@@ -586,6 +586,15 @@ export default function App() {
         </div>
 
         <div className="composer-area">
+          {conversation.tripOperation && <div className="query-reference" role="status">
+            <span><strong>{conversation.tripOperation.operation==="update" ? "正在修改" : "正在创建"}：{conversation.tripOperation.label} · #{conversation.tripOperation.trip_id?.slice(-6)}</strong>
+              草案修订 {conversation.tripOperation.version}{conversation.tripOperation.source ? ` · 基于 #${conversation.tripOperation.source.trip_id.slice(-6)} 版本 ${conversation.tripOperation.source.version}` : ""}</span>
+            <button type="button" disabled={sending} onClick={()=>{conversation.setTripOperation(null);setQuotedMessage(null);}}>切换方案</button>
+            <button type="button" disabled={sending} onClick={async()=>{const op=conversation.tripOperation;if(!op)return;try{await api(`/conversations/${active}/trip-operations/${op.task_id}/end`,{method:"POST",body:JSON.stringify({version:op.version,client_request_id:crypto.randomUUID()})});if(conversation.activeRef.current===active){conversation.setTripOperation(null);setQuotedMessage(null);await refresh(active);}}catch(reason){report(reason);}}}>结束本次操作</button>
+          </div>}
+          {!conversation.tripOperation && !!context.trip_operations?.length && <div className="query-reference">
+            <span>选择继续修改的操作：</span>{context.trip_operations.filter(op=>!op.expired).map(op=><button key={op.task_id} onClick={()=>conversation.setTripOperation(op)}>继续{op.label} · #{op.trip_id?.slice(-6)} · 修订{op.version}</button>)}
+          </div>}
           {quotedMessage && <div className="query-reference" role="status">
             <span><strong>引用消息</strong>{quotedMessage.label}</span>
             <button type="button" aria-label="取消引用" disabled={sending} onClick={() => setQuotedMessage(null)}><X size={16} /></button>
@@ -803,7 +812,7 @@ export default function App() {
           ))}
         </div>
         <div className="detail-content">
-          {tab === "trip" && <TripView trips={context.trips} onFill={fill} onStart={() => fill(suggestions[0].text)}
+          {tab === "trip" && <TripView trips={context.trips} onFill={fill} onStart={() => {conversation.setTripOperation(null);setQuotedMessage(null);fill("新建一份独立行程方案：");}}
             onQuote={quoteMessage}
             onCompare={messageId=>{setComparisonMessage({conversationId:active,messageId});setModal("comparison");}}/>}
           {tab === "plan" &&

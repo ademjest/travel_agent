@@ -1,4 +1,5 @@
 import { ArrowRight, MapPin, Navigation } from "lucide-react";
+import { useState } from "react";
 import type { Trip } from "./api";
 import { TransportLegCard } from "./TransportLegCard";
 import { TripStatePanel } from "./TripStatePanel";
@@ -13,7 +14,23 @@ type Props = {
 };
 
 export function TripView({ trips, onFill, onStart, onCompare, onQuote }: Props) {
-  return (trips.length ? (
+  const [compared,setCompared]=useState<string[]>([]);
+  const pair=compared.map(id=>trips.find(trip=>trip.trip_id===id)).filter((trip):trip is Trip=>!!trip).map(trip=>trip.preview || trip);
+  const fields=[...new Set(pair.flatMap(trip=>(trip.facts || []).map(f=>f.field)))];
+  return <><button className="trip-comparison-link" onClick={onStart}>新建独立方案</button>
+    {trips.length>1 && <details className="trip-card"><summary>只读对比两份方案</summary>
+      <p className="muted">读取当前已展示的内容和证据，不重新查询价格。</p>
+      {[0,1].map(index=><label key={index}>方案{index===0 ? "一" : "二"}<select aria-label={`对比方案${index+1}`} value={compared[index] || ""} onChange={event=>setCompared(old=>{const next=[...old];next[index]=event.target.value;return next;})}>
+        <option value="">请选择</option>{trips.map(trip=><option key={trip.trip_id} value={trip.trip_id}>{trip.spec.destination} · #{trip.trip_id.slice(-6)}</option>)}
+      </select></label>)}
+      {pair.length===2 && pair[0].trip_id!==pair[1].trip_id && <div className="trip-plan-comparison"><table>
+        <thead><tr><th>内容</th>{pair.map(trip=><th key={trip.trip_id}>#{trip.trip_id.slice(-6)} · {trip.is_preview ? "未保存" : "正式"}版本{trip.version}</th>)}</tr></thead>
+        <tbody><tr><th>日期</th>{pair.map(trip=><td key={trip.trip_id}>{trip.spec.start_date || "待定"} · {trip.spec.day_count}天</td>)}</tr>
+          {fields.map(field=><tr key={field}><th>{pair.flatMap(trip=>trip.facts || []).find(f=>f.field===field)?.label}</th>{pair.map(trip=><td key={trip.trip_id}>{trip.facts?.find(f=>f.field===field)?.value || "未声明"}</td>)}</tr>)}
+          <tr><th>景点安排</th>{pair.map(trip=><td key={trip.trip_id}>{trip.plan.days.map(day=><p key={day.day_index}>第{day.day_index}天：{day.activities.map(a=>a.name || trip.sources[a.poi_id || ""]?.name || "待核对").join("、") || "休整/交通"}</p>)}</td>)}</tr>
+          <tr><th>住宿候选</th>{pair.map(trip=><td key={trip.trip_id}>{trip.plan.hotel_ids?.map(id=>trip.sources[id]?.name || "待核对").join("、") || "待选"}</td>)}</tr>
+        </tbody></table></div>}
+    </details>}{trips.length ? (
               trips.map((saved) => { const trip=saved.preview || saved;
                 const hotelRows=trip.plan.hotel_recommendations || [];
                 const pendingHotels=hotelRows.filter(row=>!["fallback","conflict"].includes(row.status || "") && !["reference_in_budget","not_requested"].includes(row.price_status || "unknown")).map(row=>row.poi_id);
@@ -25,13 +42,15 @@ export function TripView({ trips, onFill, onStart, onCompare, onQuote }: Props) 
                 <section className="trip-card" key={trip.trip_id}>
                   <div className="trip-title">
                     <MapPin size={16} />
-                    <h2>{trip.spec.destination}</h2>
+                    <h2>{trip.title || trip.spec.destination}</h2>
+                    <small>#{trip.trip_id.slice(-6)}</small>
                     <span>{trip.spec.day_count} {trip.spec.planning_window ? "个自然日" : "天"}</span>
                   </div>
                   <p className="muted">
                     {trip.is_preview && <strong>草稿预览，尚未保存 · </strong>}
-                    {trip.spec.start_date || "日期待定"}{trip.spec.date_is_tentative ? "（暂定参考）" : ""} · 版本 {trip.version}
+                    {trip.spec.start_date || "日期待定"}{trip.spec.date_is_tentative ? "（暂定参考）" : ""} · {trip.is_preview ? "未保存" : "已保存"} · 版本 {trip.version}{saved.draft_version ? ` · 草案修订 ${saved.draft_version}` : ""}
                   </p>
+                  {saved.editing_message_id && onQuote && <button onClick={()=>edit(`继续修改行程 ${trip.trip_id}：`)}>继续修改此方案</button>}
                   {saved.comparison_message_id && onCompare && <button className="trip-comparison-link" onClick={()=>onCompare(saved.comparison_message_id!)}>查看本轮两版草案</button>}
                   <TripStatePanel facts={trip.facts || []} />
                   {trip.spec.planning_window && <p className="muted">{trip.spec.planning_window.start_text}至{trip.spec.planning_window.end_text}；首末日按可用时段安排。{trip.spec.requested_day_count ? !trip.spec.duration_adjustment && `原天数要求：${trip.spec.requested_day_count}天。` : "天数由明确日期范围推导。"}</p>}
@@ -147,5 +166,5 @@ export function TripView({ trips, onFill, onStart, onCompare, onQuote }: Props) 
                   开始规划 <ArrowRight size={14} />
                 </button>
               </div>
-            ));
+            )}</>;
 }

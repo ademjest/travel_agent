@@ -166,6 +166,8 @@ export interface ExecutionReport {
   replayed: boolean;
 }
 export interface Confirmation {
+  trip_id?: string;
+  trip_title?: string;
   draft_state?:DraftState|null;
   state?: "ready" | "expired" | "stale";
   reference_message_id?: string | null;
@@ -185,6 +187,7 @@ export interface DraftState {
 }
 export type DraftAction="revalidate"|"discard";
 export interface Trip {
+  title?: string;
   editing_message_id?: string | null;
   comparison_message_id?: string | null;
   preview?: Trip;
@@ -341,7 +344,19 @@ export interface ConversationUsageReport {
   cost_note: string;
   scope_note: string;
 }
+export interface TripOperation {
+  task_id: string;
+  version: number;
+  trip_id?: string;
+  label: string;
+  operation: "update" | "create_fresh" | "create_reference";
+  source?: { trip_id: string; version: number };
+  expired: boolean;
+}
 export interface Context {
+  trip_operations?: TripOperation[];
+  current_operation?: TripOperation | null;
+  operation_receipt?: { task_id: string; version: number; status: string } | null;
   model_usage?: ConversationUsageReport;
   trips: Trip[];
   planning_artifacts: PlanningArtifact[];

@@ -7,7 +7,7 @@ import unittest
 from core.chat_transport import ChatEvent
 from infrastructure.memory_store import MemoryStore
 from tools.trip.constraints import apply_constraints
-from tools.trip.planner import rank_hotels,price_details,_price_evidence,hotel_search_terms,TripPlanner,HOTEL_POLICY_VERSION
+from tools.trip.planner import rank_hotels,assess_hotels,price_details,_price_evidence,hotel_search_terms,TripPlanner,HOTEL_POLICY_VERSION
 from tools.trip.presentation import TripAnswerWriter,validate_answer,presentation_trip
 from tools.trip.tool import TripTool
 from test_place_recommendations import PLAN,PLACES
@@ -51,15 +51,15 @@ class HotelPriorityTests(unittest.TestCase):
                 'fit':hotel('预算酒店',400,'人民币每间每晚',3)}
         rows=rank_hotels(spec(),PLAN,places)
         self.assertNotIn('costly',[r['poi_id'] for r in rows])
-        self.assertEqual(rows[0]['poi_id'],'fit')
-        self.assertEqual(rows[0]['price_status'],'reference_in_budget')
+        self.assertEqual(rows,[],'地图常规价格不能替代指定住宿条件报价')
+        assessed={r['poi_id']:r for r in assess_hotels(spec(),PLAN,places)}
+        self.assertEqual(assessed['costly']['status'],'conflict')
 
     def test_unknown_price_cannot_beat_known_budget_match_by_stars(self):
         places={'fit':hotel('参考房价酒店',400,'人民币每间每晚',3),
                 'unknown':hotel('未知房价五星酒店',None,None,5),**{k:v for k,v in PLACES.items() if k in 'abcd'}}
         rows=rank_hotels(spec(),PLAN,places)
-        self.assertEqual(rows[0]['poi_id'],'fit')
-        self.assertNotEqual(rows[1]['price_status'],'reference_in_budget')
+        self.assertEqual(rows,[])
 
     def test_incomparable_units_and_minimum_only_do_not_claim_budget_match(self):
         for unit in ('美元每间每晚','人民币每人每天','人民币总价'):
@@ -72,7 +72,7 @@ class HotelPriorityTests(unittest.TestCase):
 
     def test_current_brand_preference_precedes_inherited_quality(self):
         s=spec();s['hotel_preferences'].update(preferred_brands=['如家'],brand_mode='preferred')
-        rows=rank_hotels(s,PLAN,{'independent':hotel('五星独立酒店',None,None,5),'brand':hotel('如家酒店(测试店)',None,None,2)})
+        rows=assess_hotels(s,PLAN,{'independent':hotel('五星独立酒店',None,None,5),'brand':hotel('如家酒店(测试店)',None,None,2)})
         self.assertEqual(rows[0]['poi_id'],'brand')
         self.assertEqual(rows[1]['status'],'fallback')
         self.assertIn('未匹配',''.join(rows[1]['issues']))
@@ -82,7 +82,7 @@ class HotelPriorityTests(unittest.TestCase):
         places={'ji':hotel('全季酒店(测试店)'), 'hanting':hotel('汉庭酒店(测试店)'),
                 'rujia':hotel('如家商旅酒店(测试店)'), 'false':hotel('华住会咨询公司酒店'),
                 'independent':hotel('独立五星酒店',None,None,5)}
-        rows=rank_hotels(s,PLAN,places)
+        rows=[r for r in assess_hotels(s,PLAN,places) if r['status']!='conflict']
         self.assertEqual({r['poi_id'] for r in rows},{'ji','hanting','rujia'})
         self.assertTrue(all(r.get('brand_match') for r in rows))
         self.assertTrue(all('门店' in ''.join(r['issues']) for r in rows))

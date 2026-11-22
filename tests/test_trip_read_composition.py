@@ -85,6 +85,8 @@ class TripReadCompositionTests(PriceWorkflowTests):
         saved=self.prepared()
         self.models.completions.responses.extend([model_response({**SPEC,'start_date_text':'2030年10月1日'}),model_response(plan_value())])
         self.create('second-trip')
+        focus=self.context()['current_operation']
+        self.web.repo.end_trip_operation(self.web.identity,focus['task_id'],focus['version'])
         text='查看行程，并告诉我第二天晚餐预算是多少'
         operations=[{'domain':'trip','operation':'view_current_trip'},
             {'domain':'trip','operation':'check_budget','requested_checks':[{'scope':'food','source':'第二天晚餐预算是多少'}]}]

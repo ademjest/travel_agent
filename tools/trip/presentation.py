@@ -12,6 +12,7 @@ from tools.trip.constraints import reference_date_note, facts, travel_preference
 from tools.trip.planner import meal_scopes, _meal_anchors, assess_hotels, HOTEL_PATTERN, HOTEL_POLICY_VERSION, activity_material_state
 from tools.research.evidence import concrete_claim, cultural_note
 from tools.research.sources import INSTRUCTION
+from tools.hotel_prices.quotes import hotel_candidate_groups
 
 
 class AnswerContractError(ValueError):
@@ -83,7 +84,7 @@ def presentation_trip(trip):
         from tools.hotel_prices.tool import reference_text
         value['plan']['hotel_quotes']=project_quote(value['plan']['hotel_quotes'])
         value['plan']['hotel_quotes']['offers']=evaluate(value['spec'],value['plan']['hotel_quotes'],places=value['sources'])
-        value['plan']['hotel_quotes']['reference_text']=reference_text(value['plan']['hotel_quotes']) if value['plan']['hotel_quotes'].get('reference_clues') or value['plan']['hotel_quotes'].get('unavailable_prices') else ''
+        value['plan']['hotel_quotes']['reference_text']=reference_text(value['plan']['hotel_quotes']) if any(value['plan']['hotel_quotes'].get(k) for k in ('reference_clues','unavailable_prices','price_summaries')) else ''
         if value['plan']['hotel_quotes'].get('coverage'):
             value['plan']['hotel_quotes']['coverage']['comparable']=sum(o['status']=='reference_match' for o in value['plan']['hotel_quotes']['offers'])
     if 'preferences' in value['spec']:
@@ -96,16 +97,6 @@ def presentation_trip(trip):
                     or travel_preferences([why]) != [why]):
                 description.pop('why_visit',None)
     return value
-
-
-def hotel_candidate_groups(rows):
-    groups=[('住宿候选',[]),('待核价候选（未确认符合预算）',[]),('其他品牌备选（未满足品牌偏好）',[]),('未通过当前筛选的原候选（需重新核对）',[])]
-    for row in rows:
-        index=3 if row.get('status')=='conflict' else 2 if row.get('status')=='fallback' else 0 if row.get('price_status') in {'not_requested','reference_in_budget'} else 1
-        groups[index][1].append(row)
-    if groups[0][1] and all(r.get('price_status')=='reference_in_budget' for r in groups[0][1]):
-        groups[0]=('参考房价在预算范围的候选',groups[0][1])
-    return [(label,items) for label,items in groups if items]
 
 
 class TripAnswerWriter:

@@ -562,6 +562,8 @@ def web_context(repository, identity,*,clock=None):
                     if operation.get('status') in {'failed','unknown'}:
                         available=False;reason='这份草案的上次核对未完成，请重新核对后再保存；内容仍保留。'
                 confirmations.append({'id': task.task_id, 'version': task.version, 'command': command,
+                                      'trip_id':task.slots.get('trip_id'),
+                                      'trip_title':task.slots.get('candidate_trip',{}).get('title'),
                                       'draft_state':action_state,
                                       'diff': task.slots.get('change_diff'),
                                       'preview': preview if isinstance(preview,str) else '', 'can_confirm': available,
@@ -570,6 +572,23 @@ def web_context(repository, identity,*,clock=None):
                                       'reference_message_id':repository.event_message(identity,task.last_event_id),
                                       'expires_at': task.expires_at})
     jobs = repository.active_jobs(identity)
+    operations=[]
+    for task in tasks:
+        binding=task.slots.get('trip_binding',{})
+        if task.status!='collecting' or binding.get('status')!='active':continue
+        target=binding.get('target',{})
+        candidate=task.slots.get('candidate_trip',{})
+        label=candidate.get('title') or task.slots.get('spec',{}).get('destination') or '待补充方案'
+        source=binding.get('source')
+        operations.append({'task_id':task.task_id,'version':task.version,'trip_id':target.get('trip_id'),
+            'label':label,'operation':binding['operation'],'source':source,
+            'expired':task.is_expired(clock() if clock else datetime.now(timezone.utc))})
+    with repository.store._connect() as db:
+        focus=db.execute("SELECT result_text FROM event_tool_results WHERE tool_name='trip_operation' AND event_id LIKE ? ORDER BY rowid DESC LIMIT 1",
+            ('web:group:'+identity+':%',)).fetchone()
+    focus=json.loads(focus[0]) if focus else None
+    current_operation=next((op for op in operations if focus and focus['status']=='collecting' and op['task_id']==focus['task_id']
+        and op['version']==focus['version'] and not op['expired']),None)
     reservation_plans = repository.store.reservations.list_reservation_plans_for_creator('web', identity, OWNER)
     reservation_reminders = repository.store.reservations.list_reservation_reminders('web', identity, OWNER)
     reservations = [{'code': plan.plan_code, 'status': plan.status, 'version': plan.plan_version,
@@ -610,7 +629,8 @@ def web_context(repository, identity,*,clock=None):
     for trip in trips:trip['comparison_message_id']=comparison_messages.get(trip['trip_id'])
     model_usage = conversation_usage_report(repository.store, identity, OWNER)
     repository.conversation(identity)
-    return {'trips': trips, 'planning_artifacts':plans,
+    return {'trips': trips, 'planning_artifacts':plans,'trip_operations':operations,
+            'current_operation':current_operation,'operation_receipt':focus,
             'reminders': repository.store.reminders.list_for_owner('web', identity, OWNER),
             'documents': repository.store.trips.document_options(event), 'confirmations': confirmations,
             'reservations': reservations,

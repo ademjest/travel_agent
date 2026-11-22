@@ -45,6 +45,7 @@ export function useMessageSubmission(conversation: ConversationState, input: Ref
       sendingConversation = identity;
       const body = {
         content: text,
+        ...(!quotedMessage ? {trip_continuation: conversation.tripOperation ? {task_id:conversation.tripOperation.task_id,version:conversation.tripOperation.version} : false} : {}),
         ...(quotedMessage ? { quoted_message_id: quotedMessage.id } : {}),
         upload_ids: selectedFiles.flatMap((f) =>
           f.upload ? [f.upload.id] : [],

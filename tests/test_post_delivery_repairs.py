@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import datetime,timedelta,timezone
+from datetime import datetime,timezone,timedelta
 from itertools import count
 import json,unittest
 from unittest.mock import Mock,patch
@@ -104,11 +104,10 @@ class CreationAuditTests(WorkflowHarness,unittest.TestCase):
         from tools.trip.tool import TripTool
         self.fixture=json.loads((Path(__file__).parent/'fixtures/request_208_public_2026-11-02.json').read_text(encoding='utf-8'))
         self.request=self.fixture['request'];self.now=datetime(2026,11,2,11,24,tzinfo=timezone.utc)
+        message_ticks=count()
+        message_clock=patch('infrastructure.web_repository.timestamp',lambda:(self.now+timedelta(microseconds=next(message_ticks))).isoformat())
+        message_clock.start();self.addCleanup(message_clock.stop)
         clock=patch('infrastructure.task_repository.utc_now',lambda:self.now);clock.start();self.addCleanup(clock.stop)
-        stamps=count()
-        web_clock=patch('infrastructure.web_repository.timestamp',
-            lambda:(self.now+timedelta(microseconds=next(stamps))).isoformat())
-        web_clock.start();self.addCleanup(web_clock.stop)
         self.amap.search_places.return_value=list(self.fixture['places'].values())
         self.amap.route_for_pois.return_value={'duration_seconds':600,'distance_meters':800}
         spec=self.fixture['requirements']
@@ -191,7 +190,8 @@ class CreationAuditTests(WorkflowHarness,unittest.TestCase):
         text='酒店高档一点，尽量连锁，300-400'
         self.patch({'accommodation':{'value':'酒店高档一点','source':'酒店高档一点','quality_requested':True,'chain_mode':'preferred'},
             'budget':{'scope':'accommodation','value':'300-400','source':text}},text,'hotel')
-        hotel=deepcopy(self.candidate()['plan']['hotel_recommendations']);self.assertTrue(hotel,self.web.messages()[-1]['content'])
+        hotel=deepcopy(self.candidate()['plan']['hotel_recommendations']);self.assertEqual(hotel,[])
+        self.assertTrue(self.candidate()['plan']['hotel_investigation'],'无适用报价的酒店保留为调查对象，不冒充预算内推荐')
         text='每天午餐和晚餐想吃南京特色菜'
         self.patch({'dining':{'value':text,'source':text,'cuisines':['南京特色菜'],
             'scopes':[{'day_index':d,'meal':m} for d in (1,2,3) for m in ('午餐','晚餐')]}},text,'meals')
@@ -393,6 +393,8 @@ class DerivedStateAuditTests(WorkflowHarness,unittest.TestCase):
         self.create();first=self.web.store.trips.current_drafts(self.web.event(''))[0]
         self.models.completions.responses.extend([model_response({**SPEC,'start_date_text':'2030年10月1日'}),model_response(plan_value())])
         self.create('second-target');other=next(t for t in self.web.store.trips.current_drafts(self.web.event('')) if t.task_id!=first.task_id)
+        focus=self.context()['current_operation']
+        self.web.repo.end_trip_operation(self.web.identity,focus['task_id'],focus['version'])
         self.patch({'budget':{'scope':'food','value':'70','source':'餐饮预算70'}},'这些方案餐饮预算70','ambiguous')
         text='选择'+first.slots['trip_id']+'，人民币每人每餐'
         self.patch({'budget':{'scope':'food','unit_text':'人民币每人每餐','source':'人民币每人每餐'}},text,'select-first')

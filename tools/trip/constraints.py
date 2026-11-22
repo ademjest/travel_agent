@@ -114,6 +114,43 @@ def apply_date_window(spec, interval):
     confirm_planning_date(spec)
 
 
+def reschedule_dates(spec, text, now):
+    """Move the calendar and dated travel requirements together, never supplier evidence."""
+    interval=date_range(text,now)
+    if not interval:
+        match=re.search(DATE+r'|大后天|后天|明天|今天',text)
+        raw=match[0] if match else text.strip().rstrip('。 ')
+        parsed=parse_reminder_time(raw,now)
+        if not parsed.day or parsed.error:raise ValueError(parsed.error or '请提供明确的行程开始日期。')
+        interval={'start':parsed.day,'end':(date.fromisoformat(parsed.day)+timedelta(days=spec['day_count']-1)).isoformat(),
+            'days':spec['day_count'],'start_text':raw,'end_text':'','start_window':None,'end_window':None}
+    if interval['days']!=spec['day_count']:
+        raise ValueError('新日期范围改变了旅行天数，不能仅平移原活动；请明确增减天数并重新规划。')
+    previous=spec.get('start_date')
+    offset=date.fromisoformat(interval['start'])-date.fromisoformat(previous) if previous else timedelta()
+    result=deepcopy(spec)
+    for direction in ('outbound','inbound'):
+        leg=result.get('intercity_request',{}).get(direction,{})
+        if offset and leg.get('mode')=='owned_ticket':
+            raise ValueError('已有车票的日期不能随行程自动改签，请先明确保留车票日期或提供改签后的交通信息；原行程未修改。')
+        if offset and leg.get('date_text'):
+            original=leg.get('resolved_date')
+            if not original:
+                parsed=parse_reminder_time(leg['date_text'],now)
+                if parsed.error or not parsed.day:raise ValueError('原交通日期尚未确认，请明确新去程和返程日期后再改期。')
+                original=parsed.day
+            leg['date_text']=leg['resolved_date']=(date.fromisoformat(original)+offset).isoformat()
+            leg['date_reference_time']=now.isoformat()
+            leg.setdefault('field_sources',{})['date_text']=text
+    window=deepcopy(result.get('planning_window',{}))
+    for key,value in interval.items():
+        if key not in {'start_window','end_window'} or value is not None or key not in window:window[key]=value
+    if result.get('tour_start_date'):
+        result['tour_start_date']=(date.fromisoformat(result['tour_start_date'])+offset).isoformat()
+    apply_date_window(result,window)
+    return result
+
+
 def _city_arrival_leg(spec):
     """Bind a city stay reference only to the same dated, city-scoped arrival."""
     from infrastructure.place_resolution import city_name
@@ -256,6 +293,37 @@ def normalize_food_units(spec):
         if inherited:
             meal.setdefault('unit_literal',meal.get('unit_text',''))
             meal.update(unit_text=unit,unit_inherited=inherited,comparison_unit=food_comparison_unit(unit))
+
+
+def missing_budget_units(spec,changes):
+    budgets=([changes['budget']] if changes.get('budget') else [])+changes.get('budgets',[])
+    for budget in budgets:
+        category=spec.get('budgets',{}).get(budget['scope'],{})
+        scopes=budget.get('scopes',[])
+        values=[category.get('meals',{}).get(f"{s['day_index']}:{s['meal']}",{}) for s in scopes] if scopes else [category]
+        if any(not value.get('unit_text') for value in values):return True
+    return False
+
+
+def food_budget_conflicts(spec, changes, message):
+    """Report retained meal exceptions that contradict a newly tightened general cap."""
+    budgets=([changes['budget']] if changes.get('budget') else [])+changes.get('budgets',[])
+    general=[b for b in budgets if b.get('scope')=='food' and not b.get('scopes') and b.get('meal_policy','preserve')=='preserve']
+    if not general:return []
+    if all(b.get('meal_policy_source') and b['meal_policy_source'] in message
+            and re.search(r'保留|照旧|不变',b['meal_policy_source'])
+            and re.search(r'例外|单餐|餐次',b['meal_policy_source']) for b in general):return []
+    updated,_=apply_constraints(spec,changes,message)
+    food=updated.get('budgets',{}).get('food',{})
+    upper=food.get('bounds',{}).get('upper')
+    if upper is None:return []
+    conflicts=[]
+    for key,meal in food.get('meals',{}).items():
+        meal_upper=(meal.get('bounds') or budget_bounds(meal.get('value',''),meal.get('source',''))).get('upper')
+        if meal_upper is not None and meal_upper>upper:
+            day,label=key.split(':')
+            conflicts.append(f"第{day}天{label}（{meal.get('value','')}）")
+    return conflicts
 
 
 def _apply_budget(spec, change, message, summary):

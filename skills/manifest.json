@@ -27,7 +27,7 @@
     {
       "id": "intent.compile",
       "owner": "agents/intent_compiler.py",
-      "version": "intent-ir-v32-select-before-lookup",
+      "version": "intent-ir-v34-trip-binding",
       "purpose": "intent_parse",
       "content": {
         "fragments": "skills/intent/compile.json"
@@ -51,7 +51,7 @@
     {
       "id": "agent.respond",
       "owner": "agents/travel_agent.py",
-      "version": "travel-agent-v5-hotel-flow",
+      "version": "travel-agent-v6-accommodation-goal",
       "purpose": "tool_reasoning",
       "content": {
         "fragments": "skills/agent/respond.json"

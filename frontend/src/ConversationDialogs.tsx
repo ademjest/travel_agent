@@ -25,6 +25,7 @@ export function ConfirmationCards({ confirmations, active, sending, busy, fill, 
     </section>}>
       <section className="confirmation" id={`draft-${c.id}`} data-draft-id={c.id}>
         <div className="confirmation-heading"><Info size={18}/><strong>{c.state==="expired" ? "确认已过期，草案仍保留" : "有一项变更需要你确认"}</strong></div>
+        {c.trip_id && <p><strong>{c.trip_title || "行程方案"} · #{c.trip_id.slice(-6)}</strong></p>}
         {c.draft_state && <small>草案修订 {c.version} · {c.draft_state.base_version ? `基于已保存版本 ${c.draft_state.base_version}` : "尚未创建正式行程"}</small>}
         {c.diff && <TripChangeDiff diff={c.diff}/>}
         {typeof c.preview==="string" && c.preview.trim() ? (renderedPreviews.includes(c.preview) ? <p>上方保留完整预览。可以稍后继续，确认到期后需重新核对。</p> : c.diff ? <details><summary>展开完整预览</summary><Markdown text={c.preview}/></details> : <Markdown text={c.preview}/>) : <p role="alert">完整预览暂时不可用，原行程未修改。</p>}

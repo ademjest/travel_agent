@@ -31,7 +31,9 @@ evals/*.json
 evals/*.png
 evals/public_travel_sources_*/
 
-# Public documentation is limited to guides and release notes.
+# Publish user documentation only; local browser recordings may contain chat content.
 docs/*
 !docs/guides/
 !docs/releases/
+.playwright-cli/
+output/playwright/

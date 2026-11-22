@@ -1012,6 +1012,7 @@ def query_argument_error(name,arguments,read_request):
 
 
 def finish_read_turn(result, decision, task, read_request, resolved_message, reference_time):
+    if decision.intent=='accommodation':return result
     hotel=next((r for r in result.receipts if r.action=='query_hotel_prices'),None)
     if hotel and hotel.payload:
         payload=hotel.payload

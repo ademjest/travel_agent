@@ -28,6 +28,12 @@ class ModelGatewayTests(unittest.TestCase):
         with model_call_context('intent_parse'):
             self.gateway.create(model='fake',messages=[{'role':'user','content':'short'}])
         self.assertEqual(self.requests[-1]['max_completion_tokens'],1024)
+        with patch.dict(os.environ,{'AI_BUDGET_TIER':'economy'}),model_call_context('intent_parse',repair_attempt=1,output_multiplier=2):
+            self.gateway.create(model='fake',messages=[{'role':'user','content':'bounded recovery'}])
+        self.assertEqual(self.requests[-1]['max_completion_tokens'],1536,'The gateway must allow the recovery budget, not clip it back to 768')
+        with patch.dict(os.environ,{'AI_BUDGET_TIER':'economy'}),model_call_context('intent_parse',repair_attempt=1,output_multiplier=2):
+            self.gateway.create(model='fake',messages=[{'role':'user','content':'bounded recovery'}])
+        self.assertEqual(self.requests[-1]['max_completion_tokens'],1536,'The gateway must allow the recovery budget, not clip it back to 768')
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

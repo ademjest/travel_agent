@@ -196,6 +196,8 @@ def build_runtime(
             diagnostics=memory_store.diagnostics.summary), diagnostics=memory_store.diagnostics.context),
     )
     application.preference_service = PreferencesTool(memory_store.preferences)
+    tool_router.trip_tool=application.trip_service
+    application.trip_service.travel_agent=travel_agent
     application.skill_manager = skill_manager
     application.planning_service = PlanningArtifacts(memory_store.planning)
     if isinstance(application.research_service.search,SearchClient):

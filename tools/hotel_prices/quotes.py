@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 
 VERSION='hotel-quotes-v2'
-EVIDENCE_VERSION='hotel-reference-evidence-v5'
+EVIDENCE_VERSION='hotel-reference-evidence-v6'
 STAY_FIELDS={'check_in','check_out','rooms','adults','children_ages','room_requirement',
              'breakfast_requirement','cancellation_requirement'}
 LABELS={'check_in':'入住日期','check_out':'退房日期','rooms':'房间数','adults':'成人数','children_ages':'儿童年龄（无儿童也请明确）'}
@@ -44,12 +44,23 @@ def store_name(text,city):
     return value
 
 
+def hotel_candidate_groups(rows):
+    groups=[('住宿候选',[]),('待核价候选（未确认符合预算）',[]),('其他品牌备选（未满足品牌偏好）',[]),('未通过当前筛选的原候选（需重新核对）',[])]
+    for row in rows:
+        index=3 if row.get('status')=='conflict' else 2 if row.get('status')=='fallback' else 0 if row.get('price_status') in {'not_requested','reference_in_budget'} else 1
+        groups[index][1].append(row)
+    if groups[0][1] and all(r.get('price_status')=='reference_in_budget' for r in groups[0][1]):
+        groups[0]=('参考房价在预算范围的候选',groups[0][1])
+    return [(label,items) for label,items in groups if items]
+
+
 def lodging_target(place):
     """AMap 10xxxx is accommodation; a conflicting hierarchy is not hotel identity."""
     code=str(place.get('typecode') or '')
-    hierarchy=str(place.get('type') or '').split(';')
-    if code:return bool(re.fullmatch(r'10\d{4}',code) and (not hierarchy[0] or hierarchy[0]=='住宿服务'))
-    return hierarchy[0]=='住宿服务'
+    roots=[path.split(';')[0].strip() for path in str(place.get('type') or '').split('|')]
+    if code:return all(re.fullmatch(r'10\d{4}',part.strip()) for part in code.split('|')) and all(
+        not root or root=='住宿服务' for root in roots)
+    return all(root=='住宿服务' for root in roots)
 
 
 def target_key(target):
@@ -377,6 +388,67 @@ def validate_quotes(value,raw,targets,stay,city):
     return result['offers'],result['rejected']
 
 
+def price_summaries(raw,targets):
+    """Extract attributable price fields for display, never manufacture nightly offers."""
+    headings=list(re.finditer(r'(?m)^[ \t]*(#{1,6})[ \t]+([^\n]+)',raw))
+    label=re.compile(r'^(?:每晚(?:日期)?(?:价格|房价|房费)(?:及币种)?|逐晚价格|参考(?:房价|价格)|最低(?:参考)?价|房价|房费|起价|均价|价格区间|总价)\s*[：:]\s*(.*)$')
+    money=re.compile(r'(?:(?:[￥¥$]|RMB|CNY|USD|HKD|人民币)\s*\d+(?:[,.]\d+)*|\d+(?:[,.]\d+)*\s*(?:元|人民币|RMB|CNY|USD|HKD|美元|港元))',re.I)
+    fees=r'早餐|餐费|停车|押金|接送|加床'
+    def room_amount(text):
+        for clause in re.split(r'[，；;。]|,(?!\d{3})',text):
+            match=money.search(clause)
+            if match:
+                prefix=re.sub(r'含(?:早餐|早|停车)', '',clause[:match.start()])
+                if not re.search(fees,prefix) and not re.match(r'\s*(?:的)?(?:'+fees+r')',clause[match.end():]):return True
+            elif re.fullmatch(r'\s*(?:\d+(?:\.\d+)?|免费|房费免费|免费住宿)\s*',clause):return True
+        return False
+    rows=[]
+    for pid,target in targets.items():
+        anchors=[h for h in headings if normalized(target['name']) in normalized(h[2])]
+        row={'requested_target_ref':pid,'hotel_name':target['name'],'status':'not_found','prices':[],'evidence':[]}
+        if len(anchors)!=1:
+            row['status']='unresolved' if normalized(target['name']) in normalized(raw) else 'not_found'
+            rows.append(row);continue
+        anchor=anchors[0]
+        if sum(normalized(t['name']) in normalized(anchor[2]) for t in targets.values())!=1:
+            row['status']='unresolved';rows.append(row);continue
+        end=len(raw)
+        for heading in headings:
+            if heading.start()<=anchor.start():continue
+            title=_plain_markdown(heading[2]).strip(' <>')
+            other=any(normalized(t['name']) in normalized(title) for key,t in targets.items() if key!=pid)
+            if other or (len(heading[1])<=len(anchor[1]) and not re.match(r'(?:产品|房型|报价|价格|参考)',title)):
+                end=heading.start();break
+        body=raw[anchor.end():end]
+        cities=re.findall(r'(?m)^\s*[-*]?\s*(?:城市|所在城市)\s*[：:]\s*([^\s，,；;。]+)',_plain_markdown(body))
+        if any(normalized(city).removesuffix('市')!=normalized(target.get('cityname','')).removesuffix('市') for city in cities):
+            row['status']='unresolved';rows.append(row);continue
+        table_header=[]
+        for line in re.finditer(r'[^\n]+',body):
+            plain=re.sub(r'^\s*(?:[-+*]\s+|\d+[.、)]\s*)','',_plain_markdown(line[0])).strip()
+            field=label.match(plain)
+            if plain.startswith('|'):
+                cells=[c.strip() for c in plain.strip('|').split('|')]
+                if any(re.search(r'房型|每晚|房价|价格|总价',c) for c in cells) and not money.search(plain):
+                    table_header=cells;continue
+                if table_header and len(cells)==len(table_header):
+                    prices=[c for h,c in zip(table_header,cells) if re.search(r'房价|价格|每晚|总价|\d+月\d+日|\d{4}-\d{2}-\d{2}',h) and not re.search(fees,h)]
+                    if any(room_amount(c) for c in prices):
+                        plain='；'.join(h+'：'+c for h,c in zip(table_header,cells));field=True
+            usable=bool(field) and (room_amount(field[1]) if isinstance(field,re.Match) else True)
+            if not usable:
+                if room_amount(plain) and not re.match(r'(?:电话|链接|评分|地址|门店地址)',plain):row['status']='unresolved'
+                continue
+            start=anchor.end()+line.start();finish=anchor.end()+line.end()
+            parents=[h for h in headings if anchor.end()<=h.start()<start and h.start()<end]
+            product=_plain_markdown(parents[-1][2]).strip(' <>') if parents else ''
+            row['prices'].append((product+'：' if product else '')+plain+('（原文未明确币种或单位）' if not money.search(plain) else ''))
+            row['evidence'].append({'start':start,'end':finish,'text':raw[start:finish]})
+        if row['prices']:row['status']='reference'
+        rows.append(row)
+    return rows
+
+
 def project_quote(snapshot):
     """Recheck saved model facts locally; never rewrite source, history or accounting."""
     if (snapshot.get('evidence_version')!=EVIDENCE_VERSION and isinstance(snapshot.get('extracted_facts'),dict)
@@ -384,14 +456,17 @@ def project_quote(snapshot):
         try:result=validate_quote_facts(snapshot['extracted_facts'],snapshot['raw_text'],snapshot['targets'],snapshot['stay'],snapshot['city'])
         except ValueError:pass
         else:snapshot={**snapshot,**result,'evidence_version':EVIDENCE_VERSION}
+    if snapshot.get('raw_text') and snapshot.get('targets'):
+        snapshot={**snapshot,'price_summaries':price_summaries(snapshot['raw_text'],snapshot['targets'])}
     names='、'.join(dict.fromkeys(p['reported_hotel_name'] for p in snapshot.get('unavailable_prices',[])))
     unavailable_note=('供应商原文将以下酒店部分房型的目标日期房价标注为未知：'+names+'。展示起价不等于目标日期的房型实价，未据此判定售罄；早餐费用不作为住宿房价。') if names else ''
     if snapshot.get('budget_block'):status='budget_blocked';note=snapshot.get('note','模型预算阻断，未继续提取；已有原文仍可本地读取。')
     elif snapshot.get('submission_status') in {'submitted','result_unknown','submission_unknown'}:status='submission_unknown';note='上次提交结果未知，可能已处理，本次未自动重发。'
     elif snapshot.get('offers'):status='offers_available';note='已有来源报价；具体适用性、税费与预算结论按产品逐项核对。'
     elif snapshot.get('reference_clues'):status='reference_only';note='已有原文参考价格，门店或产品条件仍待核对，不用于预算通过或可订判断。'
-    elif snapshot.get('extraction_status')=='failed':status='extraction_failed';note='供应商原文已保存，结构化提取未完成；不能据此断言供应商没有价格。'
     elif unavailable_note:status='source_price_unknown';note=unavailable_note
+    elif any(r['status']=='reference' for r in snapshot.get('price_summaries',[])):status='reference_only';note='已有携程问道原文参考价格，具体房型和完整适用条件仍待核对。'
+    elif snapshot.get('extraction_status')=='failed':status='extraction_failed';note='供应商原文已保存，结构化提取未完成；不能据此断言供应商没有价格。'
     elif snapshot.get('rejected'):status='evidence_rejected';note='已取得原文，但提取事实未通过证据核验；可查看原文，不能据此断言没有房价或已经售罄。'
     elif snapshot.get('raw_text'):status='no_structured_price';note='已取得供应商资料，尚无可核验的结构化房价；可从“查看原文”读取完整内容。'
     elif snapshot.get('request_id'):status='provider_incomplete';note=snapshot.get('note') or '供应商查询未取得确认结果，未自动重发。'
@@ -403,7 +478,7 @@ def reusable(snapshot,stay,now):
     if not isinstance(snapshot.get('retrieved_at'),str):return False
     try:
         retrieved=datetime.fromisoformat(snapshot['retrieved_at'].replace('Z','+00:00'))
-        return 0<=(now-retrieved).total_seconds()<=1800 and date.fromisoformat(stay['check_in'])>=now.astimezone(ZoneInfo('Asia/Shanghai')).date()
+        return 0<=(now-retrieved).total_seconds()<=1800 and (snapshot.get('reference_only') or date.fromisoformat(stay['check_in'])>=now.astimezone(ZoneInfo('Asia/Shanghai')).date())
     except (KeyError,ValueError,TypeError):return False
 
 

@@ -146,13 +146,14 @@ class ContextUpdateTests(unittest.TestCase):
         self.save('another-trip','南京')
         self.assertIn('保存这版行程',reply)
         self.assertIn('**住宿预算目标：** 200-300；人民币每间每晚',reply)
-        self.assertIn('未核实实时价格',reply)
+        self.assertIn('当前资料不足以确认匹配预算',reply)
         self.confirm()
         trip = self.current()
         self.assertEqual(trip['version'],2)
         self.assertTrue(trip['spec']['gentle'])
         self.assertTrue(trip['spec']['hotel_requested'])
-        self.assertEqual(trip['plan']['hotel_ids'],['hotel'])
+        self.assertEqual(trip['plan']['hotel_ids'],[])
+        self.assertIn('hotel',[row['poi_id'] for row in trip['plan']['hotel_investigation']])
         self.assertEqual(trip['spec']['budgets']['accommodation']['unit_text'],'人民币每间每晚')
         for field in ('destination','start_date','day_count','must_visit','source_context'):
             self.assertEqual(trip['spec'][field],self.spec[field])
@@ -165,8 +166,7 @@ class ContextUpdateTests(unittest.TestCase):
         self.dispatch(first,'餐饮预算200-300')
         with self.store._connect() as db:
             db.execute('UPDATE trips SET version=version+1')
-        changes['budget']['unit_text'] = '人民币每人每天'
-        reply = self.dispatch(intent(changes),'人民币每人每天','answer')
+        reply = self.dispatch(intent({'budget':{'scope':'food','unit_text':'人民币每人每天','source':'人民币每人每天'}}),'人民币每人每天','answer')
         self.assertIn('已经变化',reply)
 
     def mixed_draft(self):
@@ -345,7 +345,8 @@ class ContextUpdateTests(unittest.TestCase):
         other = self.save('b','南京')
         self.assertIn('要调整哪一份',self.dispatch())
         text = self.saved['trip_id']
-        self.assertIn('保留原城市',self.dispatch(text=text,key='selection'))
+        selection=intent({});selection['source_spans']=[text]
+        self.assertIn('保留原城市',self.dispatch(selection,text=text,key='selection'))
         self.confirm()
         self.assertEqual(self.current()['version'],2)
         self.assertEqual(self.store.trips.get(self.event(''),other['trip_id'])['version'],1)

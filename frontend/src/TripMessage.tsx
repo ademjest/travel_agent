@@ -2,7 +2,7 @@ import type {TripPresentation} from "./api";
 import {Markdown} from "./Markdown";
 import {TransportLegCard} from "./TransportLegCard";
 
-export function TripMessage({presentation,onFill,onQuote}:{presentation:TripPresentation;onFill?:(text:string)=>void;onQuote?:()=>void}) {
+export function TripMessage({presentation,onFill,onQuote,onCopy}:{presentation:TripPresentation;onFill?:(text:string)=>void;onQuote?:()=>void;onCopy?:()=>void}) {
   const {trip,sections,prefix,suffix}=presentation;
   return <div className="trip-message">
     {presentation.lifecycle && ["saved","discarded","superseded"].includes(presentation.lifecycle.state) && <p className="muted" role="status">
@@ -14,5 +14,6 @@ export function TripMessage({presentation,onFill,onQuote}:{presentation:TripPres
         leg={trip.plan.intercity[section.direction]} direction={section.direction} tripId={trip.trip_id} onFill={onFill}
         onAdjust={onQuote && onFill ? ()=>{onQuote();onFill(`${section.direction==="outbound"?"去程":"返程"}改为：`);} : undefined}/>)}
     {suffix && <Markdown text={suffix}/>}
+    {onCopy && <button onClick={onCopy}>基于此版另建独立方案</button>}
   </div>;
 }

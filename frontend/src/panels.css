@@ -1039,3 +1039,6 @@
   .settings-help { min-height: 0; }
   .notification-toast { right: 16px; bottom: 16px; }
 }
+.trip-plan-comparison { overflow-x: auto; margin-top: 12px; }
+.trip-plan-comparison table { width: 100%; border-collapse: collapse; }
+.trip-plan-comparison th, .trip-plan-comparison td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--border); }

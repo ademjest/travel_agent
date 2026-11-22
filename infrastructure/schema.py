@@ -7,6 +7,32 @@ from datetime import datetime, timezone
 DOCUMENT_FTS_MIGRATION = "document_chunks_fts_v1"
 
 
+def migrate_wendao_steps(db):
+    """Atomic primary-key migration; payload bytes and legacy empty-step identity survive."""
+    db.execute('BEGIN IMMEDIATE')
+    try:
+        columns={row['name'] for row in db.execute('PRAGMA table_info(wendao_requests)')}
+        if 'step_key' not in columns:
+            indexes=[r['sql'] for r in db.execute("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='wendao_requests' AND sql IS NOT NULL")]
+            db.execute('''CREATE TABLE wendao_requests_steps (
+                event_key TEXT, purpose TEXT, platform TEXT, scope TEXT, owner TEXT,
+                result_json TEXT NOT NULL, created_at TEXT NOT NULL,
+                step_key TEXT NOT NULL DEFAULT '', run_key TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY(event_key,purpose,step_key))''')
+            db.execute('''INSERT INTO wendao_requests_steps
+                SELECT event_key,purpose,platform,scope,owner,result_json,created_at,'','' FROM wendao_requests''')
+            db.execute('DROP TABLE wendao_requests')
+            db.execute('ALTER TABLE wendao_requests_steps RENAME TO wendao_requests')
+            for statement in indexes:db.execute(statement)
+        db.execute('CREATE INDEX IF NOT EXISTS idx_wendao_run ON wendao_requests(run_key)')
+        db.execute('INSERT OR IGNORE INTO schema_migrations VALUES (?,?)',
+            ('wendao_steps_v1',datetime.now(timezone.utc).isoformat()))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
 def initialize(store) -> None:
     with store._connect() as connection:
         connection.executescript(

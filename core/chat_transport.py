@@ -61,6 +61,7 @@ class ChatEvent:
     draft_action: dict[str, Any] | None = None
     confirmation: dict[str, Any] | None = None
     hotel_action: dict[str, Any] | None = None
+    trip_context: dict[str, Any] | None = None
 
     @property
     def event_key(self) -> str:

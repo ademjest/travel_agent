@@ -11,7 +11,7 @@ COMMAND_SCHEMA_VERSION = 'rule-intent-v1'
 SUPPORTED_ACTIONS = {'none', 'clarify', 'read', 'create', 'update', 'delete', 'confirm', 'cancel'}
 SUPPORTED_DOMAINS = {'hotel', 'trip', 'research', 'reminder', 'booking', 'weather', 'forecast', 'route', 'traffic',
                      'places', 'walking', 'transit', 'rail', 'document', 'system', 'preferences', 'search'}
-FORBIDDEN_MODEL_KEYS = {'trip_id', 'reminder_id', 'plan_code', 'item_code', 'owner_id', 'group_id', 'platform', 'scope_id', 'principal_id', 'account_id', 'user_id'}
+FORBIDDEN_MODEL_KEYS = {'trip_id', 'task_id', 'draft_id', 'snapshot', 'expected_version', 'reminder_id', 'plan_code', 'item_code', 'owner_id', 'group_id', 'platform', 'scope_id', 'principal_id', 'account_id', 'user_id'}
 READ_OPERATION_FIELDS = {'weather':{'location'},'forecast':{'location'},'route':{'origin','destination'},
     'hotel':{'mode','targets','discovery','reference','stay','budget','source_spans','proposal_response'},
     'traffic':{'origin','destination'},'walking':{'origin','destination'},'transit':{'origin','destination','city'},
@@ -129,10 +129,41 @@ def parse_intent_ir(value: Any, source_text: str) -> IntentIR:
                     or not change['source'] or len(change['source']) > 240 or change['source'] not in source_text):
                 raise IntercityContractError('invalid_evidence', 'intercity')
             intercity_request(change['value'], {}, source_text)
+        if raw['domain']=='trip' and operation=='create':
+            if (values.keys()-{'request_text','basis','changes','question'} or values.get('request_text')!=source_text
+                    or values.get('basis','fresh') not in {'fresh','reference'}
+                    or not isinstance(values.get('changes',{}),dict)
+                    or values.get('basis','fresh')=='fresh' and values.get('changes')):
+                raise ValueError('行程创建基础或增量合同无效。')
+        if raw['domain']=='trip' and operation in {*TRIP_READ_OPERATIONS,'update_constraints'}:
+            from core.trip_binding import TARGETS
+            if values.get('target_ref','current_trip') not in TARGETS:
+                raise ValueError('行程目标引用无效。')
         if raw['domain']=='trip' and operation in TRIP_READ_OPERATIONS:
             if (values.keys()-{'target_ref','trip_index','trip_reference','requested_checks','include_trip'}
                     or 'include_trip' in values and type(values['include_trip']) is not bool):
                 raise ValueError('只读行程操作不能包含修改或保存字段。')
+        if raw['domain']=='trip' and operation=='prepare_accommodation':
+            from core.hotel_contract import accommodation_read_only
+            if (len(raw_operations)!=1 or action not in {'update','clarify'} or values.keys()-{
+                    'request_text','allow_preview','replace_only_if_budget_mismatch','changes','selection'}
+                    or values.get('request_text')!=source_text or type(values.get('allow_preview')) is not bool
+                    or type(values.get('replace_only_if_budget_mismatch',False)) is not bool):
+                raise ValueError('住宿协调须保留完整目标，仅授权住宿预览，不能混合其他操作。')
+            if values['allow_preview'] and accommodation_read_only(source_text):
+                raise ValueError('本轮明确限制只读，不能授权住宿替代预览。')
+            changes=values.get('changes',{})
+            if not isinstance(changes,dict) or changes.keys()-{'accommodation','hotel_stay','budget'}:
+                raise ValueError('住宿协调不能修改日期、景点、餐饮或交通。')
+            if 'budget' in changes and (not isinstance(changes['budget'],dict) or changes['budget'].get('scope')!='accommodation'):
+                raise ValueError('住宿协调仅可更改明确授权的住宿预算。')
+            selection=values.get('selection')
+            if selection is not None and (not isinstance(selection,dict) or selection.keys()!={'names','source'}
+                    or not isinstance(selection['source'],str) or not selection['source'] or selection['source'] not in source_text
+                    or not isinstance(selection['names'],list) or not 1<=len(selection['names'])<=3
+                    or not re.search(r'采用|保留|指定|只住|就住|选定|选择',selection['source'])
+                    or any(not isinstance(n,str) or not n or n not in selection['source'] for n in selection['names'])):
+                raise ValueError('指定门店必须有本轮用户明确原话，不从草案引用推断采用。')
         if raw['domain']=='trip' and operation in {*TRIP_READ_OPERATIONS,'update_constraints'} and 'requested_checks' in values:
             checks=values['requested_checks']
             if not isinstance(checks,list) or not 1<=len(checks)<=8:

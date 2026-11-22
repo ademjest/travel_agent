@@ -21,8 +21,10 @@ class ResearchRepository:
                 event_key TEXT, purpose TEXT, platform TEXT, scope TEXT, owner TEXT,
                 result_json TEXT NOT NULL, created_at TEXT NOT NULL,
                 PRIMARY KEY(event_key,purpose))''')
+            from infrastructure.schema import migrate_wendao_steps
+            migrate_wendao_steps(db)
 
-    def wendao_call(self, event, *, reserve=None, purpose='research', query_hash='', fingerprint=''):
+    def wendao_call(self, event, *, reserve=None, purpose='research', query_hash='', fingerprint='', step_key='',run_key=''):
         """Reserve before transport; the event key survives cancellation and restarts."""
         with self.store._connect() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -30,8 +32,8 @@ class ResearchRepository:
                 self.store.web_lifecycle.check(event.scope_id, db)
             if purpose not in {'research','hotel_quotes'}:raise ValueError('Unsupported Wendao purpose')
             table='wendao_calls' if purpose=='research' else 'wendao_requests'
-            extra='' if purpose=='research' else ' AND purpose=?'
-            parameters=(event.event_key,event.platform,event.scope_id,event.sender_id)+(() if purpose=='research' else (purpose,))
+            extra='' if purpose=='research' else ' AND purpose=? AND step_key=?'
+            parameters=(event.event_key,event.platform,event.scope_id,event.sender_id)+(() if purpose=='research' else (purpose,step_key))
             row = db.execute('SELECT result_json FROM '+table+' WHERE event_key=? AND platform=? AND scope=? AND owner=?'+extra,parameters).fetchone()
             if row:
                 result=json.loads(row['result_json'])
@@ -42,33 +44,36 @@ class ResearchRepository:
                 count=db.execute('SELECT (SELECT count(*) FROM wendao_calls WHERE event_key=?)+(SELECT count(*) FROM wendao_requests WHERE event_key=?)',
                     (event.event_key,event.event_key)).fetchone()[0]
                 if count>=2:raise ValueError('本事件问道总提交额度已用完。')
+                if run_key and db.execute('SELECT count(*) FROM wendao_requests WHERE run_key=?',(run_key,)).fetchone()[0]>=2:
+                    from infrastructure.wendao_client import WendaoQuotaExceeded
+                    raise WendaoQuotaExceeded('本轮住宿协调最多两个不同核价步骤，已保留查询结果和继续点。')
                 payload=json.dumps({**reserve,'fingerprint':fingerprint},ensure_ascii=False)
                 if purpose=='research':db.execute('INSERT INTO wendao_calls VALUES (?,?,?,?,?)',(*parameters,payload))
-                else:db.execute('INSERT INTO wendao_requests VALUES (?,?,?,?,?,?,?)',
-                    (event.event_key,purpose,event.platform,event.scope_id,event.sender_id,payload,datetime.now(timezone.utc).isoformat()))
+                else:db.execute('INSERT INTO wendao_requests VALUES (?,?,?,?,?,?,?,?,?)',
+                    (event.event_key,purpose,event.platform,event.scope_id,event.sender_id,payload,datetime.now(timezone.utc).isoformat(),step_key,run_key))
             return reserve, reserve is not None
 
-    def finish_wendao(self, event, result, *, purpose='research'):
+    def finish_wendao(self, event, result, *, purpose='research',step_key=''):
         with self.store._connect() as db:
             if event.platform=='web' and getattr(self.store,'web_lifecycle',None):self.store.web_lifecycle.check(event.scope_id,db)
             table='wendao_calls' if purpose=='research' else 'wendao_requests'
-            db.execute('UPDATE '+table+' SET result_json=? WHERE event_key=? AND platform=? AND scope=? AND owner=?'+('' if purpose=='research' else ' AND purpose=?'),
-                (json.dumps(result, ensure_ascii=False),event.event_key,event.platform,event.scope_id,event.sender_id)+(() if purpose=='research' else (purpose,)))
+            db.execute('UPDATE '+table+' SET result_json=? WHERE event_key=? AND platform=? AND scope=? AND owner=?'+('' if purpose=='research' else ' AND purpose=? AND step_key=?'),
+                (json.dumps(result, ensure_ascii=False),event.event_key,event.platform,event.scope_id,event.sender_id)+(() if purpose=='research' else (purpose,step_key)))
 
-    def hotel_extraction(self,event,*,reserve=False,result=None):
+    def hotel_extraction(self,event,*,reserve=False,result=None,step_key=''):
         """Consume at most one model attempt per saved hotel response, including unknown outcomes."""
         with self.store._connect() as db:
             db.execute('BEGIN IMMEDIATE')
             if event.platform=='web' and getattr(self.store,'web_lifecycle',None):self.store.web_lifecycle.check(event.scope_id,db)
-            row=db.execute("SELECT result_json FROM wendao_requests WHERE event_key=? AND purpose='hotel_quotes' AND platform=? AND scope=? AND owner=?",
-                (event.event_key,event.platform,event.scope_id,event.sender_id)).fetchone()
+            row=db.execute("SELECT result_json FROM wendao_requests WHERE event_key=? AND purpose='hotel_quotes' AND platform=? AND scope=? AND owner=? AND step_key=?",
+                (event.event_key,event.platform,event.scope_id,event.sender_id,step_key)).fetchone()
             if not row:raise ValueError('酒店提取需要已保存的同用途来源。')
             data=json.loads(row['result_json']);old=data.get('extraction')
             if reserve and old:return old,False
             if reserve or result is not None:
                 data['extraction']=result if result is not None else {'status':'submitted'}
-                db.execute("UPDATE wendao_requests SET result_json=? WHERE event_key=? AND purpose='hotel_quotes'",
-                    (json.dumps(data,ensure_ascii=False),event.event_key))
+                db.execute("UPDATE wendao_requests SET result_json=? WHERE event_key=? AND purpose='hotel_quotes' AND step_key=?",
+                    (json.dumps(data,ensure_ascii=False),event.event_key,step_key))
             return data.get('extraction'),reserve
 
     def hotel_quote_records(self,event,*,limit=20):
@@ -79,15 +84,24 @@ class ResearchRepository:
         return [json.loads(row['result_json']) for row in rows]
 
     def hotel_quote_for_event(self,event,source_event):
+        source_event,_,step_key=source_event.partition('#hotel-step-')
         with self.store._connect() as db:
             if event.platform=='web' and getattr(self.store,'web_lifecycle',None):self.store.web_lifecycle.check(event.scope_id,db)
-            row=db.execute("SELECT result_json FROM wendao_requests WHERE purpose='hotel_quotes' AND event_key=? AND platform=? AND scope=? AND owner=?",
-                (source_event,event.platform,event.scope_id,event.sender_id)).fetchone()
+            row=db.execute("SELECT result_json FROM wendao_requests WHERE purpose='hotel_quotes' AND event_key=? AND platform=? AND scope=? AND owner=? AND step_key=?",
+                (source_event,event.platform,event.scope_id,event.sender_id,step_key)).fetchone()
         return json.loads(row['result_json']).get('extraction',{}).get('snapshot') if row else None
 
     def hotel_quotes_for_event(self,event,source_event):
-        quote=self.hotel_quote_for_event(event,source_event)
-        if quote:return [quote]
+        if not source_event:return []
+        quotes=[]
+        if '#hotel-step-' not in source_event:
+            with self.store._connect() as db:
+                rows=db.execute("SELECT result_json FROM wendao_requests WHERE purpose='hotel_quotes' AND event_key=? AND platform=? AND scope=? AND owner=? ORDER BY created_at,step_key",
+                    (source_event,event.platform,event.scope_id,event.sender_id)).fetchall()
+            quotes=[data['extraction']['snapshot'] for row in rows if (data:=json.loads(row['result_json'])).get('extraction',{}).get('snapshot')]
+        else:
+            quote=self.hotel_quote_for_event(event,source_event)
+            return [quote] if quote else []
         # A cache receipt can refer to an older owned source, without creating a new request.
         with self.store._connect() as db:
             rows=db.execute("SELECT result_text FROM event_tool_results WHERE event_id=? AND tool_name IN ('query_hotel_prices','hotel_local_read')",(source_event,)).fetchall()
@@ -98,7 +112,10 @@ class ResearchRepository:
             if key and key not in sources:sources.append(key)
             for ref in payload.get('history_refs',[]):
                 if ref not in sources:sources.append(ref)
-        return [quote for key in sources if (quote:=self.hotel_quote_for_event(event,key))]
+        for key in sources:
+            quote=self.hotel_quote_for_event(event,key)
+            if quote and not any(q.get('source_event_id')==quote.get('source_event_id') for q in quotes):quotes.append(quote)
+        return quotes
 
     def reserve_answer_write(self, event, metadata):
         """Atomically consume one writing attempt in the existing research record."""

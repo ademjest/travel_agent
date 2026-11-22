@@ -36,7 +36,8 @@ def model_call_context(
         output_multiplier: int = 1,
         stage_id: str = '',
         profile_id: str = ''):
-    if output_multiplier not in (1,2) or (output_multiplier != 1 and purpose not in {'trip_plan','trip_plan_repair'}):
+    if output_multiplier not in (1,2) or (output_multiplier != 1 and not (
+            purpose in {'trip_plan','trip_plan_repair'} or purpose=='intent_parse' and repair_attempt==1)):
         raise ValueError('输出扩展仅适用于经过校验的长行程，最大两倍。')
     asset_metadata = {}
     if stage_id:

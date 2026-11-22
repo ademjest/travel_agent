@@ -318,11 +318,28 @@ class TripRepository:
                     (semantic['task_id'],semantic['version'],event.platform,event.storage_scope_id,event.sender_id))
                 if cursor.rowcount != 1:
                     raise TaskConflict('行程选择已变化，请重新提出调整。')
+            replaced=task_update.slots.get('trip_binding',{}).get('replaces_task')
+            if replaced:
+                row=connection.execute('''SELECT status,version FROM travel_tasks WHERE task_id=?
+                    AND platform=? AND scope_id=? AND owner_id=?''',
+                    (replaced['task_id'],event.platform,event.storage_scope_id,event.sender_id)).fetchone()
+                already_closed=bool(row and row['version']==replaced['version']+1 and row['status']=='superseded')
+                if not already_closed and (not row or row['version']!=replaced['version'] or row['status']!='collecting'):
+                    raise TaskConflict('原另建任务已变化，请重新选择来源后继续。')
+                if not already_closed:
+                    connection.execute("UPDATE travel_tasks SET status='superseded',version=version+1 WHERE task_id=?",(replaced['task_id'],))
             if supersede_request:
                 connection.execute('''UPDATE travel_tasks SET status='superseded',version=version+1
                     WHERE platform=? AND scope_id=? AND owner_id=? AND task_type IN ('transit','walking')
                     AND status='collecting' AND initial_request=?''',
                     (event.platform,event.storage_scope_id,event.sender_id,supersede_request))
+            goal=task_update.slots.get('completed_accommodation_task')
+            if goal:
+                cursor=connection.execute('''UPDATE travel_tasks SET status='completed',version=version+1
+                    WHERE task_id=? AND version=? AND status='collecting' AND task_type='hotel'
+                    AND platform=? AND scope_id=? AND owner_id=?''',
+                    (goal['task_id'],goal['version'],event.platform,event.storage_scope_id,event.sender_id))
+                if cursor.rowcount!=1:raise TaskConflict('住宿目标已变化，未提交旧预览。')
             if (task_update.task_type == 'itinerary' and task_update.status == 'collecting'
                     and task_update.slots.get('trip_id')):
                 connection.execute('''UPDATE travel_tasks SET status='superseded', version=version+1

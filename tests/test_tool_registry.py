@@ -16,13 +16,13 @@ class ToolRegistryTests(unittest.TestCase):
                                        action_resources=(('cancel_reservation_plan', 'R-20300101-001'),))
 
     def test_original_names_and_search_actions_have_one_owner_and_schema(self):
-        self.assertEqual(len(self.registry.definitions), 26)
+        self.assertEqual(len(self.registry.definitions), 27)
         self.assertEqual(set(self.registry.definitions), set(TOOLS_BY_NAME))
         for name, definition in self.registry.definitions.items():
             self.assertIs(definition.schema, TOOLS_BY_NAME[name])
             self.assertEqual(definition.canonical_action, name)
             self.assertTrue(definition.owner)
-        self.assertEqual(len(TOOLS), 26)
+        self.assertEqual(len(TOOLS), 27)
 
     def test_duplicate_ownership_is_rejected(self):
         definition = self.registry.definitions['get_current_weather']

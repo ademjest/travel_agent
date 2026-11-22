@@ -19,6 +19,10 @@ class WendaoError(ValueError):
         super().__init__('携程问道未完成（' + code + '）；本事件不会自动重新提交。')
 
 
+class WendaoQuotaExceeded(ValueError):
+    code='run_provider_limit'
+
+
 def extract_answer(body, mime):
     try:
         text = body.decode('utf-8-sig')
@@ -58,10 +62,10 @@ class WendaoClient:
             value = value.replace(secret, '[Token 已隐藏]')
         return value
 
-    def query(self, event, repository, query, *, timeout=90, purpose='research', fingerprint=''):
+    def query(self, event, repository, query, *, timeout=90, purpose='research', fingerprint='',step_key='',run_key=''):
         ensure_execution_active()
         query_hash=hashlib.sha256(query.encode()).hexdigest() if isinstance(query,str) else ''
-        identity={'purpose':purpose,'query_hash':query_hash,'fingerprint':fingerprint}
+        identity={'purpose':purpose,'query_hash':query_hash,'fingerprint':fingerprint,**({'step_key':step_key,'run_key':run_key} if step_key else {})}
         previous, _ = repository.wendao_call(event,**identity)
         if previous:
             return {**previous, 'reused': True,
@@ -80,7 +84,7 @@ class WendaoClient:
         if timeout < 5:
             raise WendaoError('insufficient_budget')
         result = {'status': 'submitted', 'submission_reservations': 1, 'physical_calls': None, 'usage': None, 'cost': None,
-                  'query_summary': self.redact(query[:400]), 'query_hash': query_hash,'fingerprint':fingerprint,'purpose':purpose,
+                  'query_summary': self.redact(query[:400]), 'query_hash': query_hash,'fingerprint':fingerprint,'purpose':purpose,'step_key':step_key,'run_key':run_key,
                   'submitted_at': datetime.now(timezone.utc).isoformat(), 'bytes': None}
         previous, reserved = repository.wendao_call(event, reserve=result,**identity)
         if not reserved:
@@ -108,7 +112,7 @@ class WendaoClient:
             result.update(status='result_unknown', error_code='network_error')
         result['elapsed_ms'] = round((time.monotonic() - started) * 1000)
         ensure_execution_active()
-        repository.finish_wendao(event, result,purpose=purpose)
+        repository.finish_wendao(event, result,purpose=purpose,**({'step_key':step_key} if step_key else {}))
         if self.diagnostics:
             self.diagnostics('tool', {'name': 'ctrip_wendao', 'purpose':purpose, **{k: result[k] for k in
                 ('status', 'physical_calls', 'elapsed_ms', 'bytes', 'usage', 'cost')}})

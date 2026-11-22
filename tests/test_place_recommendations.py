@@ -1,7 +1,7 @@
 from copy import deepcopy
 import unittest
 
-from tools.trip.planner import apply_recommendations, rank_hotels
+from tools.trip.planner import apply_recommendations, rank_hotels,assess_hotels
 from tools.trip.constraints import apply_constraints
 
 
@@ -106,7 +106,8 @@ class RecommendationTests(unittest.TestCase):
             'budgets': {'accommodation': {'value': '200-300', 'unit_text': '人民币每间每晚'}}}
         places=deepcopy(PLACES)
         places['h1']['price_unit']='人民币每间每晚'  # This fixture explicitly supplies a room-night reference, unlike Amap cost.
-        ranked = rank_hotels(spec, deepcopy(PLAN), places)
+        self.assertEqual(rank_hotels(spec,deepcopy(PLAN),places),[],'地图参考价尚不满足指定住宿条件的推荐准入')
+        ranked = [r for r in assess_hotels(spec,deepcopy(PLAN),places) if r['status']!='conflict']
         self.assertEqual(ranked[0]['poi_id'], 'h1')
         self.assertEqual(ranked[0]['status'], 'partial')
         self.assertTrue(any('指定日期房价待核验' in issue for issue in ranked[0]['issues']))

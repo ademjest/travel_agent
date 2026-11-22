@@ -75,7 +75,7 @@ class ReferenceEvidenceTests(unittest.TestCase):
     def test_legacy_snapshot_shows_unchanged_source_without_fabricated_structured_price(self):
         snapshot=legacy_snapshot();before=deepcopy(snapshot)
         text=quote_text({'destination':'武汉','hotel_stay':DATA['stay']},snapshot)
-        self.assertNotIn('210 RMB',text);self.assertIn('查看原文',text)
+        self.assertIn('210 RMB',text);self.assertIn('仅供参考',text)
         self.assertNotIn('本批没有可验证的结构化报价；',text)
         self.assertEqual(snapshot,before);self.assertNotIn('reference_clues',snapshot)
 
@@ -94,7 +94,7 @@ class ReferenceProjectionStoreTests(unittest.TestCase):
     setUp=fixtures.QuoteLookupTests.setUp
 
     def test_future_extraction_saves_one_fact_output_and_projects_one_layer(self):
-        # Keep this historical fixture future-dated relative to its test clock.
+        # This historical fixture must remain future-dated relative to its test clock.
         self.service.clock=lambda:datetime.fromisoformat(DATA['stay']['check_in']).replace(tzinfo=timezone.utc)-timedelta(days=1)
         self.transport.return_value=(RAW.encode(),ENDPOINT,'text/markdown')
         self.service.client=FakeClient([model_response(DATA['constructed_extraction'])])

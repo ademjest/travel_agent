@@ -53,16 +53,34 @@ class AutomaticHotelQuoteTests(unittest.TestCase):
         self.preview(deepcopy(current),current=current,event=replace(self.event,event_id='unrelated'))
         self.assertEqual(self.transport.call_count,1)
 
-    def test_missing_stay_asks_once_and_does_not_claim_a_supplier_result(self):
+    def test_missing_stay_automatically_shows_reference_without_invented_conditions(self):
         current=trip();current['spec'].pop('hotel_stay')
+        raw='## 云泽酒店(湖畔店)\n- 每晚价格：约280元起，具体房型未知'
+        self.transport.return_value=(raw.encode(),fixtures.ENDPOINT,'text/markdown')
         result=self.preview(deepcopy(current),current=current,requested=True)
-        self.transport.assert_not_called()
+        self.assertEqual(self.transport.call_count,1)
+        self.assertEqual(len(self.client.completions.requests),0)
         text=quote_text(result['spec'],result['plan']['hotel_quotes'])
-        self.assertIn('尚未查询',text)
-        self.assertEqual(text.count('请一并补充'),1)
-        self.assertIn('房间数',text)
-        self.assertNotIn('查询时间',text)
-        self.assertNotIn('本批未找到',text)
+        self.assertIn('约280元起',text);self.assertIn('仅供参考',text)
+        self.assertNotIn('请一并补充',text)
+        self.assertNotIn('hotel_stay',result['spec'])
+        self.assertEqual(result['plan']['hotel_quotes']['stay'],{})
+        self.assertEqual(result['plan']['hotel_quotes']['offers'],[])
+        self.assertFalse(self.store.trips.list_for_owner(self.event))
+
+    def test_reference_cache_never_satisfies_a_complete_price_query(self):
+        current=trip();current['spec'].pop('hotel_stay')
+        self.preview(current)
+        self.assertEqual(len(self.client.completions.requests),0)
+        fixtures.lookup_hotel_quotes(self.service,replace(self.event,event_id='exact'),trip())
+        self.assertEqual(self.transport.call_count,2)
+        self.assertEqual(len(self.client.completions.requests),1)
+
+    def test_changed_itinerary_calendar_does_not_query_old_stay_dates(self):
+        current=trip();current['spec']['hotel_stay']['itinerary_calendar']={'start_date':'2029-01-01'}
+        result=fixtures.lookup_hotel_quotes(self.service,self.event,current)
+        self.transport.assert_not_called()
+        self.assertIn('行程日期或天数已变更',result['note'])
 
     def test_disabled_and_source_restricted_automatic_lookup_make_no_call(self):
         current=trip();self.service.enabled=False

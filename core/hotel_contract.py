@@ -13,8 +13,11 @@ STAY_FIELDS = {'check_in','check_out','rooms','adults','children_ages','room_req
 LABELS = {'targets':'具体酒店及城市，或希望寻找的城市和区域','check_in':'入住日期',
           'check_out':'退房日期','rooms':'房间数','adults':'成人数','children_ages':'儿童年龄（无儿童请明确）'}
 NEW_RUN_COMMAND='开始新一轮酒店核价'
-RUN_LIMIT_CODES={'run_call_limit','run_token_limit','event_call_limit','event_token_limit'}
+RUN_LIMIT_CODES={'run_call_limit','run_token_limit','event_call_limit','event_token_limit','run_provider_limit'}
 NIGHT_COUNT='('+NUMBER+r')(?:个)?(?:晚上?|夜)'
+
+def accommodation_read_only(text):
+    return bool(re.search(r'不(?:要)?(?:替换|换店)|只(?:查|解释|读|看)',text))
 
 def obj(properties):
     return {'type':'object','properties':properties,'additionalProperties':False}
@@ -64,6 +67,14 @@ class HotelEvidenceError(ValueError):
         super().__init__('；'.join(dict.fromkeys(row['reason'] for row in issues)))
 
 
+def adult_counts(text):
+    counts={number(m[1]) for m in re.finditer('('+NUMBER+r')(?:位|名|个)?(?:成人|成年人)',text)
+            if not re.search(r'(?:不是|并非|不含|不带|不要)\s*$',text[:m.start()])}
+    if re.search(r'无儿童|没有儿童|不带(?:儿童|孩子)|仅(?:成人|成年人)|(?:都是|均为)(?:成人|成年人)',text):
+        counts.update(number(n) for n in re.findall('('+NUMBER+r')(?:个?人|位)',text))
+    return counts
+
+
 def evidenced_request(changes, text, *, previous=None, reference_time=None, selection=None):
     """Accept current explicit fields or fields already bound to an owned task/result."""
     changes=validate_request(changes);previous=previous or {}
@@ -85,8 +96,7 @@ def evidenced_request(changes, text, *, previous=None, reference_time=None, sele
         elif path.startswith('stay.') and field in {'rooms','adults'}:
             unit=r'间(?:房)?' if field=='rooms' else r'(?:位|名|个)?(?:成人|成年人)'
             proved=any(number(n)==value for n in re.findall('('+NUMBER+')'+unit,text))
-            if field=='adults' and no_children:
-                proved=proved or any(number(n)==value for n in re.findall('('+NUMBER+r')(?:个?人|位)',text))
+            if field=='adults':proved=value in adult_counts(text)
             if not proved:reason=LABELS[field]+'尚不能对应本轮原话，请确认。'
         elif path=='stay.children_ages':
             if value!=[] or not no_children:reason='请明确是否有儿童及其年龄。'
@@ -163,6 +173,7 @@ def missing_request(request, now):
 
 
 HOTEL_STATE_FIELDS={'request':'hotel_request','resolved_targets':'hotel_targets','target_candidates':'hotel_candidates',
+    'trip_reference':'hotel_trip_reference',
     'request_items':'hotel_request_items',
     'date_proposal':'hotel_date_proposal','remaining_targets':'hotel_remaining_targets','field_provenance':'field_provenance',
     'expired':'hotel_expired','target_bindings':'hotel_target_bindings','candidate_set_id':'candidate_set_id',
@@ -184,6 +195,7 @@ def merge_hotel_state(previous,payload):
 
 def hotel_task_views(task):
     if task.task_type=='hotel':return [task]
+    if task.task_type=='itinerary' and task.slots.get('accommodation_goal'):return [replace(task,task_type='hotel')]
     if task.task_type!='read_batch':return []
     result=[]
     for i,row in enumerate(task.slots.get('operations',[])):
@@ -195,6 +207,12 @@ def hotel_task_views(task):
             **{k:task.slots[k] for k in ('budget_run_key','budget_run_parent','budget_run_started_by') if k in task.slots},
             'hotel_query_index':i,'hotel_batch_continuation':True,'_read_batch':{'index':i,**task.slots}}))
     return result
+
+
+def hotel_task_conflicts(task,tasks):
+    """The immutable source draft is part of one goal, not another pending question."""
+    source=task.slots.get('accommodation_goal',{}).get('binding',{}).get('draft_id')
+    return any(t.status=='collecting' and t.task_id not in {task.task_id,source} for t in tasks)
 
 
 def candidate_transition(previous,candidates,request,event_key):

@@ -41,12 +41,19 @@ DOCUMENTS = {'.txt', '.md', '.docx', '.xlsx'}
 IMAGES = {'.jpg': 'JPEG', '.jpeg': 'JPEG', '.png': 'PNG', '.webp': 'WEBP'}
 
 
+class TripContinuationInput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    task_id: str = Field(min_length=1, max_length=80)
+    version: int = Field(ge=1)
+
+
 class MessageInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     content: str = Field(default='', max_length=8000)
     upload_ids: list[str] = Field(default_factory=list, max_length=8)
     client_request_id: str = Field(min_length=1, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
     quoted_message_id: str | None = Field(default=None,max_length=256,min_length=1)
+    trip_continuation: TripContinuationInput | Literal[False] | None = None
 
 
 class TitleInput(BaseModel):
@@ -389,6 +396,10 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
         worker.wakeup.set()
         return result
 
+    @conversations_api.post('/api/conversations/{identity}/trip-operations/{task_id}/end')
+    def end_trip_operation(identity:str,task_id:str,body:ConfirmationInput):
+        return repository.end_trip_operation(identity,task_id,body.version)
+
     @conversations_api.post('/api/conversations/{identity}/messages', status_code=202)
     async def send(identity: str, body: MessageInput):
         await asyncio.to_thread(repository.conversation, identity)
@@ -401,7 +412,8 @@ def create_web_app(settings=None, travel_settings=None, *, start_workers=True, s
             raise HTTPException(422, '图片与文档请分成两条消息发送，以便分别识别和导入。')
         try:
             result = await asyncio.to_thread(repository.accept, identity, body.content.strip(), body.upload_ids, body.client_request_id,
-                                             priority=request_priority(body.content, bool(body.upload_ids)),quoted_message_id=body.quoted_message_id)
+                                             priority=request_priority(body.content, bool(body.upload_ids)),quoted_message_id=body.quoted_message_id,
+                                             trip_continuation=body.trip_continuation.model_dump() if isinstance(body.trip_continuation,TripContinuationInput) else body.trip_continuation)
         except WebConflict:
             raise
         except WebReferenceError as error:

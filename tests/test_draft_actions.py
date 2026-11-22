@@ -249,6 +249,10 @@ class DraftActionTests(WorkflowHarness,unittest.TestCase):
             db.execute('UPDATE trips SET version=2,spec_json=?',(json.dumps(spec),))
         text='住宿预算最终改为600元'
         reply=self.patch({'budget':{'scope':'accommodation','value':'600','source':text}},text,'resolve-budget')
+        self.assertIn('变化',reply)
+        self.assertEqual(self.candidate()['spec']['budgets']['accommodation']['value'],'300')
+        text=f"选择行程 {saved['trip_id']}，住宿预算最终改为600元"
+        reply=self.patch({'budget':{'scope':'accommodation','value':'600','source':text}},text,'resolve-selected-budget')
         self.assertIn('预览',reply);self.assertEqual(self.candidate()['spec']['budgets']['accommodation']['value'],'600')
         self.assertEqual(self.web.store.trips.get(self.web.event(''),saved['trip_id'])['spec']['budgets']['accommodation']['value'],'500')
 
@@ -304,6 +308,8 @@ class PriceWorkflowTests(WorkflowHarness,unittest.TestCase):
     def test_J04_ambiguous_target_keeps_budget_until_selection(self):
         self.create();self.models.completions.responses.extend([model_response({**SPEC,'start_date_text':'2030年10月1日'}),model_response(plan_value())])
         self.create('second');before=self.web.store.trips.current_drafts(self.web.event(''))
+        focus=self.context()['current_operation']
+        self.web.repo.end_trip_operation(self.web.identity,focus['task_id'],focus['version'])
         reply=self.budget();self.assertIn('哪一份',reply)
         after=self.web.store.trips.current_drafts(self.web.event(''));self.assertEqual(before,after)
         with self.web.store._connect() as db:

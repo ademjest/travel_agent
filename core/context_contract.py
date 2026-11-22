@@ -27,6 +27,8 @@ def hotel_request_projection(request):
 def hotel_state_projection(slots):
     from core.hotel_contract import date_proposal
     return {'hotel_request':hotel_request_projection(slots.get('hotel_request',{})),
+        **({'accommodation_goal':{k:v for k,v in slots['accommodation_goal'].items() if k in
+            {'initial_request','allow_preview','replace_only_if_budget_mismatch','selection','constraints','attempted'}}} if slots.get('accommodation_goal') else {}),
         'candidates':[{k:p.get(k) for k in ('name','address','cityname')} for p in slots.get('hotel_candidates',[])],
         'selection_status':slots.get('selection_status'),
         'date_proposal':{k:v for k,v in date_proposal(slots.get('hotel_date_proposal',{})).items() if k in {'check_in','check_out','status','version','presented','source_kind'}},
@@ -92,10 +94,16 @@ def reference_projection(reference, text_limit=4000):
     return value
 
 
+class IncompleteModelResponse(ValueError):
+    def __init__(self, reason):
+        self.code='output_truncated' if reason=='length' else 'content_filter'
+        super().__init__('模型输出达到长度上限，不能执行不完整结果。' if reason=='length' else '模型输出被过滤，本次没有执行。')
+
+
 def response_text(response):
     choice = response.choices[0]
     if getattr(choice, 'finish_reason', None) in {'length', 'content_filter'}:
-        raise ValueError('模型输出被截断或过滤，不能作为完整业务结果。')
+        raise IncompleteModelResponse(choice.finish_reason)
     return choice.message.content or '{}'
 
 

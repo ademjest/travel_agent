@@ -89,7 +89,7 @@ class RuntimeFactoryTests(unittest.TestCase):
             self.assertIs(runtime.tool_router.travel_service, runtime.travel_service)
             self.assertIs(runtime.travel_service.tool_executor.__self__, runtime.tool_router)
             self.assertIs(runtime.tool_registry, runtime.application.tool_router.registry)
-            self.assertEqual(len(runtime.tool_registry.definitions), 26)
+            self.assertEqual(len(runtime.tool_registry.definitions), 27)
             self.assertIs(runtime.tool_registry.definitions['query_official_website'].handler.__self__,
                           runtime.application.research_service.search_tool)
             self.assertIs(runtime.reservation_service.store, store)

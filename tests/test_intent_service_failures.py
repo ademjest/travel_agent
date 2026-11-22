@@ -66,7 +66,7 @@ class ModelFailureTests(unittest.TestCase):
             SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content='invalid JSON'))])))))
         with patch.dict(os.environ,{'LLM_INTENT_MODEL_ID':''}):
             with self.assertRaises(IntentCompilationError) as caught:IntentCompiler(client,'same').try_compile(QUESTION)
-        self.assertEqual(caught.exception.code,'invalid_response')
+        self.assertEqual(caught.exception.code,'invalid_json')
         client.chat.completions.create.side_effect=ExecutionRevoked('cancelled')
         with self.assertRaises(ExecutionRevoked):IntentCompiler(client,'same').try_compile(QUESTION)
 

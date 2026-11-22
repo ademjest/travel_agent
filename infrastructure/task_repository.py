@@ -206,6 +206,12 @@ class TaskRepository:
         timestamp = now.isoformat()
         expiry = (now + TASK_TTL).isoformat()
         task_id = update.task_id or 'T-' + uuid.uuid4().hex[:16]
+        binding=update.slots.get('trip_binding')
+        if binding and update.task_type=='itinerary':
+            binding={**binding,'target':{'trip_id':update.slots['trip_id'],
+                'version':update.slots.get('expected_trip_version',0),'draft_id':task_id,
+                'draft_version':update.expected_version+1 if update.task_id else 1}}
+            update=replace(update,slots={**update.slots,'trip_binding':binding})
         if update.task_id:
             cursor = connection.execute("""
                 UPDATE travel_tasks SET task_type=?, status=?, slots_json=?, missing_slots_json=?,
@@ -233,6 +239,10 @@ class TaskRepository:
             version = 1
         connection.execute('INSERT INTO task_event_results VALUES (?, ?, ?)',
                            (event.event_key, task_id, version))
+        if binding or update.task_type=='itinerary':
+            focus={'task_id':task_id,'version':version,'status':update.status}
+            connection.execute('INSERT OR IGNORE INTO event_tool_results VALUES (?,?,?,?,?,?)',
+                ('trip-operation:'+event.event_key,event.event_key,'trip_operation','{}',json.dumps(focus),timestamp))
         return task_id
 
     def prepare_result(self, event, claim, update, reply):
